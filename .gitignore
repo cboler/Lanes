@@ -160,4 +160,6 @@ docs/_build/
 # Backup files
 *.bak
 *.backup
+
+# Generated reports (test, coverage, performance)
 reports/
