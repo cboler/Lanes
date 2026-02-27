@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Lanes.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="4.2.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+    Reference only the pure-C# logic files from the main project.
+    Godot Node-derived classes are excluded because they require the
+    Godot runtime and would cause AccessViolationException under dotnet test.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\combat\units\UnitRole.cs" />
+    <Compile Include="..\..\combat\units\DamageType.cs" />
+    <Compile Include="..\..\combat\units\AbilityTarget.cs" />
+    <Compile Include="..\..\combat\units\AbilityDefinition.cs" />
+    <Compile Include="..\..\combat\units\UnitBaseStats.cs" />
+    <Compile Include="..\..\combat\units\UnitClassDefinition.cs" />
+    <Compile Include="..\..\combat\units\UnitInstance.cs" />
+    <Compile Include="..\..\combat\ActionGauge.cs" />
+    <Compile Include="..\..\combat\DamageCalculator.cs" />
+    <Compile Include="..\..\combat\TurnManager.cs" />
+    <Compile Include="..\..\data\classes\FighterClassDef.cs" />
+    <Compile Include="..\..\data\classes\ClericClassDef.cs" />
+    <Compile Include="..\..\data\classes\ArcherClassDef.cs" />
+    <Compile Include="..\..\data\UnitClassRegistry.cs" />
+  </ItemGroup>
+</Project>
