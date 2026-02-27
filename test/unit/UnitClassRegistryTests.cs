@@ -12,7 +12,7 @@ public sealed class UnitClassRegistryTests
     [Test]
     public void Default_ContainsThreeClasses()
     {
-        Assert.That(UnitClassRegistry.Default.Count, Is.EqualTo(3));
+        Assert.That(UnitClassRegistry.Default.Count, Is.EqualTo(6));
     }
 
     [Test]

@@ -19,6 +19,11 @@ namespace Lanes.Combat.Units;
 ///     When <c>true</c> the ability can reach targets in adjacent lanes
 ///     without the user switching lanes first.
 /// </param>
+/// <param name="FriendlyFire">
+///     When <c>true</c> the ability can hit allies caught in the area.
+///     Core to Grand Kingdom's positioning strategy where careless AoE
+///     can damage your own party.
+/// </param>
 public sealed record AbilityDefinition(
     string Id,
     string Name,
@@ -27,4 +32,5 @@ public sealed record AbilityDefinition(
     DamageType DamageType,
     float PowerMultiplier,
     AbilityTarget Target,
-    bool CrossLane = false);
+    bool CrossLane = false,
+    bool FriendlyFire = false);
