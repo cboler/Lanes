@@ -36,9 +36,17 @@
     <Compile Include="..\..\combat\ActionGauge.cs" />
     <Compile Include="..\..\combat\DamageCalculator.cs" />
     <Compile Include="..\..\combat\TurnManager.cs" />
+    <Compile Include="..\..\combat\StatusEffect.cs" />
+    <Compile Include="..\..\combat\StatusEffectInstance.cs" />
+    <Compile Include="..\..\combat\LaneSwitcher.cs" />
+    <Compile Include="..\..\combat\CombatResult.cs" />
+    <Compile Include="..\..\combat\CombatExecutor.cs" />
     <Compile Include="..\..\data\classes\FighterClassDef.cs" />
     <Compile Include="..\..\data\classes\ClericClassDef.cs" />
     <Compile Include="..\..\data\classes\ArcherClassDef.cs" />
+    <Compile Include="..\..\data\classes\WitchClassDef.cs" />
+    <Compile Include="..\..\data\classes\LancerClassDef.cs" />
+    <Compile Include="..\..\data\classes\GunnerClassDef.cs" />
     <Compile Include="..\..\data\UnitClassRegistry.cs" />
   </ItemGroup>
 </Project>

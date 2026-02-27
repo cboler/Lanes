@@ -35,6 +35,9 @@ public sealed class UnitClassRegistry
         reg.Register(FighterClassDef.Create());
         reg.Register(ClericClassDef.Create());
         reg.Register(ArcherClassDef.Create());
+        reg.Register(WitchClassDef.Create());
+        reg.Register(LancerClassDef.Create());
+        reg.Register(GunnerClassDef.Create());
         return reg;
     }
 

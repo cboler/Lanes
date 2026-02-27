@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Lanes.Combat.Units;
 
@@ -42,6 +44,78 @@ public sealed class UnitInstance
     /// <summary>Action gauge that depletes as the unit moves and uses abilities.</summary>
     public ActionGauge ActionGauge { get; }
 
+    // ── Status effects ───────────────────────────────────────────────────
+
+    private readonly List<StatusEffectInstance> _statusEffects = new();
+
+    /// <summary>Active status effects on this unit.</summary>
+    public IReadOnlyList<StatusEffectInstance> StatusEffects => _statusEffects.AsReadOnly();
+
+    /// <summary>Returns <c>true</c> if the unit has at least one effect of <paramref name="type"/>.</summary>
+    public bool HasEffect(StatusEffectType type) =>
+        _statusEffects.Any(e => e.Type == type && !e.IsExpired);
+
+    /// <summary>Convenience: <c>true</c> when the unit is stunned and should skip its turn.</summary>
+    public bool IsStunned => HasEffect(StatusEffectType.Stun);
+
+    /// <summary>
+    /// Sum of all active stat modifiers for the given <paramref name="type"/>.
+    /// Returns a signed value (positive for buffs, negative for debuffs).
+    /// </summary>
+    public int GetStatModifier(StatusEffectType type) =>
+        type switch
+        {
+            StatusEffectType.AttackUp    =>  _statusEffects.Where(e => e.Type == type && !e.IsExpired).Sum(e => e.Potency),
+            StatusEffectType.AttackDown  => -_statusEffects.Where(e => e.Type == type && !e.IsExpired).Sum(e => e.Potency),
+            StatusEffectType.DefenseUp   =>  _statusEffects.Where(e => e.Type == type && !e.IsExpired).Sum(e => e.Potency),
+            StatusEffectType.DefenseDown => -_statusEffects.Where(e => e.Type == type && !e.IsExpired).Sum(e => e.Potency),
+            _ => 0
+        };
+
+    /// <summary>Effective Attack stat including active buffs/debuffs.</summary>
+    public int EffectiveAttack => Math.Max(0,
+        Stats.Attack
+        + GetStatModifier(StatusEffectType.AttackUp)
+        + GetStatModifier(StatusEffectType.AttackDown));
+
+    /// <summary>Effective Defense stat including active buffs/debuffs.</summary>
+    public int EffectiveDefense => Math.Max(0,
+        Stats.Defense
+        + GetStatModifier(StatusEffectType.DefenseUp)
+        + GetStatModifier(StatusEffectType.DefenseDown));
+
+    /// <summary>Applies a new status effect to this unit.</summary>
+    public void ApplyStatusEffect(StatusEffectInstance effect)
+    {
+        if (effect is null) throw new ArgumentNullException(nameof(effect));
+        _statusEffects.Add(effect);
+    }
+
+    /// <summary>
+    /// Ticks all status effects (decrement duration), applies poison damage,
+    /// and removes expired effects.  Call at end of the unit's turn.
+    /// </summary>
+    /// <returns>Total poison damage dealt this tick.</returns>
+    public int TickStatusEffects()
+    {
+        int poisonDamage = 0;
+        foreach (var effect in _statusEffects)
+        {
+            if (effect.Type == StatusEffectType.Poison && !effect.IsExpired)
+                poisonDamage += effect.Potency;
+            effect.Tick();
+        }
+
+        if (poisonDamage > 0)
+            TakeDamage(poisonDamage);
+
+        _statusEffects.RemoveAll(e => e.IsExpired);
+        return poisonDamage;
+    }
+
+    /// <summary>Removes all status effects.</summary>
+    public void ClearStatusEffects() => _statusEffects.Clear();
+
     /// <summary>Default action-gauge max when no override is supplied.</summary>
     private const float DefaultGaugeMax = 100f;
 
@@ -84,12 +158,13 @@ public sealed class UnitInstance
     }
 
     /// <summary>
-    /// Resets HP to <see cref="MaxHp"/> and refreshes the action gauge.
-    /// Use when starting a new battle.
+    /// Resets HP to <see cref="MaxHp"/>, refreshes the action gauge,
+    /// and clears all status effects.  Use when starting a new battle.
     /// </summary>
     public void ResetForBattle()
     {
         CurrentHp = MaxHp;
         ActionGauge.Reset();
+        ClearStatusEffects();
     }
 }
