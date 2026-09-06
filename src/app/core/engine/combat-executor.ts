@@ -30,8 +30,20 @@ export class CombatExecutor {
     const allies = living.filter((u) => u.team === attacker.team);
 
     switch (ability.target) {
-      case 'single-enemy':
-        return enemies.filter((e) => e.lane === attacker.lane);
+      case 'single-enemy': {
+        const laneEnemies = enemies.filter((e) => e.lane === attacker.lane);
+        if (laneEnemies.length === 0) return [];
+        if (ability.crossLane) {
+          return laneEnemies;
+        }
+        // Direct single-target attack in same lane: closest enemy shields backline
+        const frontmost = laneEnemies.reduce((closest, current) => {
+          const distClosest = Math.abs(closest.positionX - attacker.positionX);
+          const distCurrent = Math.abs(current.positionX - attacker.positionX);
+          return distCurrent < distClosest ? current : closest;
+        }, laneEnemies[0]);
+        return [frontmost];
+      }
       case 'single-ally':
         return allies.filter((a) => a.lane === attacker.lane);
       case 'same-lane-enemies':

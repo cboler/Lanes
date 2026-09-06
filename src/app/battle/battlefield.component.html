@@ -1,5 +1,5 @@
 <div class="battlefield-container" role="region" aria-label="3-Lane Tactical Battlefield">
-  <!-- Top Bar: Turn Initiative Queue & Actions -->
+  <!-- Top Bar: Turn Initiative Queue, Auto-Battle & Tactical Actions -->
   <header class="top-tactical-bar" role="toolbar" aria-label="Combat Status">
     <div class="round-badge">
       <span class="round-label">ROUND</span>
@@ -8,7 +8,7 @@
 
     <!-- Initiative Order Strip -->
     <div class="initiative-strip" aria-label="Turn Order Queue">
-      <span class="initiative-label">INITIATIVE:</span>
+      <span class="initiative-label">INITIATIVE</span>
       <div class="turn-tokens">
         @for (unit of battle.turnOrder(); track unit.id) {
           <div
@@ -25,8 +25,33 @@
       </div>
     </div>
 
-    <!-- Quick Utilities -->
+    <!-- Auto-Battle & Tactical Controls -->
     <div class="top-actions">
+      <!-- Auto-Battle Toggle -->
+      <button
+        type="button"
+        class="tactical-btn"
+        [class.active-gold]="battle.isAutoBattle()"
+        id="auto-battle-btn"
+        (click)="battle.toggleAutoBattle()"
+        [attr.aria-pressed]="battle.isAutoBattle()"
+        title="Toggle autonomous combat resolution"
+      >
+        <span class="btn-icon">⚡</span>
+        <span>Auto: {{ battle.isAutoBattle() ? 'ON' : 'OFF' }}</span>
+      </button>
+
+      <!-- Combat Speed Toggle -->
+      <button
+        type="button"
+        class="tactical-btn secondary speed-btn"
+        id="speed-toggle-btn"
+        (click)="battle.toggleAutoSpeed()"
+        title="Toggle combat simulation speed"
+      >
+        <span>{{ battle.autoBattleSpeed() }}</span>
+      </button>
+
       <button
         type="button"
         class="tactical-btn secondary"
@@ -53,7 +78,7 @@
         id="squad-builder-link"
         aria-label="Manage Squad and Inspect Classes"
       >
-        🛡️ Squad Builder
+        🛡️ War Room
       </a>
     </div>
   </header>
@@ -62,11 +87,17 @@
   <div class="arena-viewport" role="region" aria-label="Combat Arena Viewport">
     <div class="arena-backdrop"></div>
 
-    <!-- AI Acting Notice -->
-    @if (battle.isAiThinking()) {
+    <!-- AI Thinking / Auto-Battle Running Banner -->
+    @if (battle.isAiThinking() || (battle.isAutoBattle() && battle.battleStatus() === 'active')) {
       <div class="ai-banner" role="status" aria-live="polite">
         <span class="ai-spinner"></span>
-        <span>Enemy tactical AI is calculating maneuver...</span>
+        <span>
+          {{
+            battle.isAutoBattle()
+              ? 'Tactical Auto-Battle in progress... commanders evaluating lines.'
+              : 'Enemy tactical vanguard is calculating maneuvers...'
+          }}
+        </span>
       </div>
     }
 
@@ -79,11 +110,15 @@
           [attr.aria-label]="'Lane ' + (laneIndex + 1)"
         >
           <div class="lane-header">
-            <span class="lane-tag">LANE {{ laneIndex + 1 }}</span>
+            <span class="lane-tag">
+              {{ laneIndex === 0 ? 'LANE I' : laneIndex === 1 ? 'LANE II' : 'LANE III' }}
+            </span>
             <div class="lane-guides">
-              <span class="guide-tick player-side">PLAYER FRONT</span>
-              <div class="lane-line"></div>
-              <span class="guide-tick enemy-side">ENEMY FRONT</span>
+              <span class="guide-tick player-side">VANGUARD</span>
+              <div class="lane-clash-divider">
+                <span class="divider-gem"></span>
+              </div>
+              <span class="guide-tick enemy-side">VANGUARD</span>
             </div>
           </div>
 
@@ -103,7 +138,16 @@
                 (keydown.space)="onUnitClick(unit)"
                 tabindex="0"
                 role="button"
-                [attr.aria-label]="unit.name + ', ' + unit.currentHp + ' of ' + unit.maxHp + ' HP'"
+                [attr.aria-label]="
+                  unit.name +
+                  ', ' +
+                  unit.classDef.name +
+                  ', ' +
+                  unit.currentHp +
+                  ' of ' +
+                  unit.maxHp +
+                  ' HP'
+                "
               >
                 <!-- Floating Damage/Heal Numbers -->
                 <div class="floating-text-container" aria-hidden="true">
@@ -118,16 +162,16 @@
                   }
                 </div>
 
-                <!-- Unit Token Frame -->
-                <div class="unit-token-frame">
-                  <img [src]="unit.classDef.portraitUrl" [alt]="unit.name" class="unit-avatar" />
-                  @if (unit.id === battle.activeUnitId()) {
-                    <div class="active-pulse-ring"></div>
-                  }
-                  @if (isTargetable(unit)) {
-                    <div class="target-crosshair" title="Click to target with ability">🎯</div>
-                  }
-                </div>
+                <!-- 16-Bit Chibi Character Sprite -->
+                <app-unit-sprite
+                  [classId]="unit.classDef.id"
+                  [team]="unit.team"
+                  [isActing]="unit.id === battle.activeUnitId()"
+                  [isAttacking]="battle.attackingUnitId() === unit.id"
+                  [isHit]="battle.hitUnitId() === unit.id"
+                  [isDefeated]="!unit.isAlive"
+                  [isTargetable]="isTargetable(unit)"
+                ></app-unit-sprite>
 
                 <!-- Status & Vitals Bar -->
                 <div class="unit-vitals">
@@ -157,9 +201,11 @@
   <footer class="bottom-command-deck" role="region" aria-label="Command Deck">
     @if (battle.activeUnit(); as active) {
       <div class="active-unit-panel" [class.enemy-turn]="active.team === 'enemy'">
-        <!-- Dossier Summary -->
+        <!-- Dossier Summary with Original Painted Portrait -->
         <div class="dossier-card">
-          <img [src]="active.classDef.portraitUrl" [alt]="active.name" class="dossier-avatar" />
+          <div class="dossier-frame">
+            <img [src]="active.classDef.portraitUrl" [alt]="active.name" class="dossier-avatar" />
+          </div>
           <div class="dossier-meta">
             <div class="dossier-title-row">
               <span class="dossier-name">{{ active.name }}</span>
@@ -189,16 +235,16 @@
           <div class="action-gauge-box">
             <div class="gauge-label-row">
               <span class="gauge-title">ACTION GAUGE (AP)</span>
-              <span class="gauge-val"
-                >{{ active.actionGauge.current.toFixed(0) }} / {{ active.actionGauge.max }} AP</span
-              >
+              <span class="gauge-val">
+                {{ active.actionGauge.current.toFixed(0) }} / {{ active.actionGauge.max }} AP
+              </span>
             </div>
             <div class="gauge-track">
               <div class="gauge-fill" [style.width]="active.actionGauge.fraction * 100 + '%'"></div>
             </div>
           </div>
 
-          @if (active.team === 'player') {
+          @if (active.team === 'player' && !battle.isAutoBattle()) {
             <div class="tactical-movement-controls" aria-label="Movement Controls">
               <!-- Lane Shift Controls -->
               <div class="lane-shift-btns">
@@ -234,7 +280,7 @@
                   (click)="battle.moveActiveUnit(-0.04)"
                   title="Step Left (A / Left Arrow) [2 AP]"
                 >
-                  ◀ Left
+                  ◀ Retreat
                 </button>
                 <button
                   type="button"
@@ -244,7 +290,7 @@
                   (click)="battle.moveActiveUnit(0.04)"
                   title="Step Right (D / Right Arrow) [2 AP]"
                 >
-                  Right ▶
+                  Advance ▶
                 </button>
               </div>
             </div>
@@ -252,7 +298,7 @@
         </div>
 
         <!-- Ability Cards Deck -->
-        @if (active.team === 'player') {
+        @if (active.team === 'player' && !battle.isAutoBattle()) {
           <div class="abilities-deck" aria-label="Available Abilities">
             @for (ability of active.classDef.abilities; track ability.id; let idx = $index) {
               <button
@@ -295,9 +341,14 @@
               <span>End Turn (E)</span>
             </button>
           </div>
+        } @else if (battle.isAutoBattle()) {
+          <div class="ai-turn-indicator auto-indicator">
+            <span class="pulse-dot gold"></span>
+            <span>Auto-Battle resolving unit actions autonomously...</span>
+          </div>
         } @else {
           <div class="ai-turn-indicator">
-            <span class="pulse-dot"></span>
+            <span class="pulse-dot red"></span>
             <span>Enemy unit is executing tactical maneuvers...</span>
           </div>
         }
@@ -328,13 +379,13 @@
           {{ battle.battleStatus() === 'victory' ? '🏆' : '💀' }}
         </div>
         <h2 class="result-heading">
-          {{ battle.battleStatus() === 'victory' ? 'BATTLE VICTORY!' : 'SQUAD DEFEATED' }}
+          {{ battle.battleStatus() === 'victory' ? 'VICTORY ACHIEVED' : 'VANGUARD DEFEATED' }}
         </h2>
         <p class="result-summary">
           {{
             battle.battleStatus() === 'victory'
-              ? 'The vanguard has broken the enemy lines! Tactical superiority achieved.'
-              : 'All frontline heroes have fallen. Regroup and rethink your formation.'
+              ? 'The enemy battalion has collapsed before your vanguard! Tactical supremacy proven.'
+              : 'All frontline heroes have fallen in battle. Reorganize your squad in the War Room.'
           }}
         </p>
 
@@ -348,7 +399,7 @@
             ⚔️ Fight Again
           </button>
           <a routerLink="/squad" class="tactical-btn secondary large" id="modal-squad-btn">
-            🛡️ Modify Squad
+            🛡️ War Room
           </a>
         </div>
       </div>

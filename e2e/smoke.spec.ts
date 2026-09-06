@@ -76,4 +76,43 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 9. Zero unhandled console errors or exceptions
     expect(consoleErrors).toEqual([]);
   });
+
+  test('should engage auto-battle, render chibi sprites, and resolve combat maneuvers automatically', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Chibi sprites rendered in lanes
+    const sprites = page.locator('app-unit-sprite .chibi-sprite-svg');
+    await expect(sprites.first()).toBeVisible();
+    await expect(sprites).toHaveCount(6);
+
+    // 2. Auto-Battle toggle
+    const autoBtn = page.locator('#auto-battle-btn');
+    await expect(autoBtn).toBeVisible();
+    await expect(autoBtn).toContainText('OFF');
+
+    // 3. Engage Auto-Battle
+    await autoBtn.click();
+    await expect(autoBtn).toContainText('ON');
+    await expect(autoBtn).toHaveClass(/active-gold/);
+
+    // 4. Set 2x speed for fast resolution
+    const speedBtn = page.locator('#speed-toggle-btn');
+    await speedBtn.click();
+    await expect(speedBtn).toContainText('2x');
+
+    // 5. Open Combat Log and verify maneuvers are being executed automatically
+    const logBtn = page.locator('#toggle-log-btn');
+    await logBtn.click();
+    const logDrawer = page.locator('.combat-log-drawer');
+    await expect(logDrawer).toBeVisible();
+
+    // Wait for at least 3 logs to accumulate as units act autonomously
+    await expect(async () => {
+      const logs = page.locator('.log-entry');
+      const count = await logs.count();
+      expect(count).toBeGreaterThan(2);
+    }).toPass({ timeout: 10000 });
+  });
 });

@@ -11,11 +11,12 @@ import { RouterLink } from '@angular/router';
 import { BattleStateService, FloatingText } from '../core/services/battle-state.service';
 import { UnitInstance } from '../core/models/unit-instance.model';
 import { AbilityDefinition } from '../core/models/ability.model';
+import { UnitSpriteComponent } from './unit-sprite.component';
 
 @Component({
   selector: 'app-battlefield',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, UnitSpriteComponent],
   templateUrl: './battlefield.component.html',
   styleUrl: './battlefield.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,7 +40,12 @@ export class BattlefieldComponent implements OnInit {
     }
 
     const active = this.battle.activeUnit();
-    if (!active || active.team !== 'player' || this.battle.battleStatus() !== 'active') {
+    if (
+      !active ||
+      active.team !== 'player' ||
+      this.battle.battleStatus() !== 'active' ||
+      this.battle.isAutoBattle()
+    ) {
       return;
     }
 
@@ -110,7 +116,6 @@ export class BattlefieldComponent implements OnInit {
       this.battle.selectAbility(null);
     } else {
       this.battle.selectAbility(ability.id);
-      // If target is automatic, auto execute or prompt
       if (ability.target === 'all-enemies' || ability.target === 'all-allies') {
         this.battle.executeSelectedAbility();
       }

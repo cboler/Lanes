@@ -76,10 +76,10 @@ describe('CombatExecutor', () => {
   });
 
   it('identifies valid targets accurately based on lane and reach', () => {
-    const gunner = new UnitInstance(GUNNER_CLASS, 'Hero Gunner', 'player', 1);
-    const enemySameLane = new UnitInstance(FIGHTER_CLASS, 'Enemy 1', 'enemy', 1);
-    const enemyOtherLane = new UnitInstance(FIGHTER_CLASS, 'Enemy 2', 'enemy', 0);
-    const ally = new UnitInstance(FIGHTER_CLASS, 'Hero Ally', 'player', 1);
+    const gunner = new UnitInstance(GUNNER_CLASS, 'Hero Gunner', 'player', 1, 0.2);
+    const enemySameLane = new UnitInstance(FIGHTER_CLASS, 'Enemy 1', 'enemy', 1, 0.7);
+    const enemyOtherLane = new UnitInstance(FIGHTER_CLASS, 'Enemy 2', 'enemy', 0, 0.7);
+    const ally = new UnitInstance(FIGHTER_CLASS, 'Hero Ally', 'player', 1, 0.1);
 
     const all = [gunner, enemySameLane, enemyOtherLane, ally];
 
@@ -94,5 +94,19 @@ describe('CombatExecutor', () => {
     expect(anyLaneTargets).toContain(enemySameLane);
     expect(anyLaneTargets).toContain(enemyOtherLane);
     expect(anyLaneTargets).not.toContain(ally);
+  });
+
+  it('blocks direct attacks to backline units when a frontline enemy is in the way', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero Fighter', 'player', 1, 0.2);
+    const frontlineEnemy = new UnitInstance(FIGHTER_CLASS, 'Frontline Tank', 'enemy', 1, 0.65);
+    const backlineEnemy = new UnitInstance(WITCH_CLASS, 'Backline Witch', 'enemy', 1, 0.85);
+
+    const all = [fighter, frontlineEnemy, backlineEnemy];
+
+    // Direct single-enemy attack (Shield Bash) can only target frontmost enemy
+    const shieldBash = FIGHTER_CLASS.abilities[0];
+    const targets = CombatExecutor.getValidTargets(fighter, shieldBash, all);
+    expect(targets).toEqual([frontlineEnemy]);
+    expect(targets).not.toContain(backlineEnemy);
   });
 });

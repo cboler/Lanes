@@ -1,34 +1,46 @@
-/* Mobile-First Design System & Foundation */
+/* ==========================================================================
+   Lanes - Grand Kingdom Tactical RPG Design System
+   ========================================================================== */
 
 :root {
-  /* Color Palette - Modern accessible dark theme */
-  --bg-canvas: #090d16;
-  --bg-surface: #111827;
-  --bg-surface-elevated: #1f2937;
-  --bg-surface-hover: #374151;
+  /* Grand Kingdom Dark Fantasy Palette */
+  --bg-canvas: #070a10;
+  --bg-surface: #0e1422;
+  --bg-surface-elevated: #151e31;
+  --bg-surface-hover: #1e2b44;
+  --bg-war-deck: #121827;
 
-  --border-subtle: #1f293d;
-  --border-muted: #374151;
-  --border-accent: #38bdf8;
+  --border-subtle: #1c273c;
+  --border-muted: #2d3b55;
+  --border-gilded: #875c12;
+  --border-gilded-bright: #d4af37;
+  --border-accent: #f59e0b;
 
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #090d16;
+  --text-secondary: #cbd5e1;
+  --text-muted: #8493a8;
+  --text-inverse: #070a10;
+  --text-gilded: #f59e0b;
 
-  --color-primary: #38bdf8;
-  --color-primary-hover: #0ea5e9;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-error: #f87171;
+  --color-primary: #f59e0b;
+  --color-primary-hover: #d97706;
+  --color-gold-glow: #ffd700;
+  --color-gold-antique: #d4af37;
+  --color-gold-burnished: #9a6709;
+
+  --color-player: #3b82f6;
+  --color-player-glow: rgba(59, 130, 246, 0.4);
+  --color-enemy: #ef4444;
+  --color-enemy-glow: rgba(239, 68, 68, 0.4);
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-arcane: #a855f7;
 
   /* Typography */
-  --font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
-    'Apple Color Emoji', 'Segoe UI Emoji';
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
+  --font-heraldic: 'Cinzel', Georgia, serif;
+  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -37,14 +49,15 @@
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
   --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
 
-  --line-height-tight: 1.25;
+  --line-height-tight: 1.2;
   --line-height-base: 1.5;
 
   /* Layout & Spacing */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
 
   --space-1: 0.25rem;
@@ -55,9 +68,14 @@
   --space-8: 2rem;
   --space-12: 3rem;
 
+  /* Tactical Shadows & Borders */
+  --shadow-gilded: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 1px rgba(212, 175, 55, 0.6);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-glow-gold: 0 0 15px rgba(245, 158, 11, 0.4);
+
   /* Interactive Standards */
   --touch-target-min: 44px;
-  --focus-ring: 2px solid var(--color-primary);
+  --focus-ring: 2px solid var(--color-gold-antique);
   --focus-offset: 3px;
 }
 
@@ -68,7 +86,7 @@
   box-sizing: border-box;
 }
 
-/* 2. Responsive viewport, overflow prevention & safe areas */
+/* 2. Viewport & Body */
 html {
   height: 100%;
   font-size: 100%;
@@ -84,6 +102,8 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   background-color: var(--bg-canvas);
+  background-image: radial-gradient(circle at 50% 0%, #172338 0%, #070a10 75%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-family);
   font-size: var(--font-size-base);
@@ -91,14 +111,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* iOS / mobile browser safe-area handling */
+  /* Safe areas */
   padding-top: env(safe-area-inset-top, 0px);
   padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
 }
 
-/* 3. Typography defaults */
+/* 3. Heraldic Headings */
 h1,
 h2,
 h3,
@@ -107,8 +127,10 @@ h5,
 h6 {
   margin: 0 0 var(--space-3) 0;
   color: var(--text-primary);
+  font-family: var(--font-heraldic);
   line-height: var(--line-height-tight);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 p {
@@ -122,7 +144,7 @@ pre {
   font-size: 0.9em;
 }
 
-/* 4. Touch targets & interactive elements */
+/* 4. Interactive Elements & Touch Targets */
 button,
 a,
 input,
@@ -144,7 +166,7 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Accessible touch targets for buttons and interactive nav elements */
+/* Tactical Fantasy Buttons */
 button,
 .button,
 .nav-link {
@@ -154,20 +176,89 @@ button,
   min-height: var(--touch-target-min);
   min-width: var(--touch-target-min);
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 5. Visible keyboard focus ring for accessibility */
+.tactical-btn {
+  background: linear-gradient(180deg, #1f2b42 0%, #111726 100%);
+  border: 1px solid var(--border-gilded);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: var(--font-size-xs);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tactical-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #273653 0%, #162033 100%);
+  border-color: var(--color-gold-antique);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+.tactical-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.tactical-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+.tactical-btn.primary {
+  background: linear-gradient(180deg, #b48316 0%, #785310 100%);
+  border-color: #ffd700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.tactical-btn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #d4af37 0%, #875c12 100%);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+}
+
+.tactical-btn.secondary {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-color: var(--border-muted);
+}
+
+.tactical-btn.danger {
+  background: linear-gradient(180deg, #991b1b 0%, #581111 100%);
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+.tactical-btn.danger:hover:not(:disabled) {
+  background: linear-gradient(180deg, #b91c1c 0%, #751414 100%);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+.tactical-btn.active-gold {
+  background: linear-gradient(180deg, #eab308 0%, #a16207 100%);
+  border-color: #ffd700;
+  color: #070a10;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.6);
+}
+
+/* 5. Keyboard Focus */
 :focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
 
-/* 6. Reduced motion preference */
+/* 6. Accessibility & Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -179,17 +270,16 @@ button,
   }
 }
 
-/* 7. Accessibility utilities */
 .skip-link {
   position: absolute;
   top: -100px;
   left: var(--space-4);
-  background: var(--color-primary);
+  background: var(--color-gold-antique);
   color: var(--text-inverse);
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
   z-index: 1000;
-  font-weight: 600;
+  font-weight: 700;
   transition: top 0.2s ease;
 }
 

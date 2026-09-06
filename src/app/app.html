@@ -5,8 +5,11 @@
     <div class="header-inner">
       <div class="brand">
         <a routerLink="/" class="brand-link" id="nav-brand-link">
-          <span class="brand-logo" aria-hidden="true">⚔️</span>
-          <span class="brand-title" id="starter-title">{{ title() }}</span>
+          <span class="brand-crest" aria-hidden="true">⚔️</span>
+          <div class="brand-text">
+            <span class="brand-title" id="starter-title">{{ title() }}</span>
+            <span class="brand-sub">TACTICAL CHRONICLE</span>
+          </div>
         </a>
       </div>
 
@@ -15,15 +18,25 @@
           routerLink="/"
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-link"
+          class="nav-link nav-battlefield"
           id="nav-link-home"
         >
           Battlefield
         </a>
-        <a routerLink="/squad" routerLinkActive="active" class="nav-link" id="nav-link-squad">
+        <a
+          routerLink="/squad"
+          routerLinkActive="active"
+          class="nav-link nav-squad"
+          id="nav-link-squad"
+        >
           Squad Builder
         </a>
-        <a routerLink="/status" routerLinkActive="active" class="nav-link" id="nav-link-status">
+        <a
+          routerLink="/status"
+          routerLinkActive="active"
+          class="nav-link nav-status"
+          id="nav-link-status"
+        >
           Diagnostics
         </a>
       </nav>
@@ -32,26 +45,27 @@
         @if (canInstall()) {
           <button
             type="button"
-            class="install-btn"
+            class="imperial-seal-btn"
             id="install-pwa-btn"
             (click)="installApp()"
-            aria-label="Install Lanes Tactical RPG PWA"
+            aria-label="Enlist Tactical Unit (Install App)"
           >
-            ⬇ Install PWA
+            <span class="seal-icon" aria-hidden="true">🎖️</span>
+            <span class="seal-text">Enlist</span>
           </button>
         }
 
         <div
-          class="network-badge"
+          class="mana-crystal-status"
           [class.online]="isOnline()"
           [class.offline]="!isOnline()"
           role="status"
           [attr.aria-label]="
-            isOnline() ? 'Application is online' : 'Application is running offline'
+            isOnline() ? 'Connected to Kingdom Command' : 'Operating in Autonomous Field Mode'
           "
         >
-          <span class="dot"></span>
-          <span class="network-text">{{ isOnline() ? 'Online' : 'Offline' }}</span>
+          <span class="crystal-gem"></span>
+          <span class="crystal-label">{{ isOnline() ? 'Command Link' : 'Field Mode' }}</span>
         </div>
       </div>
     </div>
@@ -64,14 +78,14 @@
   <footer class="app-footer" role="contentinfo">
     <div class="footer-inner">
       <p class="footer-text">
-        Lanes • 3-Lane Tactical RPG • Inspired by Grand Kingdom • PWA Standalone Mode
+        Lanes Tactical RPG • 3-Lane Strategic Skirmish • Grand Kingdom Heritage
       </p>
       <div class="footer-links">
         <a href="https://github.com/cboler/Lanes" target="_blank" rel="noopener noreferrer">
-          GitHub Repository
+          War Archives (GitHub)
         </a>
         <span class="separator" aria-hidden="true">•</span>
-        <a routerLink="/status">Diagnostics</a>
+        <a routerLink="/status">Order of Battle</a>
       </div>
     </div>
   </footer>
