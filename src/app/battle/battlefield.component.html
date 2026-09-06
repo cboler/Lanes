@@ -1,0 +1,357 @@
+<div class="battlefield-container" role="region" aria-label="3-Lane Tactical Battlefield">
+  <!-- Top Bar: Turn Initiative Queue & Actions -->
+  <header class="top-tactical-bar" role="toolbar" aria-label="Combat Status">
+    <div class="round-badge">
+      <span class="round-label">ROUND</span>
+      <span class="round-number">{{ battle.roundNumber() }}</span>
+    </div>
+
+    <!-- Initiative Order Strip -->
+    <div class="initiative-strip" aria-label="Turn Order Queue">
+      <span class="initiative-label">INITIATIVE:</span>
+      <div class="turn-tokens">
+        @for (unit of battle.turnOrder(); track unit.id) {
+          <div
+            class="turn-token"
+            [class.active]="unit.id === battle.activeUnitId()"
+            [class.player]="unit.team === 'player'"
+            [class.enemy]="unit.team === 'enemy'"
+            [title]="unit.name + ' (' + unit.classDef.name + ') SPD: ' + unit.stats.speed"
+          >
+            <img [src]="unit.classDef.portraitUrl" [alt]="unit.name" class="token-img" />
+            <span class="token-lane">L{{ unit.lane + 1 }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Quick Utilities -->
+    <div class="top-actions">
+      <button
+        type="button"
+        class="tactical-btn secondary"
+        id="toggle-log-btn"
+        (click)="toggleLog()"
+        aria-label="Toggle Combat Log"
+      >
+        📜 Logs ({{ battle.combatLogs().length }})
+      </button>
+
+      <button
+        type="button"
+        class="tactical-btn danger"
+        id="restart-battle-btn"
+        (click)="restartBattle()"
+        aria-label="Restart Skirmish"
+      >
+        🔄 Restart
+      </button>
+
+      <a
+        routerLink="/squad"
+        class="tactical-btn primary"
+        id="squad-builder-link"
+        aria-label="Manage Squad and Inspect Classes"
+      >
+        🛡️ Squad Builder
+      </a>
+    </div>
+  </header>
+
+  <!-- Main 3-Lane Combat Grid -->
+  <div class="arena-viewport" role="region" aria-label="Combat Arena Viewport">
+    <div class="arena-backdrop"></div>
+
+    <!-- AI Acting Notice -->
+    @if (battle.isAiThinking()) {
+      <div class="ai-banner" role="status" aria-live="polite">
+        <span class="ai-spinner"></span>
+        <span>Enemy tactical AI is calculating maneuver...</span>
+      </div>
+    }
+
+    <!-- 3 Combat Lanes -->
+    <div class="lanes-field">
+      @for (laneIndex of lanes; track laneIndex) {
+        <section
+          class="combat-lane"
+          [attr.data-lane]="laneIndex"
+          [attr.aria-label]="'Lane ' + (laneIndex + 1)"
+        >
+          <div class="lane-header">
+            <span class="lane-tag">LANE {{ laneIndex + 1 }}</span>
+            <div class="lane-guides">
+              <span class="guide-tick player-side">PLAYER FRONT</span>
+              <div class="lane-line"></div>
+              <span class="guide-tick enemy-side">ENEMY FRONT</span>
+            </div>
+          </div>
+
+          <!-- Unit Entities in this Lane -->
+          <div class="lane-entities">
+            @for (unit of getUnitsInLane(laneIndex); track unit.id) {
+              <div
+                class="unit-node"
+                [id]="'unit-' + unit.id"
+                [style.left]="unit.positionX * 100 + '%'"
+                [class.player-unit]="unit.team === 'player'"
+                [class.enemy-unit]="unit.team === 'enemy'"
+                [class.acting-unit]="unit.id === battle.activeUnitId()"
+                [class.targetable]="isTargetable(unit)"
+                (click)="onUnitClick(unit)"
+                (keydown.enter)="onUnitClick(unit)"
+                (keydown.space)="onUnitClick(unit)"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="unit.name + ', ' + unit.currentHp + ' of ' + unit.maxHp + ' HP'"
+              >
+                <!-- Floating Damage/Heal Numbers -->
+                <div class="floating-text-container" aria-hidden="true">
+                  @for (float of getFloatingTextsFor(unit.id); track float.id) {
+                    <span
+                      class="floating-text"
+                      [class.heal]="float.isHealing"
+                      [class.friendly-fire]="float.isFriendlyFire"
+                    >
+                      {{ float.text }}
+                    </span>
+                  }
+                </div>
+
+                <!-- Unit Token Frame -->
+                <div class="unit-token-frame">
+                  <img [src]="unit.classDef.portraitUrl" [alt]="unit.name" class="unit-avatar" />
+                  @if (unit.id === battle.activeUnitId()) {
+                    <div class="active-pulse-ring"></div>
+                  }
+                  @if (isTargetable(unit)) {
+                    <div class="target-crosshair" title="Click to target with ability">🎯</div>
+                  }
+                </div>
+
+                <!-- Status & Vitals Bar -->
+                <div class="unit-vitals">
+                  <span class="unit-name">{{ unit.name }}</span>
+                  <div
+                    class="hp-track"
+                    [attr.aria-valuenow]="unit.currentHp"
+                    [attr.aria-valuemax]="unit.maxHp"
+                  >
+                    <div
+                      class="hp-fill"
+                      [style.width]="(unit.currentHp / unit.maxHp) * 100 + '%'"
+                      [class.low-hp]="unit.currentHp / unit.maxHp < 0.35"
+                    ></div>
+                    <span class="hp-text">{{ unit.currentHp }}/{{ unit.maxHp }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  </div>
+
+  <!-- Bottom Command Deck: Active Unit Dossier, Action Gauge & Abilities -->
+  <footer class="bottom-command-deck" role="region" aria-label="Command Deck">
+    @if (battle.activeUnit(); as active) {
+      <div class="active-unit-panel" [class.enemy-turn]="active.team === 'enemy'">
+        <!-- Dossier Summary -->
+        <div class="dossier-card">
+          <img [src]="active.classDef.portraitUrl" [alt]="active.name" class="dossier-avatar" />
+          <div class="dossier-meta">
+            <div class="dossier-title-row">
+              <span class="dossier-name">{{ active.name }}</span>
+              <span class="role-pill" [attr.data-role]="active.classDef.role">
+                {{ active.classDef.role.toUpperCase() }}
+              </span>
+            </div>
+            <div class="dossier-stats-row">
+              <span
+                >Lane: <strong>{{ active.lane + 1 }}</strong></span
+              >
+              <span
+                >ATK: <strong>{{ active.effectiveAttack }}</strong></span
+              >
+              <span
+                >DEF: <strong>{{ active.effectiveDefense }}</strong></span
+              >
+              <span
+                >SPD: <strong>{{ active.stats.speed }}</strong></span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Gauge Meter & Tactical Move Buttons -->
+        <div class="gauge-and-movement">
+          <div class="action-gauge-box">
+            <div class="gauge-label-row">
+              <span class="gauge-title">ACTION GAUGE (AP)</span>
+              <span class="gauge-val"
+                >{{ active.actionGauge.current.toFixed(0) }} / {{ active.actionGauge.max }} AP</span
+              >
+            </div>
+            <div class="gauge-track">
+              <div class="gauge-fill" [style.width]="active.actionGauge.fraction * 100 + '%'"></div>
+            </div>
+          </div>
+
+          @if (active.team === 'player') {
+            <div class="tactical-movement-controls" aria-label="Movement Controls">
+              <!-- Lane Shift Controls -->
+              <div class="lane-shift-btns">
+                <button
+                  type="button"
+                  class="action-btn"
+                  id="lane-up-btn"
+                  [disabled]="active.lane === 0 || active.actionGauge.current < 15"
+                  (click)="battle.switchActiveUnitLane(active.lane - 1)"
+                  title="Switch to lane above (W / Up Arrow) [15 AP]"
+                >
+                  ▲ Shift Up (15 AP)
+                </button>
+                <button
+                  type="button"
+                  class="action-btn"
+                  id="lane-down-btn"
+                  [disabled]="active.lane === 2 || active.actionGauge.current < 15"
+                  (click)="battle.switchActiveUnitLane(active.lane + 1)"
+                  title="Switch to lane below (S / Down Arrow) [15 AP]"
+                >
+                  ▼ Shift Down (15 AP)
+                </button>
+              </div>
+
+              <!-- Horizontal Movement -->
+              <div class="horizontal-move-btns">
+                <button
+                  type="button"
+                  class="action-btn"
+                  id="move-left-btn"
+                  [disabled]="active.actionGauge.current < 2"
+                  (click)="battle.moveActiveUnit(-0.04)"
+                  title="Step Left (A / Left Arrow) [2 AP]"
+                >
+                  ◀ Left
+                </button>
+                <button
+                  type="button"
+                  class="action-btn"
+                  id="move-right-btn"
+                  [disabled]="active.actionGauge.current < 2"
+                  (click)="battle.moveActiveUnit(0.04)"
+                  title="Step Right (D / Right Arrow) [2 AP]"
+                >
+                  Right ▶
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Ability Cards Deck -->
+        @if (active.team === 'player') {
+          <div class="abilities-deck" aria-label="Available Abilities">
+            @for (ability of active.classDef.abilities; track ability.id; let idx = $index) {
+              <button
+                type="button"
+                class="ability-card"
+                [id]="'ability-btn-' + ability.id"
+                [class.selected]="battle.selectedAbilityId() === ability.id"
+                [disabled]="active.actionGauge.current < ability.actionCost"
+                (click)="onSelectAbility(ability)"
+              >
+                <div class="card-header">
+                  <span class="hotkey-badge">{{ idx + 1 }}</span>
+                  <span class="ability-name">{{ ability.name }}</span>
+                  <span class="cost-badge">{{ ability.actionCost }} AP</span>
+                </div>
+                <p class="card-desc">{{ ability.description }}</p>
+                <div class="card-tags">
+                  <span class="tag-type" [attr.data-dmg]="ability.damageType">
+                    {{ ability.damageType.toUpperCase() }}
+                  </span>
+                  @if (ability.crossLane) {
+                    <span class="tag-cross">CROSS-LANE</span>
+                  }
+                  @if (ability.friendlyFire) {
+                    <span class="tag-ff">FRIENDLY FIRE!</span>
+                  }
+                </div>
+              </button>
+            }
+
+            <!-- End Turn Button -->
+            <button
+              type="button"
+              class="end-turn-btn"
+              id="end-turn-btn"
+              (click)="battle.endCurrentTurn()"
+              title="Pass turn to next unit (E)"
+            >
+              <span class="end-icon">🛑</span>
+              <span>End Turn (E)</span>
+            </button>
+          </div>
+        } @else {
+          <div class="ai-turn-indicator">
+            <span class="pulse-dot"></span>
+            <span>Enemy unit is executing tactical maneuvers...</span>
+          </div>
+        }
+      </div>
+    }
+  </footer>
+
+  <!-- Combat Log Drawer -->
+  @if (isLogOpen()) {
+    <aside class="combat-log-drawer" role="complementary" aria-label="Combat Log History">
+      <div class="log-header">
+        <h3>Combat Telemetry Log</h3>
+        <button type="button" class="close-log-btn" (click)="toggleLog()">✕</button>
+      </div>
+      <ul class="log-list">
+        @for (log of battle.combatLogs(); track $index) {
+          <li class="log-entry">{{ log }}</li>
+        }
+      </ul>
+    </aside>
+  }
+
+  <!-- Victory / Defeat Modal Overlay -->
+  @if (battle.battleStatus() !== 'active') {
+    <div class="battle-result-overlay" role="dialog" aria-modal="true">
+      <div class="result-dialog" [class.victory]="battle.battleStatus() === 'victory'">
+        <div class="result-icon">
+          {{ battle.battleStatus() === 'victory' ? '🏆' : '💀' }}
+        </div>
+        <h2 class="result-heading">
+          {{ battle.battleStatus() === 'victory' ? 'BATTLE VICTORY!' : 'SQUAD DEFEATED' }}
+        </h2>
+        <p class="result-summary">
+          {{
+            battle.battleStatus() === 'victory'
+              ? 'The vanguard has broken the enemy lines! Tactical superiority achieved.'
+              : 'All frontline heroes have fallen. Regroup and rethink your formation.'
+          }}
+        </p>
+
+        <div class="result-actions">
+          <button
+            type="button"
+            class="tactical-btn primary large"
+            id="modal-restart-btn"
+            (click)="restartBattle()"
+          >
+            ⚔️ Fight Again
+          </button>
+          <a routerLink="/squad" class="tactical-btn secondary large" id="modal-squad-btn">
+            🛡️ Modify Squad
+          </a>
+        </div>
+      </div>
+    </div>
+  }
+</div>

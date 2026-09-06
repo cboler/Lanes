@@ -1,0 +1,233 @@
+<div class="squad-builder-container" role="region" aria-label="Squad Builder and Class Dossier">
+  <!-- Top Navigation Bar -->
+  <header class="squad-header" role="banner">
+    <div class="header-left">
+      <a
+        routerLink="/"
+        class="back-link"
+        id="back-to-battle-link"
+        aria-label="Return to Battlefield"
+      >
+        ◀ Return to Battle
+      </a>
+      <h1 class="header-title">War Room: Squad Formation</h1>
+    </div>
+
+    <button type="button" class="deploy-btn" id="deploy-squad-btn" (click)="deployToBattle()">
+      ⚔️ Deploy Formation (3 vs 3)
+    </button>
+  </header>
+
+  <div class="squad-content-grid">
+    <!-- Left Column: Squad Rosters -->
+    <div class="rosters-panel">
+      <!-- Player Squad -->
+      <section class="squad-card player" aria-label="Player Vanguard Roster">
+        <div class="squad-title-bar">
+          <span class="squad-title">🛡️ PLAYER VANGUARD ({{ playerSquad().length }}/3)</span>
+        </div>
+        <div class="squad-slots">
+          @for (cls of playerSquad(); track $index; let idx = $index) {
+            <div class="slot-item">
+              <img [src]="cls.portraitUrl" [alt]="cls.name" class="slot-img" />
+              <div class="slot-meta">
+                <span class="slot-name">{{ cls.name }}</span>
+                <span class="slot-role">{{ cls.role.toUpperCase() }}</span>
+              </div>
+              <button
+                type="button"
+                class="slot-remove-btn"
+                [disabled]="playerSquad().length <= 1"
+                (click)="removePlayerUnit(idx)"
+                aria-label="Remove unit from squad"
+              >
+                ✕
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Enemy Squad -->
+      <section class="squad-card enemy" aria-label="Enemy Vanguard Roster">
+        <div class="squad-title-bar">
+          <span class="squad-title">⚔️ OPPONENT VANGUARD ({{ enemySquad().length }}/3)</span>
+        </div>
+        <div class="squad-slots">
+          @for (cls of enemySquad(); track $index; let idx = $index) {
+            <div class="slot-item enemy">
+              <img [src]="cls.portraitUrl" [alt]="cls.name" class="slot-img" />
+              <div class="slot-meta">
+                <span class="slot-name">{{ cls.name }}</span>
+                <span class="slot-role">{{ cls.role.toUpperCase() }}</span>
+              </div>
+              <button
+                type="button"
+                class="slot-remove-btn"
+                [disabled]="enemySquad().length <= 1"
+                (click)="removeEnemyUnit(idx)"
+                aria-label="Remove unit from squad"
+              >
+                ✕
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Quick Class Picker Grid -->
+      <section class="class-picker-section" aria-label="Unit Class Library">
+        <h2 class="section-title">Select Class to Inspect & Assign</h2>
+        <div class="class-selector-grid">
+          @for (cls of allClasses; track cls.id) {
+            <button
+              type="button"
+              class="class-pick-btn"
+              [class.active]="selectedClass().id === cls.id"
+              (click)="inspectClass(cls)"
+            >
+              <img [src]="cls.portraitUrl" [alt]="cls.name" class="picker-img" />
+              <div class="picker-meta">
+                <span class="picker-name">{{ cls.name }}</span>
+                <span class="picker-role">{{ cls.role }}</span>
+              </div>
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Selected Class Dossier -->
+    @if (selectedClass(); as activeCls) {
+      <aside class="class-dossier-panel" aria-label="Unit Class Dossier">
+        <div class="dossier-hero">
+          <img [src]="activeCls.portraitUrl" [alt]="activeCls.name" class="dossier-hero-img" />
+          <div class="hero-overlay">
+            <h2 class="class-headline">{{ activeCls.name }}</h2>
+            <span class="role-badge" [attr.data-role]="activeCls.role">
+              {{ activeCls.role.toUpperCase() }}
+            </span>
+          </div>
+        </div>
+
+        <p class="class-desc">{{ activeCls.description }}</p>
+
+        <!-- Base Stats Breakdown -->
+        <div class="stats-breakdown">
+          <h3>Combat Baseline Stats</h3>
+          <div class="stat-bars-grid">
+            <div class="stat-row">
+              <span class="stat-name">HP</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill hp"
+                  [style.width]="(activeCls.baseStats.maxHp / 200) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.maxHp }}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">ATK</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill atk"
+                  [style.width]="(activeCls.baseStats.attack / 100) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.attack }}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">DEF</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill def"
+                  [style.width]="(activeCls.baseStats.defense / 60) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.defense }}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">SPD</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill spd"
+                  [style.width]="(activeCls.baseStats.speed / 100) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.speed }}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">M.ATK</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill matk"
+                  [style.width]="(activeCls.baseStats.magicAttack / 100) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.magicAttack }}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-name">M.DEF</span>
+              <div class="stat-bar">
+                <div
+                  class="stat-fill mdef"
+                  [style.width]="(activeCls.baseStats.magicDefense / 60) * 100 + '%'"
+                ></div>
+              </div>
+              <span class="stat-val">{{ activeCls.baseStats.magicDefense }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Abilities List -->
+        <div class="abilities-breakdown">
+          <h3>Class Abilities</h3>
+          <div class="dossier-abilities">
+            @for (ability of activeCls.abilities; track ability.id) {
+              <div class="dossier-ability-item">
+                <div class="ab-header">
+                  <span class="ab-name">{{ ability.name }}</span>
+                  <span class="ab-cost">{{ ability.actionCost }} AP</span>
+                </div>
+                <p class="ab-desc">{{ ability.description }}</p>
+                <div class="ab-tags">
+                  <span class="tag-type" [attr.data-dmg]="ability.damageType">
+                    {{ ability.damageType.toUpperCase() }}
+                  </span>
+                  @if (ability.crossLane) {
+                    <span class="tag-cross">CROSS-LANE</span>
+                  }
+                  @if (ability.friendlyFire) {
+                    <span class="tag-ff">FRIENDLY FIRE</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Assignment Controls -->
+        <div class="assignment-actions">
+          <button
+            type="button"
+            class="assign-btn player"
+            id="add-to-player-squad-btn"
+            [disabled]="playerSquad().length >= 3"
+            (click)="addPlayerUnit(activeCls)"
+          >
+            + Add to Player Squad
+          </button>
+          <button
+            type="button"
+            class="assign-btn enemy"
+            id="add-to-enemy-squad-btn"
+            [disabled]="enemySquad().length >= 3"
+            (click)="addEnemyUnit(activeCls)"
+          >
+            + Add to Enemy Squad
+          </button>
+        </div>
+      </aside>
+    }
+  </div>
+</div>

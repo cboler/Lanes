@@ -1,62 +1,24 @@
-# =============================================================================
-# Godot 4.6 Project .gitignore — Lanes
-# =============================================================================
+# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# -----------------------------------------------------------------------------
-# Godot Engine
-# -----------------------------------------------------------------------------
+# Compiled output
+/dist
+/tmp
+/out-tsc
+/bazel-out
 
-# Godot 4.x generated data directory (imports, shader cache, etc.)
-.godot/
+# Node
+/node_modules
+npm-debug.log
+yarn-error.log
 
-# Godot export templates and build outputs
-/export/
-/build/
-/dist/
-*.pck
-*.zip
-
-# Android build directory (if exporting to Android)
-/android/
-
-# iOS build directory (if exporting to iOS)
-/ios/
-
-# -----------------------------------------------------------------------------
-# C# / .NET (Godot Mono)
-# -----------------------------------------------------------------------------
-
-# .NET build outputs
-bin/
-obj/
-
-# Exception: gdUnit4 CLI tools (not .NET output)
-!addons/gdUnit4/bin/
-
-# NuGet packages (restored on build)
-*.nupkg
-.nuget/
-packages/
-
-# User-specific MSBuild files
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# .NET Core / SDK style projects
-*.DotSettings.user
-project.lock.json
-project.fragment.lock.json
-
-# -----------------------------------------------------------------------------
-# IDEs and Editors
-# -----------------------------------------------------------------------------
-
-# Visual Studio
-.vs/
-*.sln.ide/
-*.csproj.user
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
 # Visual Studio Code
 .vscode/*
@@ -64,102 +26,24 @@ project.fragment.lock.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/mcp.json
+.history/*
 
-# JetBrains Rider / IntelliJ
-.idea/
-*.sln.iml
+# Miscellaneous
+/.angular/cache
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+__screenshots__/
 
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
+# Testing
+playwright-report/
+test-results/
 
-# -----------------------------------------------------------------------------
-# Operating Systems
-# -----------------------------------------------------------------------------
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-*.lnk
-
-# macOS
+# System files
 .DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
+Thumbs.db
 
-# Linux
-*~
-.directory
-.Trash-*
-
-# -----------------------------------------------------------------------------
-# Development Tools
-# -----------------------------------------------------------------------------
-
-# Python (if using any Python tooling)
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-
-# Node.js (if using any JS tooling)
-node_modules/
-
-# -----------------------------------------------------------------------------
-# Logs and Temporary Files
-# -----------------------------------------------------------------------------
-
-# Log files
-*.log
-logs/
-
-# Crash dumps
-*.dmp
-crash_*.txt
-
-# Temporary files
-*.tmp
-*.temp
-*.swp
-*.swo
-
-# -----------------------------------------------------------------------------
-# Secrets and Local Configuration
-# -----------------------------------------------------------------------------
-
-# Environment files (may contain secrets)
-.env
-.env.*
-!.env.example
-
-# Local configuration overrides
-*.local
-*.local.*
-
-# Credentials
-credentials.json
-secrets.json
-*.pem
-*.key
-
-# -----------------------------------------------------------------------------
-# Project-Specific
-# -----------------------------------------------------------------------------
-
-# Test coverage reports
-coverage/
-
-# Documentation builds
-docs/_build/
-
-# Backup files
-*.bak
-*.backup
-
-# Generated reports (test, coverage, performance)
-reports/
