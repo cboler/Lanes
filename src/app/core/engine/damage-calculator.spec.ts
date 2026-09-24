@@ -3,6 +3,7 @@ import { DamageCalculator } from './damage-calculator';
 import { UnitInstance } from '../models/unit-instance.model';
 import { FIGHTER_CLASS, WITCH_CLASS, CLERIC_CLASS } from '../models/unit-class.model';
 import { AbilityDefinition } from '../models/ability.model';
+import { CombatArchetype } from '../models/stats.model';
 
 describe('DamageCalculator', () => {
   const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero Fighter', 'player');
@@ -36,9 +37,9 @@ describe('DamageCalculator', () => {
   it('calculates magical damage mitigated by magicDefense', () => {
     const fireBolt: AbilityDefinition = WITCH_CLASS.abilities[0]; // 1.0 power, matk = 85
     // enemyFighter.magicDefense = 10
-    // net = 85 - 10 = 75
+    // net = (85 - 10) * 1.25 magic advantage, rounded down
     const damage = DamageCalculator.calculateWithDefense(witch, enemyFighter, fireBolt);
-    expect(damage).toBe(75);
+    expect(damage).toBe(93);
   });
 
   it('calculates healing ignoring defense', () => {
@@ -46,5 +47,48 @@ describe('DamageCalculator', () => {
     // raw = 70 * 1.2 = 84
     const heal = DamageCalculator.calculateWithDefense(cleric, fighter, mend);
     expect(heal).toBe(84);
+  });
+
+  const archetypes: CombatArchetype[] = ['melee', 'ranged', 'magic', 'specialist'];
+  for (const from of archetypes) {
+    for (const to of archetypes) {
+      it(`resolves ${from} against ${to} without reverse penalties`, () => {
+        const attacker = new UnitInstance(
+          {
+            ...FIGHTER_CLASS,
+            archetype: from,
+            baseStats: { ...FIGHTER_CLASS.baseStats, attack: 100 },
+          },
+          'Attacker',
+          'player',
+        );
+        const target = new UnitInstance(
+          {
+            ...FIGHTER_CLASS,
+            archetype: to,
+            baseStats: { ...FIGHTER_CLASS.baseStats, defense: 20 },
+          },
+          'Target',
+          'enemy',
+        );
+        const attack = { ...FIGHTER_CLASS.abilities[0], powerMultiplier: 1 };
+        const advantagePairs = ['melee/ranged', 'ranged/magic', 'magic/melee'];
+        const expected = advantagePairs.includes(`${from}/${to}`) ? 100 : 80;
+        expect(DamageCalculator.calculateWithDefense(attacker, target, attack)).toBe(expected);
+      });
+    }
+  }
+
+  it('does not amplify friendly fire even across an advantageous matchup', () => {
+    expect(DamageCalculator.calculateWithDefense(witch, fighter, WITCH_CLASS.abilities[0])).toBe(
+      75,
+    );
+    expect(DamageCalculator.hasAdvantage(witch, fighter)).toBe(false);
+  });
+
+  it('does not amplify healing across an advantageous matchup', () => {
+    expect(
+      DamageCalculator.calculateWithDefense(witch, enemyFighter, CLERIC_CLASS.abilities[0]),
+    ).toBe(102);
   });
 });

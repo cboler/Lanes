@@ -298,3 +298,8 @@ button,
   white-space: nowrap;
   border-width: 0;
 }
+
+.gamepad-focused {
+  outline: 3px solid #ffd700 !important;
+  outline-offset: 4px;
+}

@@ -3,6 +3,8 @@
  */
 export type UnitRole = 'tank' | 'melee' | 'ranged' | 'support';
 
+export type CombatArchetype = 'melee' | 'ranged' | 'magic' | 'specialist';
+
 /**
  * Combat damage types supported by the calculator.
  */
@@ -16,6 +18,9 @@ export interface UnitBaseStats {
   readonly attack: number;
   readonly defense: number;
   readonly speed: number;
+  readonly agility: number;
+  readonly vitality: number;
+  readonly technique: number;
   readonly magicAttack: number;
   readonly magicDefense: number;
   readonly meleeRange: number;

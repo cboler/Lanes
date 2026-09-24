@@ -23,7 +23,7 @@ describe('BattlefieldComponent', () => {
 
   it('initializes the component with a 3-lane battlefield', () => {
     expect(component).toBeTruthy();
-    expect(battleService.units().length).toBe(6);
+    expect(battleService.units().length).toBe(8);
     expect(fixture.nativeElement.querySelectorAll('.combat-lane').length).toBe(3);
   });
 

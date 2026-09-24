@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CombatExecutor } from './combat-executor';
 import { UnitInstance } from '../models/unit-instance.model';
 import { FIGHTER_CLASS, CLERIC_CLASS, WITCH_CLASS, GUNNER_CLASS } from '../models/unit-class.model';
+import { StatusEffectInstance } from '../models/status-effect.model';
 
 describe('CombatExecutor', () => {
   it('executes single target attack and spends gauge', () => {
@@ -18,6 +19,7 @@ describe('CombatExecutor', () => {
     expect(result.effects[0].amount).toBeGreaterThan(0);
     expect(enemy.currentHp).toBe(initialHp - result.effects[0].amount);
     expect(fighter.actionGauge.current).toBe(100 - bash.actionCost);
+    expect(fighter.moveGauge.current).toBe(100);
   });
 
   it('fails if attacker has insufficient action gauge', () => {
@@ -53,6 +55,8 @@ describe('CombatExecutor', () => {
     expect(result.success).toBe(true);
     expect(result.effects[0].isHealing).toBe(true);
     expect(injuredFighter.currentHp).toBeGreaterThan(hpBefore);
+    expect(result.effects[0].amount).toBe(50);
+    expect(result.effects[0].guardAbsorbed).toBe(0);
   });
 
   it('applies friendly fire for explosive or meteor attacks', () => {
@@ -108,5 +112,163 @@ describe('CombatExecutor', () => {
     const targets = CombatExecutor.getValidTargets(fighter, shieldBash, all);
     expect(targets).toEqual([frontlineEnemy]);
     expect(targets).not.toContain(backlineEnemy);
+  });
+
+  it('reports guard absorption separately from actual HP damage', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    enemy.actionGauge.trySpend(95);
+    expect(enemy.enterGuard()).toBe(5);
+    const result = CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]);
+    expect(result.effects[0].amount).toBe(3);
+    expect(result.effects[0].guardAbsorbed).toBe(5);
+    expect(enemy.currentHp).toBe(enemy.maxHp - 3);
+    expect(enemy.guardPoints).toBe(0);
+  });
+
+  it('spends an attack and reports zero HP damage when fully blocked by guard', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    enemy.enterGuard();
+    const result = CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]);
+    expect(result.success).toBe(true);
+    expect(result.effects[0].amount).toBe(0);
+    expect(result.effects[0].guardAbsorbed).toBe(8);
+    expect(enemy.currentHp).toBe(enemy.maxHp);
+    expect(fighter.actionGauge.current).toBe(80);
+  });
+
+  it('reports only remaining HP when an attack defeats a target', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    enemy.takeDamage(enemy.maxHp - 3);
+    const result = CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]);
+    expect(result.effects[0].amount).toBe(3);
+    expect(result.effects[0].wasDefeated).toBe(true);
+    expect(enemy.currentHp).toBe(0);
+  });
+
+  it('allows an attack with an exhausted move gauge', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    fighter.moveGauge.exhaust();
+    expect(CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]).success).toBe(true);
+    expect(fighter.moveGauge.current).toBe(0);
+    expect(fighter.actionGauge.current).toBe(80);
+  });
+
+  it('rejects a stunned attacker without spending or damaging', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    fighter.applyStatusEffect(new StatusEffectInstance('stun', 1));
+    expect(CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]).success).toBe(
+      false,
+    );
+    expect(fighter.actionGauge.current).toBe(100);
+    expect(enemy.currentHp).toBe(enemy.maxHp);
+  });
+
+  it('rejects a forged copy of an owned skill without spending', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
+    const forged = { ...FIGHTER_CLASS.abilities[0], actionCost: 0, powerMultiplier: 100 };
+    expect(CombatExecutor.execute(fighter, forged, [enemy]).success).toBe(false);
+    expect(fighter.actionGauge.current).toBe(100);
+    expect(enemy.currentHp).toBe(enemy.maxHp);
+  });
+
+  it.each(['empty', 'dead', 'ally', 'off-lane', 'foreign', 'duplicate', 'backline'])(
+    'rejects %s targets without spending resources or changing HP',
+    (invalidCase) => {
+      const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player', 1, 0.2);
+      const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy', 1, 0.7);
+      const ally = new UnitInstance(FIGHTER_CLASS, 'Ally', 'player', 1, 0.1);
+      const front = new UnitInstance(FIGHTER_CLASS, 'Front', 'enemy', 1, 0.6);
+      let selected: UnitInstance[] = [enemy];
+      let battlefield = [fighter, enemy, ally];
+      switch (invalidCase) {
+        case 'empty':
+          selected = [];
+          break;
+        case 'dead':
+          enemy.takeDamage(enemy.maxHp);
+          break;
+        case 'ally':
+          selected = [ally];
+          break;
+        case 'off-lane':
+          enemy.lane = 2;
+          break;
+        case 'foreign':
+          battlefield = [fighter, ally];
+          break;
+        case 'duplicate':
+          selected = [enemy, enemy];
+          break;
+        case 'backline':
+          battlefield.push(front);
+          break;
+      }
+      const previousHp = enemy.currentHp;
+      const result = CombatExecutor.execute(
+        fighter,
+        FIGHTER_CLASS.abilities[0],
+        selected,
+        battlefield,
+      );
+      expect(result.success).toBe(false);
+      expect(result.effects).toHaveLength(0);
+      expect(fighter.actionGauge.current).toBe(100);
+      expect(fighter.moveGauge.current).toBe(100);
+      expect(enemy.currentHp).toBe(previousHp);
+    },
+  );
+
+  it('rejects multiple targets for a single-target healing skill', () => {
+    const cleric = new UnitInstance(CLERIC_CLASS, 'Cleric');
+    const ally = new UnitInstance(FIGHTER_CLASS, 'Ally');
+    const result = CombatExecutor.execute(cleric, CLERIC_CLASS.abilities[0], [cleric, ally]);
+    expect(result.success).toBe(false);
+    expect(cleric.actionGauge.current).toBe(100);
+  });
+
+  it('requires every valid area target when battlefield context is supplied', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Attacker', 'player');
+    const enemies = [
+      new UnitInstance(FIGHTER_CLASS, 'Enemy 1', 'enemy'),
+      new UnitInstance(FIGHTER_CLASS, 'Enemy 2', 'enemy'),
+    ];
+    const provoke = FIGHTER_CLASS.abilities[1];
+    expect(
+      CombatExecutor.execute(fighter, provoke, [enemies[0]], [fighter, ...enemies]).success,
+    ).toBe(false);
+    expect(fighter.actionGauge.current).toBe(100);
+    const result = CombatExecutor.execute(fighter, provoke, enemies, [fighter, ...enemies]);
+    expect(result.success).toBe(true);
+    expect(result.effects).toHaveLength(2);
+    expect(fighter.actionGauge.current).toBe(75);
+  });
+
+  it('Bulwark buffs only its caster without causing damage, stacking or friendly fire', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Fighter');
+    const ally = new UnitInstance(FIGHTER_CLASS, 'Ally');
+    const bulwark = FIGHTER_CLASS.abilities[2];
+    expect(CombatExecutor.getValidTargets(fighter, bulwark, [fighter, ally])).toEqual([fighter]);
+    expect(CombatExecutor.execute(fighter, bulwark, [ally], [fighter, ally]).success).toBe(false);
+    expect(fighter.actionGauge.current).toBe(100);
+    const result = CombatExecutor.execute(fighter, bulwark, [fighter], [fighter, ally]);
+    expect(result.success).toBe(true);
+    expect(result.effects[0].statusApplied).toBe('defense-up');
+    expect(result.effects[0].amount).toBe(0);
+    expect(result.effects[0].isFriendlyFire).toBe(false);
+    expect(fighter.currentHp).toBe(fighter.maxHp);
+    expect(fighter.effectiveDefense).toBe(75);
+    expect(fighter.actionGauge.current).toBe(70);
+    expect(CombatExecutor.execute(fighter, bulwark, [fighter]).success).toBe(false);
+    expect(fighter.actionGauge.current).toBe(70);
+    fighter.tickStatusEffects();
+    expect(fighter.effectiveDefense).toBe(75);
+    fighter.tickStatusEffects();
+    expect(fighter.effectiveDefense).toBe(50);
   });
 });

@@ -14,17 +14,30 @@
     </div>
 
     <button type="button" class="deploy-btn" id="deploy-squad-btn" (click)="deployToBattle()">
-      ⚔️ Deploy Formation (3 vs 3)
+      ⚔️ Deploy Formation ({{ playerSquad().length }} vs {{ enemySquad().length }})
     </button>
   </header>
 
   <div class="squad-content-grid">
     <!-- Left Column: Squad Rosters -->
     <div class="rosters-panel">
+      <section class="formation-briefing" aria-labelledby="formation-briefing-title">
+        <h2 id="formation-briefing-title">Four mercenaries. Three lanes.</h2>
+        <p>
+          Deploy 1–4 units per side; a full squad of four is recommended. Melee units start in
+          front, while ranged and support units start at the rear. The fourth unit shares Lane I.
+        </p>
+        <p class="tactical-triangle">
+          <strong>Tactical triangle:</strong> Melee beats Ranged · Ranged beats Magic · Magic beats
+          Melee. Specialists are neutral.
+        </p>
+      </section>
       <!-- Player Squad -->
       <section class="squad-card player" aria-label="Player Vanguard Roster">
         <div class="squad-title-bar">
-          <span class="squad-title">🛡️ PLAYER VANGUARD ({{ playerSquad().length }}/3)</span>
+          <span class="squad-title">
+            🛡️ PLAYER VANGUARD ({{ playerSquad().length }}/{{ squadLimit }})
+          </span>
         </div>
         <div class="squad-slots">
           @for (cls of playerSquad(); track $index; let idx = $index) {
@@ -33,13 +46,14 @@
               <div class="slot-meta">
                 <span class="slot-name">{{ cls.name }}</span>
                 <span class="slot-role">{{ cls.role.toUpperCase() }}</span>
+                <span class="slot-position">{{ startingPosition(cls, idx) }}</span>
               </div>
               <button
                 type="button"
                 class="slot-remove-btn"
                 [disabled]="playerSquad().length <= 1"
                 (click)="removePlayerUnit(idx)"
-                aria-label="Remove unit from squad"
+                [attr.aria-label]="'Remove ' + cls.name + ' from player slot ' + (idx + 1)"
               >
                 ✕
               </button>
@@ -51,7 +65,9 @@
       <!-- Enemy Squad -->
       <section class="squad-card enemy" aria-label="Enemy Vanguard Roster">
         <div class="squad-title-bar">
-          <span class="squad-title">⚔️ OPPONENT VANGUARD ({{ enemySquad().length }}/3)</span>
+          <span class="squad-title">
+            ⚔️ OPPONENT VANGUARD ({{ enemySquad().length }}/{{ squadLimit }})
+          </span>
         </div>
         <div class="squad-slots">
           @for (cls of enemySquad(); track $index; let idx = $index) {
@@ -60,13 +76,14 @@
               <div class="slot-meta">
                 <span class="slot-name">{{ cls.name }}</span>
                 <span class="slot-role">{{ cls.role.toUpperCase() }}</span>
+                <span class="slot-position">{{ startingPosition(cls, idx) }}</span>
               </div>
               <button
                 type="button"
                 class="slot-remove-btn"
                 [disabled]="enemySquad().length <= 1"
                 (click)="removeEnemyUnit(idx)"
-                aria-label="Remove unit from squad"
+                [attr.aria-label]="'Remove ' + cls.name + ' from opponent slot ' + (idx + 1)"
               >
                 ✕
               </button>
@@ -84,6 +101,7 @@
               type="button"
               class="class-pick-btn"
               [class.active]="selectedClass().id === cls.id"
+              [attr.aria-pressed]="selectedClass().id === cls.id"
               (click)="inspectClass(cls)"
             >
               <img [src]="cls.portraitUrl" [alt]="cls.name" class="picker-img" />
@@ -111,6 +129,32 @@
         </div>
 
         <p class="class-desc">{{ activeCls.description }}</p>
+
+        <p class="archetype-label">
+          <strong>{{ activeCls.archetype | titlecase }}</strong> archetype ·
+          {{ activeCls.role }} role
+        </p>
+
+        <dl class="resource-stats" aria-label="Turn resources">
+          <div>
+            <dt>
+              Agility <strong>{{ activeCls.baseStats.agility }}</strong>
+            </dt>
+            <dd>Replenishes Move for changing lanes and advancing.</dd>
+          </div>
+          <div>
+            <dt>
+              Vitality <strong>{{ activeCls.baseStats.vitality }}</strong>
+            </dt>
+            <dd>Replenishes Action for attacks and skills.</dd>
+          </div>
+          <div>
+            <dt>
+              Technique <strong>{{ activeCls.baseStats.technique }}</strong>
+            </dt>
+            <dd>Strengthens Guard when you end your turn with unspent Action.</dd>
+          </div>
+        </dl>
 
         <!-- Base Stats Breakdown -->
         <div class="stats-breakdown">
@@ -212,7 +256,7 @@
             type="button"
             class="assign-btn player"
             id="add-to-player-squad-btn"
-            [disabled]="playerSquad().length >= 3"
+            [disabled]="playerSquad().length >= squadLimit"
             (click)="addPlayerUnit(activeCls)"
           >
             + Add to Player Squad
@@ -221,7 +265,7 @@
             type="button"
             class="assign-btn enemy"
             id="add-to-enemy-squad-btn"
-            [disabled]="enemySquad().length >= 3"
+            [disabled]="enemySquad().length >= squadLimit"
             (click)="addEnemyUnit(activeCls)"
           >
             + Add to Enemy Squad

@@ -1,13 +1,13 @@
 /**
- * Tracks and spends the action-gauge budget for a single unit's turn.
+ * Tracks a bounded resource budget used for movement or actions.
  */
 export class ActionGauge {
   public readonly max: number;
   private _current: number;
 
   constructor(max: number) {
-    if (max <= 0) {
-      throw new Error('Action gauge maximum must be positive.');
+    if (!Number.isFinite(max) || max <= 0) {
+      throw new Error('Gauge maximum must be finite and positive.');
     }
     this.max = max;
     this._current = max;
@@ -30,8 +30,8 @@ export class ActionGauge {
    * Returns true if affordable and deducted, false otherwise.
    */
   public trySpend(cost: number): boolean {
-    if (cost < 0) {
-      throw new Error('Cost must be non-negative.');
+    if (!Number.isFinite(cost) || cost < 0) {
+      throw new Error('Cost must be finite and non-negative.');
     }
     if (this._current < cost) {
       return false;
@@ -47,8 +47,17 @@ export class ActionGauge {
     this._current = 0;
   }
 
+  public recover(amount: number): number {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('Recovery must be finite and non-negative.');
+    }
+    const previous = this._current;
+    this._current = Math.min(this.max, this._current + amount);
+    return this._current - previous;
+  }
+
   /**
-   * Resets gauge to its maximum value at the start of a turn.
+   * Refills the gauge for a new battle. Turns use partial recovery instead.
    */
   public reset(): void {
     this._current = this.max;

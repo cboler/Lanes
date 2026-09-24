@@ -13,6 +13,7 @@ import { TurnManager } from '../engine/turn-manager';
 import { CombatExecutor, TargetEffect } from '../engine/combat-executor';
 import { LaneSwitcher } from '../engine/lane-switcher';
 import { AbilityDefinition } from '../models/ability.model';
+import { DamageCalculator } from '../engine/damage-calculator';
 
 export const COLLISION_BUFFER = 0.08;
 
@@ -31,7 +32,7 @@ export type BattleSpeed = '1x' | '2x';
   providedIn: 'root',
 })
 export class BattleStateService {
-  private readonly turnManager = new TurnManager();
+  private turnManager = new TurnManager();
 
   public readonly units = signal<UnitInstance[]>([]);
   public readonly activeUnitId = signal<string | null>(null);
@@ -50,6 +51,11 @@ export class BattleStateService {
   public readonly hitUnitId = signal<string | null>(null);
 
   private actionTimer: ReturnType<typeof setTimeout> | null = null;
+  private turnVersion = 0;
+  private battleVersion = 0;
+  private suspended = false;
+  private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
+  private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
 
   public readonly activeUnit = computed(() => {
     const id = this.activeUnitId();
@@ -57,7 +63,22 @@ export class BattleStateService {
   });
 
   public readonly turnOrder = computed(() => {
-    return this.turnManager.order.filter((u) => u.isAlive);
+    this.units();
+    this.activeUnitId();
+    const order = this.turnManager.order;
+    const index = this.turnManager.currentIndex;
+    return [...order.slice(index), ...order.slice(0, index)].filter((u) => u.isAlive);
+  });
+
+  public readonly canPlayerAct = computed(() => {
+    const unit = this.activeUnit();
+    return (
+      !!unit &&
+      unit.team === 'player' &&
+      !unit.isStunned &&
+      this.battleStatus() === 'active' &&
+      !this.isAutoBattle()
+    );
   });
 
   public readonly selectedAbility = computed<AbilityDefinition | null>(() => {
@@ -90,10 +111,23 @@ export class BattleStateService {
     customPlayerSquad?: UnitClassDefinition[],
     customEnemySquad?: UnitClassDefinition[],
   ): void {
+    const playerSquad = customPlayerSquad ?? this.playerSquad;
+    const enemySquad = customEnemySquad ?? this.enemySquad;
+    if (![playerSquad, enemySquad].every((squad) => squad.length >= 1 && squad.length <= 4)) {
+      throw new Error('Each squad must contain between one and four mercenaries.');
+    }
     this.clearScheduledActions();
-
-    const playerSquad = customPlayerSquad ?? [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS];
-    const enemySquad = customEnemySquad ?? [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS];
+    this.playerSquad = [...playerSquad];
+    this.enemySquad = [...enemySquad];
+    this.battleVersion++;
+    this.turnVersion++;
+    this.suspended = false;
+    this.turnManager = new TurnManager();
+    this.isAutoBattle.set(false);
+    this.isAiThinking.set(false);
+    this.floatingTexts.set([]);
+    this.attackingUnitId.set(null);
+    this.hitUnitId.set(null);
 
     const newUnits: UnitInstance[] = [];
 
@@ -105,14 +139,20 @@ export class BattleStateService {
     playerSquad.forEach((cls, idx) => {
       const lane = idx % 3;
       const isFront = cls.role === 'tank' || cls.role === 'melee';
-      const posX = isFront ? 0.32 : 0.14;
+      let posX = isFront ? 0.32 : 0.14;
+      if (newUnits.some((u) => u.team === 'player' && u.lane === lane && u.positionX === posX)) {
+        posX = isFront ? 0.14 : 0.32;
+      }
       newUnits.push(new UnitInstance(cls, `Player ${cls.name}`, 'player', lane, posX, 100));
     });
 
     enemySquad.forEach((cls, idx) => {
       const lane = idx % 3;
       const isFront = cls.role === 'tank' || cls.role === 'melee';
-      const posX = isFront ? 0.68 : 0.86;
+      let posX = isFront ? 0.68 : 0.86;
+      if (newUnits.some((u) => u.team === 'enemy' && u.lane === lane && u.positionX === posX)) {
+        posX = isFront ? 0.86 : 0.68;
+      }
       newUnits.push(new UnitInstance(cls, `Enemy ${cls.name}`, 'enemy', lane, posX, 100));
     });
 
@@ -123,6 +163,7 @@ export class BattleStateService {
     this.combatLogs.set([
       '⚔️ Battle commenced! Frontline warriors hold the vanguard.',
       'Control units manually or toggle Auto-Battle to let tactical AI resolve combat.',
+      'Move with MG, attack with AP. Guard converts unspent AP into a shield until your next turn.',
     ]);
     this.selectedAbilityId.set(null);
     this.targetedUnitId.set(null);
@@ -131,13 +172,15 @@ export class BattleStateService {
   }
 
   public toggleAutoBattle(): void {
+    if (this.battleStatus() !== 'active' || this.suspended) return;
     const next = !this.isAutoBattle();
     this.isAutoBattle.set(next);
     this.addLog(next ? '⚡ Auto-Battle: ENGAGED' : '⏸️ Auto-Battle: PAUSED');
 
     const active = this.activeUnit();
-    if (next && active && active.team === 'player' && this.battleStatus() === 'active') {
-      this.triggerPlayerAiTurn();
+    if (active?.team === 'player' && !active.isStunned) {
+      this.clearScheduledActions();
+      if (next) this.triggerAiTurn();
     }
   }
 
@@ -153,30 +196,33 @@ export class BattleStateService {
       return;
     }
 
+    this.turnVersion++;
+    unit.startTurn();
+    this.units.update((list) => [...list]);
     this.activeUnitId.set(unit.id);
     this.selectedAbilityId.set(null);
     this.targetedUnitId.set(null);
 
     this.addLog(`⭐ Turn: ${unit.name} (${unit.team.toUpperCase()}) [Lane ${unit.lane + 1}]`);
 
-    // Check if unit is stunned
+    this.queueActiveTurn();
+  }
+
+  private queueActiveTurn(): void {
+    const unit = this.activeUnit();
+    if (!unit || this.suspended || this.battleStatus() !== 'active') return;
     if (unit.isStunned) {
       this.addLog(`⚡ ${unit.name} is stunned and forfeits their turn!`);
-      const delay = 800 * this.delayMultiplier;
-      this.actionTimer = setTimeout(() => this.endCurrentTurn(), delay);
+      this.scheduleTurnAction(() => this.endCurrentTurn(true), 800);
       return;
     }
 
-    if (unit.team === 'enemy') {
-      this.triggerAiTurn();
-    } else if (this.isAutoBattle()) {
-      this.triggerPlayerAiTurn();
-    }
+    if (unit.team === 'enemy' || this.isAutoBattle()) this.triggerAiTurn();
   }
 
-  public moveActiveUnit(deltaX: number): boolean {
+  public moveActiveUnit(deltaX: number, automated = false): boolean {
     const unit = this.activeUnit();
-    if (!unit) return false;
+    if (!unit || !this.canAct(automated) || !Number.isFinite(deltaX)) return false;
 
     const minX = 0.05;
     const maxX = 0.95;
@@ -227,9 +273,9 @@ export class BattleStateService {
       return false;
     }
 
-    const moveCost = actualDist * 50;
-    if (!unit.actionGauge.trySpend(moveCost)) {
-      this.addLog(`⚠️ Insufficient action gauge to move.`);
+    const moveCost = Math.round(actualDist * 5000) / 100;
+    if (!unit.moveGauge.trySpend(moveCost)) {
+      this.addLog(`⚠️ Insufficient Move Gauge to move.`);
       return false;
     }
 
@@ -238,9 +284,9 @@ export class BattleStateService {
     return true;
   }
 
-  public switchActiveUnitLane(targetLane: number): boolean {
+  public switchActiveUnitLane(targetLane: number, automated = false): boolean {
     const unit = this.activeUnit();
-    if (!unit) return false;
+    if (!unit || !this.canAct(automated)) return false;
 
     // Verify destination coordinate is not occupied by another unit in targetLane
     const blocking = this.units().find(
@@ -274,14 +320,15 @@ export class BattleStateService {
   }
 
   public selectAbility(abilityId: string | null): void {
+    if (!this.canAct(false)) return;
     this.selectedAbilityId.set(abilityId);
-    this.targetedUnitId.set(null);
+    this.targetedUnitId.set(this.validTargets()[0]?.id ?? null);
   }
 
-  public executeSelectedAbility(targetOverride?: UnitInstance): boolean {
+  public executeSelectedAbility(targetOverride?: UnitInstance, automated = false): boolean {
     const attacker = this.activeUnit();
     const ability = this.selectedAbility();
-    if (!attacker || !ability) return false;
+    if (!attacker || !ability || !this.canAct(automated)) return false;
 
     let targets: UnitInstance[];
 
@@ -306,7 +353,10 @@ export class BattleStateService {
 
     // Trigger attack sprite animation
     this.attackingUnitId.set(attacker.id);
-    setTimeout(() => this.attackingUnitId.set(null), 350 * this.delayMultiplier);
+    const version = this.battleVersion;
+    setTimeout(() => {
+      if (version === this.battleVersion) this.attackingUnitId.set(null);
+    }, 350 * this.delayMultiplier);
 
     this.processCombatEffects(attacker, ability, result.effects);
     this.units.update((list) => [...list]);
@@ -329,17 +379,31 @@ export class BattleStateService {
     this.addLog(`💥 ${attacker.name} unleashed [${ability.name}]!`);
 
     for (const eff of effects) {
-      const effectText = eff.isHealing ? `+${eff.amount} HP` : `-${eff.amount} DMG`;
+      const effectText = eff.statusApplied
+        ? 'DEF +25'
+        : eff.isHealing
+          ? `+${eff.amount} HP`
+          : eff.guardAbsorbed > 0
+            ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
+            : `-${eff.amount} HP`;
 
       // Trigger hit flash animation on damaged target
       if (!eff.isHealing) {
         this.hitUnitId.set(eff.target.id);
-        setTimeout(() => this.hitUnitId.set(null), 350 * this.delayMultiplier);
+        const version = this.battleVersion;
+        setTimeout(() => {
+          if (version === this.battleVersion) this.hitUnitId.set(null);
+        }, 350 * this.delayMultiplier);
       }
 
       this.triggerFloatingText(eff.target.id, effectText, eff.isHealing, eff.isFriendlyFire);
 
-      if (eff.isHealing) {
+      if (eff.guardAbsorbed > 0) {
+        this.addLog(`  🛡️ ${eff.target.name}'s Guard absorbed ${eff.guardAbsorbed} damage.`);
+      }
+      if (eff.statusApplied) {
+        this.addLog(`  🛡️ ${eff.target.name} raises Bulwark: +25 defense.`);
+      } else if (eff.isHealing) {
         this.addLog(`  💚 Restores ${eff.amount} HP to ${eff.target.name}.`);
       } else if (eff.isFriendlyFire) {
         this.addLog(
@@ -355,9 +419,14 @@ export class BattleStateService {
     }
   }
 
-  public endCurrentTurn(): void {
+  public endCurrentTurn(automated = false): void {
+    if (this.suspended || this.battleStatus() !== 'active') return;
+    if (!automated && !this.canAct(false)) return;
+    this.clearScheduledActions();
     const unit = this.activeUnit();
     if (unit) {
+      const guard = unit.enterGuard();
+      if (guard > 0) this.addLog(`🛡️ ${unit.name} converts remaining AP into ${guard} Guard.`);
       unit.actionGauge.exhaust();
       const poison = unit.tickStatusEffects();
       if (poison > 0) {
@@ -366,6 +435,7 @@ export class BattleStateService {
       }
       this.addLog(`🛑 ${unit.name} finished their turn.`);
     }
+    this.units.update((list) => [...list]);
 
     this.checkBattleStatus();
     if (this.battleStatus() !== 'active') return;
@@ -380,13 +450,6 @@ export class BattleStateService {
       this.roundNumber.update((r) => r + 1);
       this.addLog(`🔄 === ROUND ${this.roundNumber()} ===`);
 
-      // Reset gauges for living units
-      for (const u of this.units()) {
-        if (u.isAlive) {
-          u.actionGauge.reset();
-        }
-      }
-
       this.turnManager.startNewRound(this.units());
       this.startTurnForUnit(this.turnManager.current);
     } else {
@@ -394,176 +457,130 @@ export class BattleStateService {
     }
   }
 
-  private triggerPlayerAiTurn(): void {
-    if (!this.isAutoBattle() || this.battleStatus() !== 'active') return;
-
-    const delay = (ms: number) => ms * this.delayMultiplier;
-
-    this.actionTimer = setTimeout(() => {
-      const hero = this.activeUnit();
-      if (!hero || hero.team !== 'player' || !hero.isAlive || !this.isAutoBattle()) return;
-
-      // 1. Cleric healing priority
-      const healAbility = hero.classDef.abilities.find((a) => a.damageType === 'healing');
-      if (healAbility && hero.actionGauge.current >= healAbility.actionCost) {
-        const woundedAlly = this.units()
-          .filter((u) => u.team === 'player' && u.isAlive && u.currentHp < u.maxHp * 0.75)
-          .sort((a, b) => a.currentHp - b.currentHp)[0];
-        if (woundedAlly) {
-          this.selectedAbilityId.set(healAbility.id);
-          this.executeSelectedAbility(woundedAlly);
-          this.actionTimer = setTimeout(() => this.endCurrentTurn(), delay(600));
-          return;
+  // Both teams use the same rules; keep decisions deterministic for future defense scripts.
+  private triggerAiTurn(): void {
+    this.isAiThinking.set(this.activeUnit()?.team === 'enemy');
+    this.scheduleTurnAction(() => {
+      const unit = this.activeUnit();
+      if (!unit || !this.canAct(true)) return;
+      const allies = this.units().filter((u) => u.team === unit.team && u.isAlive);
+      const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive);
+      const heal = unit.classDef.abilities.find(
+        (a) => a.damageType === 'healing' && a.actionCost <= unit.actionGauge.current,
+      );
+      const wounded = allies
+        .filter((u) => u.currentHp < u.maxHp * 0.75)
+        .sort((a, b) => a.currentHp / a.maxHp - b.currentHp / b.maxHp)[0];
+      let executed = false;
+      if (heal && wounded) {
+        this.selectedAbilityId.set(heal.id);
+        executed = this.executeSelectedAbility(wounded, true);
+      }
+      if (!executed && enemies.length) {
+        const closest = [...enemies].sort(
+          (a, b) =>
+            Math.abs(a.lane - unit.lane) - Math.abs(b.lane - unit.lane) ||
+            Math.abs(a.positionX - unit.positionX) - Math.abs(b.positionX - unit.positionX),
+        )[0];
+        if (!enemies.some((u) => u.lane === unit.lane)) {
+          this.switchActiveUnitLane(unit.lane + Math.sign(closest.lane - unit.lane), true);
+        }
+        if (unit.classDef.archetype === 'melee') {
+          this.moveActiveUnit(Math.sign(closest.positionX - unit.positionX) * 0.08, true);
+        }
+        const choices = unit.classDef.abilities
+          .filter(
+            (a) =>
+              a.damageType !== 'healing' &&
+              a.actionCost <= unit.actionGauge.current &&
+              a.target.includes('enem'),
+          )
+          .flatMap((ability) => {
+            const targets = CombatExecutor.getValidTargets(unit, ability, this.units());
+            const target = [...targets].sort(
+              (a, b) => a.currentHp / a.maxHp - b.currentHp / b.maxHp,
+            )[0];
+            if (!target) return [];
+            const area = ability.target === 'all-enemies' || ability.target === 'same-lane-enemies';
+            let score = (area ? targets : [target]).reduce(
+              (sum, t) =>
+                sum +
+                Math.min(
+                  t.currentHp + t.guardPoints,
+                  DamageCalculator.calculateWithDefense(unit, t, ability),
+                ),
+              0,
+            );
+            if (ability.friendlyFire) {
+              score -= allies
+                .filter(
+                  (a) =>
+                    a.id !== unit.id && (ability.target === 'all-enemies' || a.lane === unit.lane),
+                )
+                .reduce(
+                  (sum, a) =>
+                    sum +
+                    Math.min(
+                      a.currentHp + a.guardPoints,
+                      DamageCalculator.calculateWithDefense(unit, a, ability),
+                    ),
+                  0,
+                );
+            }
+            return [{ ability, target, score }];
+          })
+          .sort((a, b) => b.score - a.score || a.ability.actionCost - b.ability.actionCost);
+        const choice = choices.find((c) => c.score > 0);
+        if (choice) {
+          this.selectedAbilityId.set(choice.ability.id);
+          executed = this.executeSelectedAbility(choice.target, true);
         }
       }
-
-      // 2. Melee vanguard advance
-      if (
-        (hero.classDef.role === 'tank' || hero.classDef.role === 'melee') &&
-        hero.actionGauge.current > 35
-      ) {
-        const enemiesInLane = this.units().filter(
-          (u) => u.team === 'enemy' && u.isAlive && u.lane === hero.lane,
-        );
-        if (enemiesInLane.length > 0) {
-          this.moveActiveUnit(0.08);
-        } else {
-          // No enemy in current lane, shift towards lane with living enemies
-          const livingEnemies = this.units().filter((u) => u.team === 'enemy' && u.isAlive);
-          if (livingEnemies.length > 0 && hero.actionGauge.current >= 20) {
-            const targetLane = livingEnemies[0].lane;
-            const diff = targetLane > hero.lane ? hero.lane + 1 : hero.lane - 1;
-            this.switchActiveUnitLane(diff);
-          }
-        }
-      }
-
-      // 3. Attack with best affordable offensive ability
-      const attackAbilities = hero.classDef.abilities
-        .filter((a) => a.damageType !== 'healing' && hero.actionGauge.current >= a.actionCost)
-        .sort((a, b) => b.actionCost - a.actionCost);
-
-      for (const ability of attackAbilities) {
-        this.selectedAbilityId.set(ability.id);
-        const targets = this.validTargets();
-        if (targets.length > 0) {
-          const target = targets.sort((a, b) => a.currentHp - b.currentHp)[0];
-          this.executeSelectedAbility(target);
-          break;
-        }
-      }
-
-      // 4. Defensive buffs if remaining AP allows
-      if (hero.classDef.role === 'tank' && hero.actionGauge.current >= 30) {
-        const bulwark = hero.classDef.abilities.find((a) => a.id === 'bulwark');
-        if (bulwark) {
-          this.selectedAbilityId.set(bulwark.id);
-          this.executeSelectedAbility(hero);
-        }
-      }
-
-      // Complete turn
-      this.actionTimer = setTimeout(() => {
-        if (this.isAutoBattle()) {
-          this.endCurrentTurn();
-        }
-      }, delay(600));
-    }, delay(600));
+      this.isAiThinking.set(false);
+      // Every successful skill spends AP. Continue the combo to break Guard instead of
+      // preserving a fresh shield forever in low-damage mirror matches.
+      if (executed && this.battleStatus() === 'active') this.triggerAiTurn();
+      else this.scheduleTurnAction(() => this.endCurrentTurn(true), 600);
+    }, 600);
   }
 
-  private triggerAiTurn(): void {
-    this.isAiThinking.set(true);
-    const delay = (ms: number) => ms * this.delayMultiplier;
+  private canAct(automated: boolean): boolean {
+    const unit = this.activeUnit();
+    if (!unit || unit.isStunned || this.suspended || this.battleStatus() !== 'active') return false;
+    return automated ? unit.team === 'enemy' || this.isAutoBattle() : this.canPlayerAct();
+  }
 
+  private scheduleTurnAction(action: () => void, delay: number): void {
+    this.clearScheduledActions();
+    if (this.suspended || this.battleStatus() !== 'active') return;
+    const version = this.turnVersion;
+    const activeId = this.activeUnitId();
     this.actionTimer = setTimeout(() => {
-      const enemy = this.activeUnit();
-      if (!enemy || enemy.team !== 'enemy' || !enemy.isAlive) {
-        this.isAiThinking.set(false);
-        return;
-      }
-
-      let executed = false;
-
-      // Check if enemy has healing and wounded ally
-      const healAbility = enemy.classDef.abilities.find((a) => a.damageType === 'healing');
-      if (healAbility && enemy.actionGauge.current >= healAbility.actionCost) {
-        const woundedAlly = this.units()
-          .filter((u) => u.team === 'enemy' && u.isAlive && u.currentHp < u.maxHp * 0.7)
-          .sort((a, b) => a.currentHp - b.currentHp)[0];
-
-        if (woundedAlly) {
-          this.selectedAbilityId.set(healAbility.id);
-          this.executeSelectedAbility(woundedAlly);
-          executed = true;
-        }
-      }
-
-      // Melee frontline closing distance
+      this.actionTimer = null;
       if (
-        !executed &&
-        (enemy.classDef.role === 'melee' || enemy.classDef.role === 'tank') &&
-        enemy.actionGauge.current > 35
-      ) {
-        const playersInLane = this.units().filter(
-          (u) => u.team === 'player' && u.isAlive && u.lane === enemy.lane,
-        );
-        if (playersInLane.length > 0) {
-          this.moveActiveUnit(-0.08);
-        }
-      }
+        this.suspended ||
+        this.battleStatus() !== 'active' ||
+        version !== this.turnVersion ||
+        activeId !== this.activeUnitId()
+      )
+        return;
+      action();
+    }, delay * this.delayMultiplier);
+  }
 
-      // Offensive ability
-      if (!executed) {
-        const attackAbilities = enemy.classDef.abilities
-          .filter((a) => a.damageType !== 'healing' && enemy.actionGauge.current >= a.actionCost)
-          .sort((a, b) => b.actionCost - a.actionCost);
+  public suspend(): void {
+    this.suspended = true;
+    this.clearScheduledActions();
+    this.isAiThinking.set(false);
+  }
 
-        for (const ability of attackAbilities) {
-          this.selectedAbilityId.set(ability.id);
-          const targets = this.validTargets();
-
-          if (targets.length > 0) {
-            const target = targets.sort((a, b) => a.currentHp - b.currentHp)[0];
-            this.executeSelectedAbility(target);
-            executed = true;
-            break;
-          }
-        }
-      }
-
-      // Lane shift towards living player if needed
-      if (!executed && enemy.actionGauge.current >= 15) {
-        const livingPlayer = this.units().filter((u) => u.team === 'player' && u.isAlive);
-        if (livingPlayer.length > 0) {
-          const targetLane = livingPlayer[0].lane;
-          if (targetLane !== enemy.lane) {
-            const laneDiff = targetLane > enemy.lane ? enemy.lane + 1 : enemy.lane - 1;
-            const shifted = this.switchActiveUnitLane(laneDiff);
-            if (shifted) {
-              const affordable = enemy.classDef.abilities.find(
-                (a) => a.damageType !== 'healing' && enemy.actionGauge.current >= a.actionCost,
-              );
-              if (affordable) {
-                this.selectedAbilityId.set(affordable.id);
-                const targets = this.validTargets();
-                if (targets.length > 0) {
-                  this.executeSelectedAbility(targets[0]);
-                }
-              }
-            }
-          }
-        }
-      }
-
-      this.isAiThinking.set(false);
-
-      this.actionTimer = setTimeout(() => {
-        this.endCurrentTurn();
-      }, delay(600));
-    }, delay(600));
+  public resume(): void {
+    this.suspended = false;
+    this.queueActiveTurn();
   }
 
   private checkBattleStatus(): void {
+    if (this.battleStatus() !== 'active') return;
     const playerLiving = this.units().some((u) => u.team === 'player' && u.isAlive);
     const enemyLiving = this.units().some((u) => u.team === 'enemy' && u.isAlive);
 
@@ -571,10 +588,12 @@ export class BattleStateService {
       this.battleStatus.set('defeat');
       this.addLog('💀 DEFEAT! Your vanguard has fallen.');
       this.clearScheduledActions();
+      this.isAiThinking.set(false);
     } else if (!enemyLiving) {
       this.battleStatus.set('victory');
       this.addLog('🏆 VICTORY! All enemy battalions have been broken!');
       this.clearScheduledActions();
+      this.isAiThinking.set(false);
     }
   }
 

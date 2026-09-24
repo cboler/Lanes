@@ -14,6 +14,8 @@ export class UnitInstance {
   public positionX: number;
   public currentHp: number;
   public readonly actionGauge: ActionGauge;
+  public readonly moveGauge = new ActionGauge(100);
+  public guardPoints = 0;
   private readonly _statusEffects: StatusEffectInstance[] = [];
 
   constructor(
@@ -45,6 +47,34 @@ export class UnitInstance {
 
   public get isAlive(): boolean {
     return this.currentHp > 0;
+  }
+
+  // MVP tuning: recover a base 25 points plus half the governing stat.
+  public get moveRecovery(): number {
+    return Math.min(this.moveGauge.max, Math.max(0, Math.floor(25 + this.stats.agility / 2)));
+  }
+
+  public get actionRecovery(): number {
+    return Math.min(this.actionGauge.max, Math.max(0, Math.floor(25 + this.stats.vitality / 2)));
+  }
+
+  public get guardPotential(): number {
+    return Math.max(0, Math.floor(this.actionGauge.current * (0.5 + this.stats.technique / 100)));
+  }
+
+  public startTurn(): void {
+    this.guardPoints = 0;
+    this.moveGauge.recover(this.moveRecovery);
+    this.actionGauge.recover(this.actionRecovery);
+  }
+
+  public enterGuard(): number {
+    if (!this.isAlive || this.isStunned || this.guardPoints > 0 || this.actionGauge.isExhausted) {
+      return 0;
+    }
+    this.guardPoints = this.guardPotential;
+    this.actionGauge.exhaust();
+    return this.guardPoints;
   }
 
   public get statusEffects(): readonly StatusEffectInstance[] {
@@ -84,18 +114,20 @@ export class UnitInstance {
     );
   }
 
-  public takeDamage(amount: number): number {
-    if (amount < 0) {
-      throw new Error('Damage must be non-negative.');
+  public takeDamage(amount: number, bypassGuard = false): number {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('Damage must be finite and non-negative.');
     }
+    const absorbed = bypassGuard ? 0 : Math.min(this.guardPoints, amount);
+    this.guardPoints -= absorbed;
     const previous = this.currentHp;
-    this.currentHp = Math.max(0, this.currentHp - amount);
+    this.currentHp = Math.max(0, this.currentHp - (amount - absorbed));
     return previous - this.currentHp;
   }
 
   public heal(amount: number): number {
-    if (amount < 0) {
-      throw new Error('Heal amount must be non-negative.');
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('Heal amount must be finite and non-negative.');
     }
     const previous = this.currentHp;
     this.currentHp = Math.min(this.maxHp, this.currentHp + amount);
@@ -116,7 +148,7 @@ export class UnitInstance {
     }
 
     if (poisonDamage > 0) {
-      this.takeDamage(poisonDamage);
+      this.takeDamage(poisonDamage, true);
     }
 
     // Remove expired effects
@@ -136,6 +168,8 @@ export class UnitInstance {
   public resetForBattle(): void {
     this.currentHp = this.maxHp;
     this.actionGauge.reset();
+    this.moveGauge.reset();
+    this.guardPoints = 0;
     this.clearStatusEffects();
   }
 }

@@ -1,11 +1,12 @@
 import { AbilityDefinition } from './ability.model';
-import { UnitBaseStats, UnitRole } from './stats.model';
+import { CombatArchetype, UnitBaseStats, UnitRole } from './stats.model';
 
 export interface UnitClassDefinition {
   readonly id: string;
   readonly name: string;
   readonly description: string;
   readonly role: UnitRole;
+  readonly archetype: CombatArchetype;
   readonly baseStats: UnitBaseStats;
   readonly abilities: readonly AbilityDefinition[];
   readonly portraitUrl: string;
@@ -16,11 +17,15 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
   name: 'Fighter',
   description: 'A heavily-armoured warrior who holds the front line and draws enemy fire.',
   role: 'tank',
+  archetype: 'melee',
   baseStats: {
     maxHp: 180,
     attack: 65,
     defense: 50,
     speed: 40,
+    agility: 40,
+    vitality: 70,
+    technique: 60,
     magicAttack: 0,
     magicDefense: 10,
     meleeRange: 1,
@@ -39,7 +44,7 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
     {
       id: 'provoke',
       name: 'Provoke',
-      description: 'Bellow a war cry that draws all enemies in this lane toward the Fighter.',
+      description: 'Bellow an intimidating war cry that damages every enemy in this lane.',
       actionCost: 25,
       damageType: 'physical',
       powerMultiplier: 0.5,
@@ -48,7 +53,7 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
     {
       id: 'bulwark',
       name: 'Bulwark',
-      description: 'Raise the shield high. Temporarily boosts own Defense.',
+      description: 'Raise your shield: +25 Defense through your next turn. Cannot stack.',
       actionCost: 30,
       damageType: 'physical',
       powerMultiplier: 0,
@@ -62,11 +67,15 @@ export const CLERIC_CLASS: UnitClassDefinition = {
   name: 'Cleric',
   description: 'A holy healer who sustains allies and smites foes with divine magic.',
   role: 'support',
+  archetype: 'specialist',
   baseStats: {
     maxHp: 120,
     attack: 30,
     defense: 25,
     speed: 55,
+    agility: 55,
+    vitality: 55,
+    technique: 50,
     magicAttack: 70,
     magicDefense: 45,
     meleeRange: 1,
@@ -111,11 +120,15 @@ export const ARCHER_CLASS: UnitClassDefinition = {
   description:
     'A swift ranged fighter who picks off targets across any lane with deadly precision.',
   role: 'ranged',
+  archetype: 'ranged',
   baseStats: {
     maxHp: 110,
     attack: 75,
     defense: 20,
     speed: 75,
+    agility: 75,
+    vitality: 45,
+    technique: 55,
     magicAttack: 0,
     magicDefense: 15,
     meleeRange: 1,
@@ -158,11 +171,15 @@ export const WITCH_CLASS: UnitClassDefinition = {
   name: 'Witch',
   description: 'A glass-cannon mage who rains devastating AoE magic across the battlefield.',
   role: 'ranged',
+  archetype: 'magic',
   baseStats: {
     maxHp: 90,
     attack: 15,
     defense: 15,
     speed: 50,
+    agility: 50,
+    vitality: 50,
+    technique: 40,
     magicAttack: 85,
     magicDefense: 40,
     meleeRange: 1,
@@ -207,11 +224,15 @@ export const LANCER_CLASS: UnitClassDefinition = {
   name: 'Lancer',
   description: 'An aggressive melee striker whose long polearm reaches across lanes.',
   role: 'melee',
+  archetype: 'melee',
   baseStats: {
     maxHp: 130,
     attack: 80,
     defense: 30,
     speed: 65,
+    agility: 65,
+    vitality: 60,
+    technique: 45,
     magicAttack: 0,
     magicDefense: 10,
     meleeRange: 2,
@@ -255,11 +276,15 @@ export const GUNNER_CLASS: UnitClassDefinition = {
   description:
     'A ranged powerhouse whose explosive rounds can devastate a lane — friend and foe alike.',
   role: 'ranged',
+  archetype: 'ranged',
   baseStats: {
     maxHp: 100,
     attack: 80,
     defense: 20,
     speed: 60,
+    agility: 60,
+    vitality: 50,
+    technique: 50,
     magicAttack: 0,
     magicDefense: 10,
     meleeRange: 1,

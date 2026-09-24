@@ -71,6 +71,16 @@
     </div>
   </header>
 
+  @if (gamepad.connected()) {
+    <aside class="controller-guide" aria-label="Controller controls">
+      <span class="controller-status" role="status" [title]="gamepad.controllerName()">
+        🎮 Controller connected
+      </span>
+      <span>D-pad / left stick: focus · A: confirm · B: cancel</span>
+      <span>LB / RB: skills · Right stick: move one step, then release</span>
+    </aside>
+  }
+
   <main id="main-content" class="app-content" role="main">
     <router-outlet />
   </main>

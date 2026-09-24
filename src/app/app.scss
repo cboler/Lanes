@@ -221,6 +221,24 @@
   }
 }
 
+.controller-guide {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-gilded);
+  background: #121b2a;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+
+  .controller-status {
+    color: var(--color-gold-antique);
+    font-weight: 700;
+  }
+}
+
 .app-footer {
   flex-shrink: 0;
   border-top: 1px solid var(--border-gilded);

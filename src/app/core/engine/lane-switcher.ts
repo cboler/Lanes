@@ -5,7 +5,7 @@ export const MIN_LANE = 0;
 export const MAX_LANE = 2;
 
 /**
- * Handles lane switching mechanics and action gauge budgeting.
+ * Handles lane switching using the unit's Move Gauge.
  */
 export class LaneSwitcher {
   public static trySwitchLane(
@@ -13,7 +13,16 @@ export class LaneSwitcher {
     targetLane: number,
     costPerLane: number = DEFAULT_LANE_SWITCH_COST,
   ): boolean {
-    if (targetLane < MIN_LANE || targetLane > MAX_LANE) {
+    if (
+      !Number.isInteger(targetLane) ||
+      targetLane < MIN_LANE ||
+      targetLane > MAX_LANE ||
+      !Number.isInteger(unit.lane) ||
+      unit.lane < MIN_LANE ||
+      unit.lane > MAX_LANE ||
+      !Number.isFinite(costPerLane) ||
+      costPerLane < 0
+    ) {
       return false;
     }
     if (targetLane === unit.lane) {
@@ -23,7 +32,7 @@ export class LaneSwitcher {
     const distance = Math.abs(targetLane - unit.lane);
     const totalCost = costPerLane * distance;
 
-    if (!unit.actionGauge.trySpend(totalCost)) {
+    if (!unit.moveGauge.trySpend(totalCost)) {
       return false;
     }
 

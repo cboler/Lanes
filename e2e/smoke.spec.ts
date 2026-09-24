@@ -85,7 +85,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 1. Chibi sprites rendered in lanes
     const sprites = page.locator('app-unit-sprite .chibi-sprite-svg');
     await expect(sprites.first()).toBeVisible();
-    await expect(sprites).toHaveCount(6);
+    await expect(sprites).toHaveCount(8);
 
     // 2. Auto-Battle toggle
     const autoBtn = page.locator('#auto-battle-btn');

@@ -1,5 +1,6 @@
-import { Component, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { GamepadService } from './core/services/gamepad.service';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,6 +15,7 @@ interface BeforeInstallPromptEvent extends Event {
   styleUrl: './app.scss',
 })
 export class App implements OnInit, OnDestroy {
+  protected readonly gamepad = inject(GamepadService);
   protected readonly title = signal('Lanes');
   protected readonly isOnline = signal(typeof navigator !== 'undefined' ? navigator.onLine : true);
   protected readonly canInstall = signal(false);
@@ -24,6 +26,7 @@ export class App implements OnInit, OnDestroy {
   private installPromptListener?: (e: Event) => void;
 
   ngOnInit(): void {
+    this.gamepad.start();
     if (typeof window !== 'undefined') {
       this.onlineListener = () => this.isOnline.set(true);
       this.offlineListener = () => this.isOnline.set(false);

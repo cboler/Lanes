@@ -8,7 +8,7 @@
 
     <!-- Initiative Order Strip -->
     <div class="initiative-strip" aria-label="Turn Order Queue">
-      <span class="initiative-label">INITIATIVE</span>
+      <span class="initiative-label">UP NEXT</span>
       <div class="turn-tokens">
         @for (unit of battle.turnOrder(); track unit.id) {
           <div
@@ -86,6 +86,7 @@
   <!-- Main 3-Lane Combat Grid -->
   <div class="arena-viewport" role="region" aria-label="Combat Arena Viewport">
     <div class="arena-backdrop"></div>
+    <app-arena-scene />
 
     <!-- AI Thinking / Auto-Battle Running Banner -->
     @if (battle.isAiThinking() || (battle.isAutoBattle() && battle.battleStatus() === 'active')) {
@@ -125,7 +126,8 @@
           <!-- Unit Entities in this Lane -->
           <div class="lane-entities">
             @for (unit of getUnitsInLane(laneIndex); track unit.id) {
-              <div
+              <button
+                type="button"
                 class="unit-node"
                 [id]="'unit-' + unit.id"
                 [style.left]="unit.positionX * 100 + '%'"
@@ -134,10 +136,13 @@
                 [class.acting-unit]="unit.id === battle.activeUnitId()"
                 [class.targetable]="isTargetable(unit)"
                 (click)="onUnitClick(unit)"
-                (keydown.enter)="onUnitClick(unit)"
-                (keydown.space)="onUnitClick(unit)"
-                tabindex="0"
-                role="button"
+                (focus)="battle.targetedUnitId.set(unit.id)"
+                [class.selected-target]="
+                  battle.selectedAbility() && battle.targetedUnitId() === unit.id
+                "
+                [attr.aria-pressed]="
+                  battle.selectedAbility() && battle.targetedUnitId() === unit.id
+                "
                 [attr.aria-label]="
                   unit.name +
                   ', ' +
@@ -146,7 +151,10 @@
                   unit.currentHp +
                   ' of ' +
                   unit.maxHp +
-                  ' HP'
+                  ' HP, ' +
+                  unit.guardPoints +
+                  ' Guard, ' +
+                  unit.classDef.archetype
                 "
               >
                 <!-- Floating Damage/Heal Numbers -->
@@ -176,6 +184,12 @@
                 <!-- Status & Vitals Bar -->
                 <div class="unit-vitals">
                   <span class="unit-name">{{ unit.name }}</span>
+                  @if (unit.guardPoints > 0) {
+                    <span class="guard-badge">🛡 {{ unit.guardPoints }} Guard</span>
+                  }
+                  @if (hasAdvantage(unit)) {
+                    <span class="advantage-badge">Advantage +25%</span>
+                  }
                   <div
                     class="hp-track"
                     [attr.aria-valuenow]="unit.currentHp"
@@ -189,7 +203,7 @@
                     <span class="hp-text">{{ unit.currentHp }}/{{ unit.maxHp }}</span>
                   </div>
                 </div>
-              </div>
+              </button>
             }
           </div>
         </section>
@@ -210,7 +224,7 @@
             <div class="dossier-title-row">
               <span class="dossier-name">{{ active.name }}</span>
               <span class="role-pill" [attr.data-role]="active.classDef.role">
-                {{ active.classDef.role.toUpperCase() }}
+                {{ active.classDef.archetype.toUpperCase() }}
               </span>
             </div>
             <div class="dossier-stats-row">
@@ -230,8 +244,27 @@
           </div>
         </div>
 
-        <!-- Action Gauge Meter & Tactical Move Buttons -->
+        <!-- Each resource has an independent budget and recovery. -->
         <div class="gauge-and-movement">
+          <div class="action-gauge-box move-gauge-box">
+            <div class="gauge-label-row">
+              <span class="gauge-title">MOVE GAUGE (MG)</span>
+              <span class="gauge-val"
+                >{{ active.moveGauge.current.toFixed(0) }} / {{ active.moveGauge.max }} MG</span
+              >
+            </div>
+            <div
+              id="move-gauge"
+              class="gauge-track"
+              role="progressbar"
+              aria-label="Move Gauge"
+              aria-valuemin="0"
+              [attr.aria-valuenow]="active.moveGauge.current"
+              [attr.aria-valuemax]="active.moveGauge.max"
+            >
+              <div class="gauge-fill" [style.width]="active.moveGauge.fraction * 100 + '%'"></div>
+            </div>
+          </div>
           <div class="action-gauge-box">
             <div class="gauge-label-row">
               <span class="gauge-title">ACTION GAUGE (AP)</span>
@@ -239,12 +272,23 @@
                 {{ active.actionGauge.current.toFixed(0) }} / {{ active.actionGauge.max }} AP
               </span>
             </div>
-            <div class="gauge-track">
+            <div
+              id="action-gauge"
+              class="gauge-track"
+              role="progressbar"
+              aria-label="Action Gauge"
+              aria-valuemin="0"
+              [attr.aria-valuenow]="active.actionGauge.current"
+              [attr.aria-valuemax]="active.actionGauge.max"
+            >
               <div class="gauge-fill" [style.width]="active.actionGauge.fraction * 100 + '%'"></div>
             </div>
           </div>
 
-          @if (active.team === 'player' && !battle.isAutoBattle()) {
+          <p class="resource-hint">
+            Each turn: +{{ active.moveRecovery }} MG (AGI), +{{ active.actionRecovery }} AP (VIT).
+          </p>
+          @if (battle.canPlayerAct()) {
             <div class="tactical-movement-controls" aria-label="Movement Controls">
               <!-- Lane Shift Controls -->
               <div class="lane-shift-btns">
@@ -252,21 +296,21 @@
                   type="button"
                   class="action-btn"
                   id="lane-up-btn"
-                  [disabled]="active.lane === 0 || active.actionGauge.current < 15"
+                  [disabled]="active.lane === 0 || active.moveGauge.current < 15"
                   (click)="battle.switchActiveUnitLane(active.lane - 1)"
-                  title="Switch to lane above (W / Up Arrow) [15 AP]"
+                  title="Switch to lane above (W / Up Arrow) [15 MG]"
                 >
-                  ▲ Shift Up (15 AP)
+                  ▲ Shift Up (15 MG)
                 </button>
                 <button
                   type="button"
                   class="action-btn"
                   id="lane-down-btn"
-                  [disabled]="active.lane === 2 || active.actionGauge.current < 15"
+                  [disabled]="active.lane === 2 || active.moveGauge.current < 15"
                   (click)="battle.switchActiveUnitLane(active.lane + 1)"
-                  title="Switch to lane below (S / Down Arrow) [15 AP]"
+                  title="Switch to lane below (S / Down Arrow) [15 MG]"
                 >
-                  ▼ Shift Down (15 AP)
+                  ▼ Shift Down (15 MG)
                 </button>
               </div>
 
@@ -276,9 +320,9 @@
                   type="button"
                   class="action-btn"
                   id="move-left-btn"
-                  [disabled]="active.actionGauge.current < 2"
+                  [disabled]="active.moveGauge.current < 2"
                   (click)="battle.moveActiveUnit(-0.04)"
-                  title="Step Left (A / Left Arrow) [2 AP]"
+                  title="Step Left (A / Left Arrow) [2 MG]"
                 >
                   ◀ Retreat
                 </button>
@@ -286,9 +330,9 @@
                   type="button"
                   class="action-btn"
                   id="move-right-btn"
-                  [disabled]="active.actionGauge.current < 2"
+                  [disabled]="active.moveGauge.current < 2"
                   (click)="battle.moveActiveUnit(0.04)"
-                  title="Step Right (D / Right Arrow) [2 AP]"
+                  title="Step Right (D / Right Arrow) [2 MG]"
                 >
                   Advance ▶
                 </button>
@@ -298,7 +342,7 @@
         </div>
 
         <!-- Ability Cards Deck -->
-        @if (active.team === 'player' && !battle.isAutoBattle()) {
+        @if (battle.canPlayerAct()) {
           <div class="abilities-deck" aria-label="Available Abilities">
             @for (ability of active.classDef.abilities; track ability.id; let idx = $index) {
               <button
@@ -335,12 +379,17 @@
               class="end-turn-btn"
               id="end-turn-btn"
               (click)="battle.endCurrentTurn()"
-              title="Pass turn to next unit (E)"
+              title="Convert unspent Action Gauge into Guard until your next turn (E)"
             >
-              <span class="end-icon">🛑</span>
-              <span>End Turn (E)</span>
+              <span class="end-icon">🛡️</span>
+              <span>Guard &amp; End (E)</span>
+              <span class="guard-preview"
+                >{{ active.guardPotential }} shield · TEC {{ active.stats.technique }}</span
+              >
             </button>
           </div>
+        } @else if (active.isStunned) {
+          <div class="ai-turn-indicator" role="status">Stunned — this turn is skipped.</div>
         } @else if (battle.isAutoBattle()) {
           <div class="ai-turn-indicator auto-indicator">
             <span class="pulse-dot gold"></span>
@@ -355,6 +404,41 @@
       </div>
     }
   </footer>
+
+  @if (battle.selectedAbility(); as ability) {
+    @if (battle.canPlayerAct()) {
+      <section class="targeting-panel" aria-label="Confirm ability">
+        <div>
+          <strong>{{ ability.name }} · {{ ability.actionCost }} AP</strong>
+          <p>
+            Choose a highlighted unit, or confirm the selected target. Arrows change targets; Escape
+            / B cancels.
+          </p>
+          @if (friendlyFireTargets().length > 0) {
+            <p class="friendly-fire-warning">
+              Friendly fire: {{ friendlyFireTargets().length }} allies will also be hit.
+            </p>
+          }
+        </div>
+        <button
+          type="button"
+          class="tactical-btn primary"
+          id="confirm-ability-btn"
+          [disabled]="battle.validTargets().length === 0"
+          (click)="battle.executeSelectedAbility()"
+        >
+          Confirm attack / skill
+        </button>
+        <button type="button" class="tactical-btn secondary" (click)="cancelSelection()">
+          Cancel
+        </button>
+      </section>
+    }
+  }
+  <p class="combat-guide">
+    Melee → Ranged → Magic → Melee: +25% damage. Specialists are neutral. Movement spends MG;
+    abilities spend AP; unspent AP becomes Guard.
+  </p>
 
   <!-- Combat Log Drawer -->
   @if (isLogOpen()) {

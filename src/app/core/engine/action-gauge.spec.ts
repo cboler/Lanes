@@ -15,6 +15,30 @@ describe('ActionGauge', () => {
     expect(() => new ActionGauge(-10)).toThrow();
   });
 
+  it.each([NaN, Infinity, -Infinity])('rejects a non-finite maximum (%s)', (value) => {
+    expect(() => new ActionGauge(value)).toThrow();
+  });
+
+  it.each([-1, NaN, Infinity, -Infinity])('rejects invalid spend and recovery (%s)', (value) => {
+    const gauge = new ActionGauge(100);
+    gauge.trySpend(30);
+    expect(() => gauge.trySpend(value)).toThrow();
+    expect(() => gauge.recover(value)).toThrow();
+    expect(gauge.current).toBe(70);
+  });
+
+  it('partially recovers a spent gauge and caps recovery at maximum', () => {
+    const gauge = new ActionGauge(100);
+    gauge.exhaust();
+    expect(gauge.recover(45)).toBe(45);
+    expect(gauge.current).toBe(45);
+    expect(gauge.recover(80)).toBe(55);
+    expect(gauge.current).toBe(100);
+    expect(gauge.recover(0)).toBe(0);
+    expect(gauge.trySpend(0)).toBe(true);
+    expect(gauge.current).toBe(100);
+  });
+
   it('spends points successfully when affordable', () => {
     const gauge = new ActionGauge(100);
     expect(gauge.trySpend(30)).toBe(true);
