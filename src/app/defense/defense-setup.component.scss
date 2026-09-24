@@ -1,0 +1,114 @@
+.defense-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-4);
+}
+.defense-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-gilded);
+  border-radius: var(--radius-md);
+}
+.defense-header > div:first-child {
+  flex: 1 1 300px;
+}
+.defense-header h1 {
+  margin: var(--space-3) 0;
+}
+.defense-header p {
+  max-width: 70ch;
+  margin: 0 0 var(--space-2);
+}
+.defense-actions {
+  display: flex;
+  align-items: start;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.defense-status {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--color-gold-antique);
+}
+.defense-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+  gap: var(--space-4);
+}
+.defense-member {
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-gilded);
+  border-radius: var(--radius-md);
+}
+.member-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.member-heading img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 2px solid var(--border-gilded-bright);
+  border-radius: var(--radius-sm);
+}
+.member-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.member-heading h2 {
+  font-size: var(--font-size-base);
+  margin: 0 0 var(--space-1);
+}
+.order-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.order-card {
+  min-width: 0;
+  padding: var(--space-2);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+.order-card h3 {
+  font-size: var(--font-size-sm);
+  margin: 0;
+  color: var(--color-gold-antique);
+}
+.order-card button {
+  justify-content: start;
+  text-align: left;
+  white-space: normal;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.add-member {
+  justify-self: start;
+}
+.practice-note {
+  font-size: var(--font-size-sm);
+}
+@media (max-width: 430px) {
+  .order-grid {
+    grid-template-columns: 1fr;
+  }
+  .defense-actions {
+    width: 100%;
+  }
+  .defense-actions button {
+    flex: 1 1 130px;
+  }
+}

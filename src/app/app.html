@@ -31,6 +31,9 @@
         >
           Squad Builder
         </a>
+        <a routerLink="/defense" routerLinkActive="active" class="nav-link" id="nav-link-defense">
+          Defense Orders
+        </a>
         <a
           routerLink="/status"
           routerLinkActive="active"
@@ -60,12 +63,10 @@
           [class.online]="isOnline()"
           [class.offline]="!isOnline()"
           role="status"
-          [attr.aria-label]="
-            isOnline() ? 'Connected to Kingdom Command' : 'Operating in Autonomous Field Mode'
-          "
+          [attr.aria-label]="isOnline() ? 'Device has network access' : 'Device is offline'"
         >
           <span class="crystal-gem"></span>
-          <span class="crystal-label">{{ isOnline() ? 'Command Link' : 'Field Mode' }}</span>
+          <span class="crystal-label">{{ isOnline() ? 'Online' : 'Offline' }}</span>
         </div>
       </div>
     </div>

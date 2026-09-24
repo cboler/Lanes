@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { BattlefieldComponent } from './battle/battlefield.component';
 import { SquadSelectComponent } from './squad/squad-select.component';
 import { StatusComponent } from './status/status.component';
+import { DefenseSetupComponent } from './defense/defense-setup.component';
 
 export const routes: Routes = [
   {
@@ -18,6 +19,11 @@ export const routes: Routes = [
     path: 'status',
     component: StatusComponent,
     title: 'Diagnostics • Lanes',
+  },
+  {
+    path: 'defense',
+    component: DefenseSetupComponent,
+    title: 'Defense Orders • Lanes',
   },
   {
     path: '**',

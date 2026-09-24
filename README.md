@@ -4,12 +4,13 @@ A lane-based tactical RPG built as a modern **Angular PWA**, inspired by [Grand 
 
 ## About
 
-Lanes recreates the unique hybrid combat system of Grand Kingdom — combining tactical unit positioning across a 3-lane battlefield with action-point turn budgeting during each unit's turn. Players build squads from diverse unit classes, manage lane depth and cross-lane abilities, and battle against enemy forces.
+Lanes is a playable local prototype moving toward the Project Valkyrie design. It combines tactical positioning across three lanes with separate movement and action budgets. Players can build squads, script a defending squad's opening turns, and practice against it.
 
 ### Key Features
 
-- **3-Lane Combat**: Units occupy horizontal lanes and can shift vertically between them — positioning and line-of-sight are critical.
-- **Action-Based Turn Budgeting**: Each unit's turn allocates an Action Gauge (AP) that depletes as you reposition horizontally, shift lanes, and execute abilities.
+- **3-Lane Combat**: Units occupy horizontal lanes and can shift between them. Front units screen allies in their lane.
+- **Dual Gauges and Guard**: Horizontal movement and lane shifts spend Move Gauge (MG); abilities spend Action Gauge (AP). Agility and Vitality restore part of each gauge at the start of a unit's turn. Unspent AP becomes a Technique-powered Guard shield.
+- **Tactical Triangle**: Melee beats Ranged, Ranged beats Magic, and Magic beats Melee for 25% bonus damage. Specialists are neutral.
 - **6 Diverse Unit Classes**:
   - **Fighter**: Frontline heavy tank with high HP/DEF, Shield Bash, Provoke, and Bulwark.
   - **Cleric**: Divine support healer with Mend (cross-lane), Holy Smite, and party-wide Bless.
@@ -18,20 +19,22 @@ Lanes recreates the unique hybrid combat system of Grand Kingdom — combining t
   - **Lancer**: Fast melee striker with long polearm reach, Thrust, Piercing Lunge (cross-lane), and Whirlwind.
   - **Gunner**: Explosive ranged powerhouse with Quick Fire, Snipe (cross-lane), and Explosive Shot (lane AoE with friendly-fire risk).
 - **Cross-Lane & AoE Mechanics**: Select abilities can reach across lanes or strike full lanes, while careless high-impact spells risk friendly fire.
-- **Squad Formation Builder**: Inspect class dossiers, stats, and abilities in the War Room, and customize 3-hero squads for combat.
-- **PWA & Offline Ready**: Installable Progressive Web App with Angular Service Worker caching, offline support, and zero external runtime game engine dependencies.
+- **Squad Formation Builder**: Inspect class dossiers and assemble 1–4 members per side. Four is the default; two units share one lane.
+- **Defense Orders**: Configure each defender's first four own turns with a skill or Guard and a target priority. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
+- **Controller Support**: Standard Gamepad API navigation, confirm/cancel, ability cycling, and one-step movement alongside keyboard and touch controls.
+- **3D Arena and PWA**: Three.js renders a restrained three-lane board behind DOM units, with a CSS fallback when WebGL is unavailable. Angular Service Worker and GitHub Pages hosting remain in place.
 
 ## Technical Stack
 
-| Component          | Technology                                                  |
-| ------------------ | ----------------------------------------------------------- |
-| Framework          | Angular 22 (Standalone Components, Signals)                 |
-| Combat Engine      | Pure TypeScript (Zero external engine dependencies)         |
-| Visuals & UI       | SCSS, Responsive SVG/DOM, Handcrafted Fantasy Character Art |
-| PWA Infrastructure | Angular Service Worker (`@angular/service-worker`)          |
-| Testing Stack      | Vitest (`npm test`) + Playwright (`npm run e2e`)            |
-| Code Quality       | ESLint + Prettier                                           |
-| Hosting            | GitHub Pages via GitHub Actions workflow                    |
+| Component          | Technology                                               |
+| ------------------ | -------------------------------------------------------- |
+| Framework          | Angular 22 (Standalone Components, Signals)              |
+| Combat Engine      | Pure TypeScript (Zero external rule dependencies)        |
+| Visuals & UI       | SCSS, SVG/DOM, Three.js arena, handcrafted character art |
+| PWA Infrastructure | Angular Service Worker (`@angular/service-worker`)       |
+| Testing Stack      | Vitest (`npm test`) + Playwright (`npm run e2e`)         |
+| Code Quality       | ESLint + Prettier                                        |
+| Hosting            | GitHub Pages via GitHub Actions workflow                 |
 
 ## Getting Started
 
@@ -87,6 +90,7 @@ Lanes/
 ├── src/
 │   ├── app/
 │   │   ├── battle/          # 3-Lane tactical arena component
+│   │   ├── defense/         # Local four-turn defense editor
 │   │   ├── core/
 │   │   │   ├── engine/      # CombatExecutor, DamageCalculator, TurnManager, LaneSwitcher
 │   │   │   ├── models/      # UnitInstance, UnitClassDefinition, Ability, Stats
@@ -103,15 +107,15 @@ Lanes/
 
 ## Controls
 
-| Action               | Keyboard             | Touch / Click             |
-| -------------------- | -------------------- | ------------------------- |
-| Step Left            | `A` or `Left Arrow`  | Tap `◀ Left` button       |
-| Step Right           | `D` or `Right Arrow` | Tap `Right ▶` button      |
-| Shift Lane Up        | `W` or `Up Arrow`    | Tap `▲ Shift Up` button   |
-| Shift Lane Down      | `S` or `Down Arrow`  | Tap `▼ Shift Down` button |
-| Select Ability 1/2/3 | `1`, `2`, `3`        | Tap ability card          |
-| Execute / Confirm    | `Space` or `Enter`   | Click/tap target unit     |
-| End Turn             | `E`                  | Tap `🛑 End Turn` button  |
+| Action             | Keyboard           | Touch / Click           |
+| ------------------ | ------------------ | ----------------------- |
+| Step Left/Right    | `A`/`D` or arrows  | Retreat/Advance buttons |
+| Shift Lane Up/Down | `W`/`S` or arrows  | Shift buttons           |
+| Select Ability 1–3 | `1`, `2`, `3`      | Ability cards           |
+| Confirm/Cancel     | `Enter` / `Escape` | Target / Cancel buttons |
+| Guard and end      | `E`                | Guard & End button      |
+
+With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. Defense Orders can also be edited using these focused buttons.
 
 ## License
 

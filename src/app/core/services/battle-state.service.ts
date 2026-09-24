@@ -14,6 +14,9 @@ import { CombatExecutor, TargetEffect } from '../engine/combat-executor';
 import { LaneSwitcher } from '../engine/lane-switcher';
 import { AbilityDefinition } from '../models/ability.model';
 import { DamageCalculator } from '../engine/damage-calculator';
+import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-plan.model';
+import { getClassDefinition } from '../models/unit-class.model';
+import { chooseDefenseTarget } from '../engine/defense-policy';
 
 export const COLLISION_BUFFER = 0.08;
 
@@ -43,6 +46,7 @@ export class BattleStateService {
   public readonly floatingTexts = signal<FloatingText[]>([]);
   public readonly roundNumber = signal<number>(1);
   public readonly isAiThinking = signal<boolean>(false);
+  public readonly practicePlan = signal<DefensePlan | null>(null);
 
   // Auto-battle and combat animations
   public readonly isAutoBattle = signal<boolean>(false);
@@ -56,6 +60,19 @@ export class BattleStateService {
   private suspended = false;
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
+  private defenseOrders = new Map<string, DefenseOrder[]>();
+  private defenseTurns = new Map<string, number>();
+  private attemptedDefenseTurns = new Map<string, number>();
+
+  public initDefensePractice(value: unknown): void {
+    const plan = parseDefensePlan(value);
+    if (!plan) throw new Error('Defense plan is invalid.');
+    this.initSkirmish(
+      [...this.playerSquad],
+      plan.members.map((member) => getClassDefinition(member.classId)),
+      plan,
+    );
+  }
 
   public readonly activeUnit = computed(() => {
     const id = this.activeUnitId();
@@ -110,6 +127,7 @@ export class BattleStateService {
   public initSkirmish(
     customPlayerSquad?: UnitClassDefinition[],
     customEnemySquad?: UnitClassDefinition[],
+    defensePlan?: DefensePlan,
   ): void {
     const playerSquad = customPlayerSquad ?? this.playerSquad;
     const enemySquad = customEnemySquad ?? this.enemySquad;
@@ -119,6 +137,12 @@ export class BattleStateService {
     this.clearScheduledActions();
     this.playerSquad = [...playerSquad];
     this.enemySquad = [...enemySquad];
+    const activePlan =
+      defensePlan ?? (!customPlayerSquad && !customEnemySquad ? this.practicePlan() : null);
+    this.practicePlan.set(activePlan);
+    this.defenseOrders = new Map();
+    this.defenseTurns = new Map();
+    this.attemptedDefenseTurns = new Map();
     this.battleVersion++;
     this.turnVersion++;
     this.suspended = false;
@@ -153,7 +177,9 @@ export class BattleStateService {
       if (newUnits.some((u) => u.team === 'enemy' && u.lane === lane && u.positionX === posX)) {
         posX = isFront ? 0.86 : 0.68;
       }
-      newUnits.push(new UnitInstance(cls, `Enemy ${cls.name}`, 'enemy', lane, posX, 100));
+      const unit = new UnitInstance(cls, `Enemy ${cls.name}`, 'enemy', lane, posX, 100);
+      newUnits.push(unit);
+      if (activePlan) this.defenseOrders.set(unit.id, activePlan.members[idx].orders);
     });
 
     this.units.set(newUnits);
@@ -161,7 +187,9 @@ export class BattleStateService {
     this.roundNumber.set(1);
     this.battleStatus.set('active');
     this.combatLogs.set([
-      '⚔️ Battle commenced! Frontline warriors hold the vanguard.',
+      activePlan
+        ? '⚔️ Local defense practice commenced. First four defender turns use saved orders.'
+        : '⚔️ Battle commenced! Frontline warriors hold the vanguard.',
       'Control units manually or toggle Auto-Battle to let tactical AI resolve combat.',
       'Move with MG, attack with AP. Guard converts unspent AP into a shield until your next turn.',
     ]);
@@ -198,6 +226,9 @@ export class BattleStateService {
 
     this.turnVersion++;
     unit.startTurn();
+    if (unit.team === 'enemy' && this.practicePlan()) {
+      this.defenseTurns.set(unit.id, (this.defenseTurns.get(unit.id) ?? 0) + 1);
+    }
     this.units.update((list) => [...list]);
     this.activeUnitId.set(unit.id);
     this.selectedAbilityId.set(null);
@@ -463,6 +494,7 @@ export class BattleStateService {
     this.scheduleTurnAction(() => {
       const unit = this.activeUnit();
       if (!unit || !this.canAct(true)) return;
+      if (unit.team === 'enemy' && this.tryDefenseOrder(unit)) return;
       const allies = this.units().filter((u) => u.team === unit.team && u.isAlive);
       const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive);
       const heal = unit.classDef.abilities.find(
@@ -542,6 +574,36 @@ export class BattleStateService {
       if (executed && this.battleStatus() === 'active') this.triggerAiTurn();
       else this.scheduleTurnAction(() => this.endCurrentTurn(true), 600);
     }, 600);
+  }
+
+  private tryDefenseOrder(unit: UnitInstance): boolean {
+    const turn = this.defenseTurns.get(unit.id) ?? 0;
+    if (this.attemptedDefenseTurns.get(unit.id) === turn) return false;
+    this.attemptedDefenseTurns.set(unit.id, turn);
+    const order = this.defenseOrders.get(unit.id)?.[turn - 1];
+    if (!order) return false;
+    if (order.abilityId === 'auto') return false;
+    if (order.abilityId === 'guard') {
+      this.addLog(`📜 ${unit.name} follows turn ${turn} order: Guard.`);
+      this.scheduleTurnAction(() => this.endCurrentTurn(true), 400);
+      return true;
+    }
+    const ability = unit.classDef.abilities.find((candidate) => candidate.id === order.abilityId);
+    const target =
+      ability && chooseDefenseTarget(unit, ability, this.units(), order.targetPriority);
+    if (ability && target && unit.actionGauge.current >= ability.actionCost) {
+      this.selectedAbilityId.set(ability.id);
+      if (this.executeSelectedAbility(target, true)) {
+        this.addLog(
+          `📜 ${unit.name} follows turn ${turn} order: ${ability.name} (${order.targetPriority}).`,
+        );
+        if (this.battleStatus() === 'active')
+          this.scheduleTurnAction(() => this.endCurrentTurn(true), 600);
+        return true;
+      }
+    }
+    this.addLog(`📜 ${unit.name}'s turn ${turn} order is unavailable; using role tactics.`);
+    return false;
   }
 
   private canAct(automated: boolean): boolean {

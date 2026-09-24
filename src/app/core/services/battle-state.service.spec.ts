@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BattleStateService, COLLISION_BUFFER } from './battle-state.service';
 import { FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS } from '../models/unit-class.model';
 import { StatusEffectInstance } from '../models/status-effect.model';
+import { createDefaultDefensePlan } from '../models/defense-plan.model';
 
 describe('BattleStateService', () => {
   let service: BattleStateService;
@@ -259,4 +260,66 @@ describe('BattleStateService', () => {
       expect(service.roundNumber()).toBe(round);
     },
   );
+
+  it('runs saved orders, falls back when an order is unavailable, and preserves practice on restart', () => {
+    const plan = createDefaultDefensePlan();
+    plan.members = [
+      {
+        classId: 'fighter',
+        orders: [
+          { abilityId: 'guard', targetPriority: 'closest' },
+          { abilityId: 'bulwark', targetPriority: 'closest' },
+          { abilityId: 'bulwark', targetPriority: 'closest' },
+          { abilityId: 'auto', targetPriority: 'closest' },
+        ],
+      },
+    ];
+    service.initDefensePractice(plan);
+    expect(service.practicePlan()).not.toBeNull();
+    for (let turn = 1; turn <= 3; turn++) {
+      while (service.activeUnit()?.team === 'player') service.endCurrentTurn();
+      vi.advanceTimersByTime(1500);
+      const logs = service.combatLogs().join('\n');
+      if (turn === 1) expect(logs).toContain('follows turn 1 order: Guard');
+      if (turn === 2) expect(logs).toContain('follows turn 2 order: Bulwark');
+      if (turn === 3) expect(logs).toContain('turn 3 order is unavailable');
+      if (turn === 3) expect(logs.match(/turn 3 order is unavailable/g)).toHaveLength(1);
+    }
+    service.initSkirmish();
+    expect(service.practicePlan()?.members[0].orders[0].abilityId).toBe('guard');
+    expect(service.enemyUnits()).toHaveLength(1);
+    service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+    expect(service.practicePlan()).toBeNull();
+  });
+
+  it('rejects corrupt practice plans without altering an active battle', () => {
+    service.initSkirmish();
+    const before = service.units();
+    expect(() => service.initDefensePractice({ version: 1, members: [] })).toThrow();
+    expect(service.units()).toBe(before);
+    expect(service.practicePlan()).toBeNull();
+  });
+
+  it('uses exactly four scripted turns per defender, then switches to the fallback', () => {
+    const plan = createDefaultDefensePlan();
+    plan.members = [
+      {
+        classId: 'fighter',
+        orders: Array.from({ length: 4 }, () => ({
+          abilityId: 'guard',
+          targetPriority: 'closest',
+        })),
+      },
+    ];
+    service.initDefensePractice(plan);
+    for (let turn = 1; turn <= 4; turn++) {
+      while (service.activeUnit()?.team === 'player') service.endCurrentTurn();
+      vi.advanceTimersByTime(1500);
+      expect(service.combatLogs().join('\n')).toContain(`follows turn ${turn} order: Guard`);
+    }
+    while (service.activeUnit()?.team === 'player') service.endCurrentTurn();
+    vi.advanceTimersByTime(600);
+    expect(service.combatLogs().join('\n')).toContain('Enemy Fighter unleashed');
+    expect(service.combatLogs().join('\n')).not.toContain('follows turn 5 order');
+  });
 });

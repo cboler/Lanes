@@ -80,10 +80,18 @@
       >
         🛡️ War Room
       </a>
+      <a routerLink="/defense" class="tactical-btn secondary" id="defense-orders-link"
+        >📜 Defense Orders</a
+      >
     </div>
   </header>
 
   <!-- Main 3-Lane Combat Grid -->
+  @if (battle.practicePlan()) {
+    <p class="practice-note" role="status">
+      Local defense practice · Defender follows saved orders for each member's first four turns.
+    </p>
+  }
   <div class="arena-viewport" role="region" aria-label="Combat Arena Viewport">
     <div class="arena-backdrop"></div>
     <app-arena-scene />

@@ -1,0 +1,114 @@
+<section class="defense-page" aria-labelledby="defense-title">
+  <header class="defense-header">
+    <div>
+      <a routerLink="/" class="tactical-btn secondary">◀ Return to battle</a>
+      <h1 id="defense-title">Defense Orders</h1>
+      <p>Program your squad's first four turns, then challenge it in a local practice battle.</p>
+      <p>
+        Each member follows its own four-turn list. Stunned turns use a slot. An unavailable order
+        falls back to role-based tactics. After turn four, all members use those tactics.
+      </p>
+      <p>Target priority applies to single-target skills; area skills affect every legal target.</p>
+    </div>
+    <div class="defense-actions">
+      <button type="button" class="tactical-btn secondary" id="save-defense-btn" (click)="save()">
+        Save orders
+      </button>
+      <button
+        type="button"
+        class="tactical-btn primary"
+        id="practice-defense-btn"
+        (click)="practice()"
+      >
+        Save &amp; Practice
+      </button>
+    </div>
+  </header>
+
+  <p class="defense-status" role="status">
+    {{ notice() }}
+    @if (dirty()) {
+      · Unsaved changes
+    }
+  </p>
+  <div class="defense-grid">
+    @for (member of draft().members; track $index; let memberIndex = $index) {
+      <section class="defense-member" [attr.aria-label]="'Defense member ' + (memberIndex + 1)">
+        <div class="member-heading">
+          <img [src]="portrait(member)" [alt]="className(member)" />
+          <div>
+            <h2>Member {{ memberIndex + 1 }}</h2>
+            <button
+              type="button"
+              class="tactical-btn secondary class-cycle"
+              (click)="cycleClass(memberIndex)"
+              [attr.aria-label]="'Change class for member ' + (memberIndex + 1)"
+            >
+              {{ className(member) }} ↻
+            </button>
+          </div>
+          <button
+            type="button"
+            class="tactical-btn secondary"
+            [disabled]="draft().members.length <= 1"
+            (click)="removeMember(memberIndex)"
+            [attr.aria-label]="'Remove member ' + (memberIndex + 1)"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="order-grid">
+          @for (order of member.orders; track $index; let turnIndex = $index) {
+            <div class="order-card">
+              <h3>Turn {{ turnIndex + 1 }}</h3>
+              <button
+                type="button"
+                class="tactical-btn secondary order-action"
+                [attr.aria-label]="
+                  'Member ' +
+                  (memberIndex + 1) +
+                  ' turn ' +
+                  (turnIndex + 1) +
+                  ' action: ' +
+                  actionName(member, order.abilityId)
+                "
+                (click)="cycleAction(memberIndex, turnIndex)"
+              >
+                {{ actionName(member, order.abilityId) }} ↻
+              </button>
+              <button
+                type="button"
+                class="tactical-btn secondary order-target"
+                [disabled]="!hasTargetChoice(member, order.abilityId)"
+                [attr.aria-label]="
+                  'Member ' +
+                  (memberIndex + 1) +
+                  ' turn ' +
+                  (turnIndex + 1) +
+                  ' target: ' +
+                  targetName(order.targetPriority)
+                "
+                (click)="cyclePriority(memberIndex, turnIndex)"
+              >
+                Target: {{ targetName(order.targetPriority) }} ↻
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  </div>
+  <button
+    type="button"
+    class="tactical-btn secondary add-member"
+    id="add-defense-member-btn"
+    [disabled]="draft().members.length >= 4"
+    (click)="addMember()"
+  >
+    + Add member ({{ draft().members.length }}/4)
+  </button>
+  <p class="practice-note">
+    Saved orders stay on this device. Practice uses the current player squad against this defense
+    squad; it does not contact another player.
+  </p>
+</section>
