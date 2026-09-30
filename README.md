@@ -21,6 +21,7 @@ Lanes is a playable local prototype moving toward the Project Valkyrie design. I
 - **Cross-Lane & AoE Mechanics**: Select abilities can reach across lanes or strike full lanes, while careless high-impact spells risk friendly fire.
 - **Squad Formation Builder**: Inspect class dossiers and assemble 1–4 members per side. Four is the default; two units share one lane.
 - **Defense Orders**: Configure each defender's first four own turns with a skill or Guard and a target priority. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
+- **Mercenary Roster**: A persistent roster of named mercenaries with a nine-stat sheet (STR, MAG, TEC, VIT, STM, SPI, AGI, CON, SP) and randomized F–S aptitudes. Stats scale the combat numbers of the mercenary's class, and the roster page deploys a chosen squad into battle. Saved in browser storage on this device; there is no hiring, EXP, or guild hub yet.
 - **Controller Support**: Standard Gamepad API navigation, confirm/cancel, ability cycling, and one-step movement alongside keyboard and touch controls.
 - **3D Arena and PWA**: Three.js renders a restrained three-lane board behind DOM units, with a CSS fallback when WebGL is unavailable. Angular Service Worker and GitHub Pages hosting remain in place.
 

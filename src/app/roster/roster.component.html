@@ -1,0 +1,64 @@
+<section class="roster-page" aria-labelledby="roster-title">
+  <header class="roster-header">
+    <div>
+      <a routerLink="/" class="tactical-btn secondary">◀ Return to battle</a>
+      <h1 id="roster-title">Mercenary Roster</h1>
+      <p>
+        Each mercenary has eight stats graded F to S for aptitude, plus Skill Points. Stats scale
+        the combat numbers of their class. Choose up to {{ squadLimit }} for your squad. Your roster
+        is saved on this device only.
+      </p>
+    </div>
+    <div class="roster-actions">
+      <button type="button" class="tactical-btn primary" id="deploy-roster-btn" (click)="deploy()">
+        Deploy squad ({{ roster.squadIds().length }}/{{ squadLimit }})
+      </button>
+    </div>
+  </header>
+
+  @if (roster.warning()) {
+    <p class="roster-status" role="status">{{ roster.warning() }}</p>
+  }
+
+  <div class="roster-grid">
+    @for (merc of roster.mercenaries(); track merc.id) {
+      <article class="merc-card" [class.in-squad]="inSquad(merc)">
+        <div class="merc-heading">
+          <img [src]="roster.classOf(merc).portraitUrl" [alt]="roster.classOf(merc).name" />
+          <div>
+            <h2>{{ merc.name }}</h2>
+            <p>{{ roster.classOf(merc).name }} · Level {{ merc.level }}</p>
+          </div>
+        </div>
+        <dl class="stat-sheet">
+          @for (stat of primaryStats; track stat) {
+            <div class="stat-row">
+              <dt>{{ labels[stat] }}</dt>
+              <dd>
+                {{ merc.stats[stat] }}
+                <span
+                  class="grade grade-{{ merc.aptitudes[stat] }}"
+                  [attr.aria-label]="'aptitude ' + merc.aptitudes[stat]"
+                  >{{ merc.aptitudes[stat] }}</span
+                >
+              </dd>
+            </div>
+          }
+          <div class="stat-row">
+            <dt>{{ labels.sp }}</dt>
+            <dd>{{ merc.stats.sp }}</dd>
+          </div>
+        </dl>
+        <button
+          type="button"
+          class="tactical-btn secondary squad-toggle"
+          [attr.aria-pressed]="inSquad(merc)"
+          [attr.aria-label]="(inSquad(merc) ? 'Remove ' : 'Add ') + merc.name + ' squad member'"
+          (click)="roster.toggleSquad(merc.id)"
+        >
+          {{ inSquad(merc) ? 'In squad ✓' : 'Add to squad' }}
+        </button>
+      </article>
+    }
+  </div>
+</section>

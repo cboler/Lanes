@@ -16,6 +16,7 @@ import { AbilityDefinition } from '../models/ability.model';
 import { DamageCalculator } from '../engine/damage-calculator';
 import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-plan.model';
 import { getClassDefinition } from '../models/unit-class.model';
+import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
 
 export const COLLISION_BUFFER = 0.08;
@@ -59,6 +60,7 @@ export class BattleStateService {
   private battleVersion = 0;
   private suspended = false;
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
+  private playerMercenaries: readonly (Mercenary | undefined)[] = [];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
   private defenseOrders = new Map<string, DefenseOrder[]>();
   private defenseTurns = new Map<string, number>();
@@ -71,6 +73,7 @@ export class BattleStateService {
       [...this.playerSquad],
       plan.members.map((member) => getClassDefinition(member.classId)),
       plan,
+      this.playerMercenaries,
     );
   }
 
@@ -128,6 +131,8 @@ export class BattleStateService {
     customPlayerSquad?: UnitClassDefinition[],
     customEnemySquad?: UnitClassDefinition[],
     defensePlan?: DefensePlan,
+    /** Roster members for the player side, aligned by index with the squad. */
+    playerMercenaries?: readonly (Mercenary | undefined)[],
   ): void {
     const playerSquad = customPlayerSquad ?? this.playerSquad;
     const enemySquad = customEnemySquad ?? this.enemySquad;
@@ -136,6 +141,7 @@ export class BattleStateService {
     }
     this.clearScheduledActions();
     this.playerSquad = [...playerSquad];
+    if (customPlayerSquad || playerMercenaries) this.playerMercenaries = playerMercenaries ?? [];
     this.enemySquad = [...enemySquad];
     const activePlan =
       defensePlan ?? (!customPlayerSquad && !customEnemySquad ? this.practicePlan() : null);
@@ -167,7 +173,19 @@ export class BattleStateService {
       if (newUnits.some((u) => u.team === 'player' && u.lane === lane && u.positionX === posX)) {
         posX = isFront ? 0.14 : 0.32;
       }
-      newUnits.push(new UnitInstance(cls, `Player ${cls.name}`, 'player', lane, posX, 100));
+      const merc = this.playerMercenaries[idx];
+      newUnits.push(
+        new UnitInstance(
+          cls,
+          merc ? merc.name : `Player ${cls.name}`,
+          'player',
+          lane,
+          posX,
+          100,
+          undefined,
+          merc ? deriveCombatStats(cls, merc) : undefined,
+        ),
+      );
     });
 
     enemySquad.forEach((cls, idx) => {

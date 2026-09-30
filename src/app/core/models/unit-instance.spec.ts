@@ -166,4 +166,25 @@ describe('UnitInstance', () => {
     expect(unit.guardPoints).toBe(0);
     expect(unit.statusEffects).toHaveLength(0);
   });
+
+  it('uses overridden stats for health and recovery instead of the class baseline', () => {
+    const stats = { ...FIGHTER_CLASS.baseStats, maxHp: 250, agility: 100, vitality: 100 };
+    const unit = new UnitInstance(
+      FIGHTER_CLASS,
+      'Fighter',
+      'player',
+      1,
+      0.2,
+      100,
+      undefined,
+      stats,
+    );
+    expect(unit.maxHp).toBe(250);
+    expect(unit.currentHp).toBe(250);
+    expect(unit.moveRecovery).toBe(75);
+    expect(unit.actionRecovery).toBe(75);
+    unit.takeDamage(300);
+    unit.resetForBattle();
+    expect(unit.currentHp).toBe(250);
+  });
 });

@@ -1,0 +1,117 @@
+.roster-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-4);
+}
+.roster-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-gilded);
+  border-radius: var(--radius-md);
+}
+.roster-header > div:first-child {
+  flex: 1 1 300px;
+}
+.roster-header h1 {
+  margin: var(--space-3) 0;
+}
+.roster-header p {
+  max-width: 70ch;
+  margin: 0 0 var(--space-2);
+}
+.roster-actions {
+  display: flex;
+  align-items: start;
+}
+.roster-status {
+  margin: 0;
+  color: var(--color-gold-antique);
+}
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-4);
+}
+.merc-card {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-gilded);
+  border-radius: var(--radius-md);
+
+  &.in-squad {
+    border-color: var(--border-gilded-bright);
+  }
+}
+.merc-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border: 2px solid var(--border-gilded-bright);
+    border-radius: var(--radius-sm);
+  }
+  h2,
+  p {
+    margin: 0;
+  }
+}
+.stat-sheet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  dt {
+    font-weight: 700;
+    color: var(--color-gold-antique);
+  }
+  dd {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+}
+.grade {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: 800;
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+}
+.grade-F,
+.grade-E {
+  color: #9aa3b5;
+}
+.grade-D,
+.grade-C {
+  color: #7ec8a0;
+}
+.grade-B,
+.grade-A {
+  color: #6fb1ff;
+}
+.grade-S {
+  color: #ffd700;
+}
+.squad-toggle {
+  min-height: 44px;
+}
