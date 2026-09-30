@@ -101,6 +101,27 @@ test('movement, attacks, and Guard use independent turn resources', async ({ pag
   );
 });
 
+test('holding a move key walks continuously, spending MG, and stops on release', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Keyboard walking is independent of viewport.');
+  await page.goto('/');
+  const gauge = page.locator('#move-gauge');
+  await expect(gauge).toHaveAttribute('aria-valuenow', '100');
+  // Let the stage finish its first-frame setup so the walk runs at a steady frame rate.
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
+  await page.waitForTimeout(300);
+  await page.keyboard.down('d');
+  await page.waitForTimeout(700);
+  await page.keyboard.up('d');
+  const walked = Number(await gauge.getAttribute('aria-valuenow'));
+  // More than the two MG a single tap costs, and never more than the hold could reach.
+  expect(walked).toBeLessThan(96);
+  expect(walked).toBeGreaterThan(70);
+  await page.waitForTimeout(400);
+  expect(Number(await gauge.getAttribute('aria-valuenow'))).toBe(walked);
+});
+
 test('selecting and cancelling abilities is free, and Enter confirms only once', async ({
   page,
 }) => {
@@ -151,10 +172,15 @@ test('squads enforce one to four members and restart preserves the deployed form
   await expect(page.locator('#add-to-player-squad-btn')).toBeDisabled();
   await page.locator('#deploy-squad-btn').click();
   await expect(page.locator('.player-unit .unit-name')).toHaveText(Array(4).fill('Player Fighter'));
-  const firstLanePositions = await page
-    .locator('.combat-lane[data-lane="0"] .player-unit')
-    .evaluateAll((units) => units.map((unit) => (unit as HTMLElement).style.left));
-  expect(new Set(firstLanePositions).size).toBe(2);
+  // Two members share lane one, standing apart. The stage positions units once it is ready.
+  await expect
+    .poll(async () => {
+      const lefts = await page
+        .locator('.combat-lane[data-lane="0"] .player-unit')
+        .evaluateAll((units) => units.map((unit) => Math.round(unit.getBoundingClientRect().left)));
+      return new Set(lefts).size;
+    })
+    .toBe(2);
 
   await page.locator('#restart-battle-btn').click();
   await expect(page.locator('.player-unit .unit-name')).toHaveText(Array(4).fill('Player Fighter'));
@@ -175,10 +201,47 @@ test('the battlefield remains playable when WebGL is unavailable', async ({ page
   });
   await page.goto('/');
   await expect(page.locator('.unit-node')).toHaveCount(8);
-  await expect(page.locator('app-arena-scene canvas')).toBeHidden();
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', 'fallback');
+  await expect(page.locator('app-battle-stage canvas')).toBeHidden();
+  await expect(page.locator('.unit-sprite')).toHaveCount(8);
   await expect(page.locator('.arena-backdrop')).toBeVisible();
   await page.locator('#move-right-btn').click();
   await expect(page.locator('#move-gauge')).toHaveAttribute('aria-valuenow', '98');
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+  expect(errors).toEqual([]);
+});
+
+test('the WebGL stage draws the battle and falls back to DOM sprites if the GPU context is lost', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Renderer lifecycle is independent of viewport.');
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  const stage = page.locator('app-battle-stage');
+  await expect(stage).toHaveAttribute('data-renderer', 'webgl');
+  await expect(stage.locator('canvas')).toBeVisible();
+  await expect(page.locator('.unit-sprite')).toHaveCount(0);
+  // Unit buttons are laid over their sprites: player troop on the left, enemies on the right.
+  await expect
+    .poll(async () => {
+      const player = await page.locator('.player-unit').first().boundingBox();
+      const enemy = await page.locator('.enemy-unit').first().boundingBox();
+      return !!player && !!enemy && player.x + player.width < enemy.x;
+    })
+    .toBe(true);
+
+  await page.evaluate(() =>
+    document
+      .querySelector<HTMLCanvasElement>('app-battle-stage canvas')
+      ?.getContext('webgl2')
+      ?.getExtension('WEBGL_lose_context')
+      ?.loseContext(),
+  );
+  await expect(stage).toHaveAttribute('data-renderer', 'fallback');
+  await expect(page.locator('.unit-sprite')).toHaveCount(8);
   await page.locator('#ability-btn-quick_shot').click();
   await page.locator('#confirm-ability-btn').click();
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
@@ -193,9 +256,10 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
   await frames(page);
   await page.locator('#nav-link-home').focus();
+  // Release before asserting: a D-pad held past 400 ms repeats by design.
   await controller(page, { buttons: [15] });
-  await expect(page.locator('#nav-link-squad')).toBeFocused();
   await controller(page);
+  await expect(page.locator('#nav-link-squad')).toBeFocused();
   await controller(page, { buttons: [0] });
   await expect(page).toHaveURL(/\/squad$/);
   await controller(page);

@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BattleStateService, COLLISION_BUFFER } from './battle-state.service';
-import { FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS } from '../models/unit-class.model';
+import {
+  FIGHTER_CLASS,
+  ARCHER_CLASS,
+  CLERIC_CLASS,
+  GUNNER_CLASS,
+} from '../models/unit-class.model';
 import { StatusEffectInstance } from '../models/status-effect.model';
 import { generateMercenary, seededRandom, deriveCombatStats } from '../models/mercenary.model';
 import { createDefaultDefensePlan } from '../models/defense-plan.model';
@@ -347,5 +352,62 @@ describe('BattleStateService', () => {
     expect(service.playerUnits()[0].name).toBe(merc.name);
     service.initDefensePractice(createDefaultDefensePlan());
     expect(service.playerUnits()[0].name).toBe(merc.name);
+  });
+
+  it('publishes each resolved skill for the stage, and clears it on a new battle', () => {
+    service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+    expect(service.lastAction()).toBeNull();
+    const archer = service.playerUnits()[0];
+    const fighter = service.enemyUnits()[0];
+    service.selectAbility('quick_shot');
+    expect(service.executeSelectedAbility(fighter)).toBe(true);
+    const action = service.lastAction()!;
+    expect(action.attackerId).toBe(archer.id);
+    expect(action.abilityId).toBe('quick_shot');
+    expect(action.effects).toEqual([
+      expect.objectContaining({ targetId: fighter.id, isHealing: false, wasDefeated: false }),
+    ]);
+    service.selectAbility('quick_shot');
+    service.executeSelectedAbility(fighter);
+    expect(service.lastAction()!.seq).toBeGreaterThan(action.seq);
+    service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+    expect(service.lastAction()).toBeNull();
+  });
+
+  it('reports the span a unit can walk to, stopped by lane-mates and the field edge', () => {
+    service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+    const archer = service.playerUnits()[0];
+    const fighter = service.enemyUnits()[0];
+    archer.lane = fighter.lane;
+    archer.positionX = 0.1;
+    fighter.positionX = 0.3;
+    // 100 MG covers two whole field widths, so only the edge and the fighter limit it.
+    expect(service.reachableSpan(archer)).toEqual({ from: 0.05, to: 0.3 - COLLISION_BUFFER });
+    archer.moveGauge.exhaust();
+    expect(service.reachableSpan(archer)).toEqual({ from: 0.1, to: 0.1 });
+  });
+
+  it('lists allies an area skill would catch', () => {
+    service.initSkirmish(
+      [GUNNER_CLASS, FIGHTER_CLASS, CLERIC_CLASS, ARCHER_CLASS],
+      [FIGHTER_CLASS],
+    );
+    // Archer (fastest) acts first; the gunner shares lane I with it.
+    service.endCurrentTurn();
+    const gunner = service.activeUnit()!;
+    expect(gunner.classDef.id).toBe('gunner');
+    service.selectAbility('explosive_shot');
+    expect(service.friendlyFireRisk().map((unit) => unit.classDef.id)).toEqual(['archer']);
+    service.selectAbility('quick_fire');
+    expect(service.friendlyFireRisk()).toEqual([]);
+  });
+
+  it('marks where the current round ends in the turn order', () => {
+    service.initSkirmish([ARCHER_CLASS, CLERIC_CLASS], [FIGHTER_CLASS]);
+    expect(service.turnOrder()).toHaveLength(3);
+    expect(service.turnsLeftInRound()).toBe(3);
+    service.endCurrentTurn();
+    expect(service.turnsLeftInRound()).toBe(2);
+    expect(service.turnOrder()).toHaveLength(3);
   });
 });

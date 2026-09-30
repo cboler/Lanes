@@ -77,15 +77,20 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     expect(consoleErrors).toEqual([]);
   });
 
-  test('should engage auto-battle, render chibi sprites, and resolve combat maneuvers automatically', async ({
+  test('should engage auto-battle, render the battle stage, and resolve combat maneuvers automatically', async ({
     page,
   }) => {
     await page.goto('/');
 
-    // 1. Chibi sprites rendered in lanes
-    const sprites = page.locator('app-unit-sprite .chibi-sprite-svg');
-    await expect(sprites.first()).toBeVisible();
-    await expect(sprites).toHaveCount(8);
+    // 1. Units are drawn by the WebGL stage, or as DOM sprites without WebGL
+    await expect(page.locator('.unit-node')).toHaveCount(8);
+    const stage = page.locator('app-battle-stage');
+    await expect(stage).toHaveAttribute('data-renderer', /webgl|fallback/);
+    if ((await stage.getAttribute('data-renderer')) === 'webgl') {
+      await expect(stage.locator('canvas')).toBeVisible();
+    } else {
+      await expect(page.locator('.unit-sprite')).toHaveCount(8);
+    }
 
     // 2. Auto-Battle toggle
     const autoBtn = page.locator('#auto-battle-btn');
