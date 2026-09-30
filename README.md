@@ -4,7 +4,7 @@ A lane-based tactical RPG built as a modern **Angular PWA**, inspired by [Grand 
 
 ## About
 
-Lanes is a playable local prototype moving toward the Project Valkyrie design. It combines tactical positioning across three lanes with separate movement and action budgets. Players can build squads, script a defending squad's opening turns, and practice against it.
+Lanes is a playable local prototype moving toward the [Project Valkyrie design](docs/project-valkyrie.md). It combines tactical positioning across three lanes with separate movement and action budgets. Players can build squads, script a defending squad's opening turns, and practice against it.
 
 ### Key Features
 
@@ -23,7 +23,13 @@ Lanes is a playable local prototype moving toward the Project Valkyrie design. I
 - **Defense Orders**: Configure each defender's first four own turns with a skill or Guard and a target priority. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
 - **Mercenary Roster**: A persistent roster of named mercenaries with a nine-stat sheet (STR, MAG, TEC, VIT, STM, SPI, AGI, CON, SP) and randomized F–S aptitudes. Stats scale the combat numbers of the mercenary's class, and the roster page deploys a chosen squad into battle. Saved in browser storage on this device; there is no hiring, EXP, or guild hub yet.
 - **Controller Support**: Standard Gamepad API navigation, confirm/cancel, ability cycling, and one-step movement alongside keyboard and touch controls.
-- **3D Arena and PWA**: Three.js renders a restrained three-lane board behind DOM units, with a CSS fallback when WebGL is unavailable. Angular Service Worker and GitHub Pages hosting remain in place.
+- **Grand Kingdom–style Battle Stage**: A Three.js 2.5D side view: three lanes recede into depth in front of a painted backdrop, and outlined billboard sprites face off across them. A director camera frames every living unit. Each skill has its own choreography: arrows arc, bullets trace, fireballs and meteors explode, lancers lunge, holy light falls, and hits flash with knockback and screen shake. Damage numbers pop as the hit lands. The HUD follows Grand Kingdom's layout:
+  - troop flags with remaining-unit pips at the top;
+  - HP bars and LEADER tags above units;
+  - the active unit's portrait and skills at the bottom-left, with the Move and Action gauges beside them;
+  - a turn timeline with an hourglass marking the round's end.
+
+  Unit buttons stay in the DOM over their sprites, so keyboard, controller and screen-reader play are unchanged. Without WebGL, or if the GPU context is lost, the battle falls back to DOM sprites and stays playable. Reduced motion turns off camera moves, shake and idle animation. Angular Service Worker and GitHub Pages hosting remain in place.
 
 ## Technical Stack
 
@@ -90,7 +96,7 @@ Lanes/
 │   └── prepare-pages.mjs    # GitHub Pages 404 SPA fallback script
 ├── src/
 │   ├── app/
-│   │   ├── battle/          # 3-Lane tactical arena component
+│   │   ├── battle/          # Battle HUD, Three.js stage (lazy chunk) and sprite art
 │   │   ├── defense/         # Local four-turn defense editor
 │   │   ├── core/
 │   │   │   ├── engine/      # CombatExecutor, DamageCalculator, TurnManager, LaneSwitcher
@@ -110,13 +116,13 @@ Lanes/
 
 | Action             | Keyboard           | Touch / Click           |
 | ------------------ | ------------------ | ----------------------- |
-| Step Left/Right    | `A`/`D` or arrows  | Retreat/Advance buttons |
+| Walk Left/Right    | `A`/`D` or arrows  | Retreat/Advance buttons |
 | Shift Lane Up/Down | `W`/`S` or arrows  | Shift buttons           |
 | Select Ability 1–3 | `1`, `2`, `3`      | Ability cards           |
 | Confirm/Cancel     | `Enter` / `Escape` | Target / Cancel buttons |
 | Guard and end      | `E`                | Guard & End button      |
 
-With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. Defense Orders can also be edited using these focused buttons.
+Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. Defense Orders can also be edited using these focused buttons.
 
 ## License
 

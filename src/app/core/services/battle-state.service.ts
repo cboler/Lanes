@@ -20,6 +20,12 @@ import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
 
 export const COLLISION_BUFFER = 0.08;
+const FIELD_MIN_X = 0.05;
+const FIELD_MAX_X = 0.95;
+/** Move Gauge spent per full battlefield width travelled. */
+const MOVE_COST_PER_FIELD = 50;
+/** Presentation only: when a skill visibly lands, at 1x speed. Rules resolve immediately. */
+export const IMPACT_DELAY_MS = 300;
 
 export interface FloatingText {
   id: string;
@@ -27,6 +33,20 @@ export interface FloatingText {
   text: string;
   isHealing: boolean;
   isFriendlyFire: boolean;
+}
+
+/** A resolved skill, published so the stage can replay it; rules have already applied it. */
+export interface BattleAction {
+  readonly seq: number;
+  readonly attackerId: string;
+  readonly abilityId: string;
+  readonly effects: readonly {
+    readonly targetId: string;
+    readonly isHealing: boolean;
+    readonly guardAbsorbed: number;
+    readonly wasDefeated: boolean;
+    readonly isFriendlyFire: boolean;
+  }[];
 }
 
 export type BattleStatus = 'active' | 'victory' | 'defeat';
@@ -54,11 +74,13 @@ export class BattleStateService {
   public readonly autoBattleSpeed = signal<BattleSpeed>('1x');
   public readonly attackingUnitId = signal<string | null>(null);
   public readonly hitUnitId = signal<string | null>(null);
+  public readonly lastAction = signal<BattleAction | null>(null);
 
   private actionTimer: ReturnType<typeof setTimeout> | null = null;
   private turnVersion = 0;
   private battleVersion = 0;
   private suspended = false;
+  private actionSeq = 0;
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
   private playerMercenaries: readonly (Mercenary | undefined)[] = [];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
@@ -90,6 +112,14 @@ export class BattleStateService {
     return [...order.slice(index), ...order.slice(0, index)].filter((u) => u.isAlive);
   });
 
+  /** How many upcoming entries of turnOrder belong to the current round. */
+  public readonly turnsLeftInRound = computed(() => {
+    this.units();
+    this.activeUnitId();
+    return this.turnManager.order.slice(this.turnManager.currentIndex).filter((u) => u.isAlive)
+      .length;
+  });
+
   public readonly canPlayerAct = computed(() => {
     const unit = this.activeUnit();
     return (
@@ -113,6 +143,20 @@ export class BattleStateService {
     const ability = this.selectedAbility();
     if (!unit || !ability) return [];
     return CombatExecutor.getValidTargets(unit, ability, this.units());
+  });
+
+  /** Allies the selected area skill would also hit. */
+  public readonly friendlyFireRisk = computed<UnitInstance[]>(() => {
+    const active = this.activeUnit();
+    const ability = this.selectedAbility();
+    if (!active || !ability?.friendlyFire) return [];
+    return this.units().filter(
+      (unit) =>
+        unit.isAlive &&
+        unit.team === active.team &&
+        unit.id !== active.id &&
+        (ability.target === 'all-enemies' || unit.lane === active.lane),
+    );
   });
 
   public readonly playerUnits = computed(() => {
@@ -156,6 +200,7 @@ export class BattleStateService {
     this.isAutoBattle.set(false);
     this.isAiThinking.set(false);
     this.floatingTexts.set([]);
+    this.lastAction.set(null);
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
 
@@ -269,12 +314,25 @@ export class BattleStateService {
     if (unit.team === 'enemy' || this.isAutoBattle()) this.triggerAiTurn();
   }
 
+  /** The span of positionX this unit could walk to with its remaining Move Gauge. */
+  public reachableSpan(unit: UnitInstance): { from: number; to: number } {
+    const reach = unit.moveGauge.current / MOVE_COST_PER_FIELD;
+    let from = Math.max(FIELD_MIN_X, unit.positionX - reach);
+    let to = Math.min(FIELD_MAX_X, unit.positionX + reach);
+    for (const other of this.units()) {
+      if (other === unit || !other.isAlive || other.lane !== unit.lane) continue;
+      if (other.positionX > unit.positionX) to = Math.min(to, other.positionX - COLLISION_BUFFER);
+      else from = Math.max(from, other.positionX + COLLISION_BUFFER);
+    }
+    return { from: Math.min(from, unit.positionX), to: Math.max(to, unit.positionX) };
+  }
+
   public moveActiveUnit(deltaX: number, automated = false): boolean {
     const unit = this.activeUnit();
     if (!unit || !this.canAct(automated) || !Number.isFinite(deltaX)) return false;
 
-    const minX = 0.05;
-    const maxX = 0.95;
+    const minX = FIELD_MIN_X;
+    const maxX = FIELD_MAX_X;
 
     // Check lane collision with other living units in the same lane
     const obstaclesInLane = this.units().filter(
@@ -322,7 +380,7 @@ export class BattleStateService {
       return false;
     }
 
-    const moveCost = Math.round(actualDist * 5000) / 100;
+    const moveCost = Math.round(actualDist * MOVE_COST_PER_FIELD * 100) / 100;
     if (!unit.moveGauge.trySpend(moveCost)) {
       this.addLog(`⚠️ Insufficient Move Gauge to move.`);
       return false;
@@ -408,6 +466,18 @@ export class BattleStateService {
     }, 350 * this.delayMultiplier);
 
     this.processCombatEffects(attacker, ability, result.effects);
+    this.lastAction.set({
+      seq: ++this.actionSeq,
+      attackerId: attacker.id,
+      abilityId: ability.id,
+      effects: result.effects.map((effect) => ({
+        targetId: effect.target.id,
+        isHealing: effect.isHealing,
+        guardAbsorbed: effect.guardAbsorbed,
+        wasDefeated: effect.wasDefeated,
+        isFriendlyFire: effect.isFriendlyFire,
+      })),
+    });
     this.units.update((list) => [...list]);
 
     // Check end condition
