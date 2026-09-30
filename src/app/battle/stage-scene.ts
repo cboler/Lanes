@@ -470,7 +470,9 @@ const ease = (t: number) => 1 - (1 - t) ** 3;
 
 export async function createStage(options: StageOptions): Promise<Stage> {
   const { canvas, overlay, reducedMotion } = options;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'default' });
+  const context = canvas.getContext('webgl2', { antialias: true });
+  if (!context) throw new Error('WebGL2 is unavailable.');
+  const renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 

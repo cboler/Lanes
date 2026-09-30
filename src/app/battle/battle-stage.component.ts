@@ -13,6 +13,9 @@ import {
 import { BattleStateService, IMPACT_DELAY_MS } from '../core/services/battle-state.service';
 import type { Stage, StageState } from './stage-scene';
 
+/** Must match the attributes stage-scene requests; a canvas keeps its first context. */
+const STAGE_CONTEXT: WebGLContextAttributes = { antialias: true };
+
 export type StageRenderer = 'pending' | 'webgl' | 'fallback';
 
 /**
@@ -74,7 +77,13 @@ export class BattleStageComponent {
 
   private async start(): Promise<void> {
     this.playedSeq = this.battle.lastAction()?.seq ?? 0;
-    if (typeof WebGL2RenderingContext === 'undefined' || typeof ResizeObserver === 'undefined') {
+    // Probe quietly first: a failed attempt inside three logs console errors, and
+    // devices without WebGL2 should not download the scene chunk at all.
+    if (
+      typeof WebGL2RenderingContext === 'undefined' ||
+      typeof ResizeObserver === 'undefined' ||
+      !this.canvas().nativeElement.getContext('webgl2', STAGE_CONTEXT)
+    ) {
       this.renderer.set('fallback');
       return;
     }
