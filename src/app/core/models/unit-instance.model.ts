@@ -16,6 +16,7 @@ export class UnitInstance {
   public readonly actionGauge: ActionGauge;
   public readonly moveGauge = new ActionGauge(100);
   public guardPoints = 0;
+  private readonly statsOverride?: UnitBaseStats;
   private readonly _statusEffects: StatusEffectInstance[] = [];
 
   constructor(
@@ -26,23 +27,25 @@ export class UnitInstance {
     positionX = 0.2,
     gaugeMax = 100,
     id?: string,
+    statsOverride?: UnitBaseStats,
   ) {
+    this.statsOverride = statsOverride;
     this.classDef = classDef;
     this.name = name;
     this.team = team;
     this.lane = lane;
     this.positionX = positionX;
-    this.currentHp = classDef.baseStats.maxHp;
+    this.currentHp = this.stats.maxHp;
     this.actionGauge = new ActionGauge(gaugeMax);
     this.id = id || `${team}_${classDef.id}_${Math.random().toString(36).substring(2, 7)}`;
   }
 
   public get stats(): UnitBaseStats {
-    return this.classDef.baseStats;
+    return this.statsOverride ?? this.classDef.baseStats;
   }
 
   public get maxHp(): number {
-    return this.classDef.baseStats.maxHp;
+    return this.stats.maxHp;
   }
 
   public get isAlive(): boolean {

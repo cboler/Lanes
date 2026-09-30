@@ -1,6 +1,6 @@
 # Project Valkyrie handoff
 
-Updated: 2026-09-24. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
+Updated: 2026-09-29. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
 
 ## Current checkpoint
 
@@ -18,10 +18,18 @@ Updated: 2026-09-24. Resume here after an implementation step or usage-limit int
 - Full npm run e2e -- --workers=2 passed: 38 browser tests across phone portrait, phone landscape, tablet portrait, and desktop; six tests were intentionally skipped on non-desktop projects. npm run build:pages passed and generated dist/browser/404.html, with web manifest and Angular service worker configuration found. git diff --check is clean.
 - The local dev server was started at http://127.0.0.1:4200 (session 62692); confirm whether it remains running before reuse. No blocking regression remains at this checkpoint.
 
+## Roster and stat sheet (added 2026-09-29, uncommitted)
+
+- New: src/app/core/models/mercenary.model*, core/services/roster.service*, src/app/roster/, e2e/roster.spec.ts, route /roster and a nav link. UnitInstance takes optional stat overrides; BattleStateService.initSkirmish takes an optional 4th arg of roster mercenaries aligned with the player squad (kept through restart and defense practice, cleared by a class-only squad).
+- Roster saves to localStorage (lanes.roster.v1), validated on load; a starter roster (one per class, random aptitudes) is generated on first run. Each stat scales the class's tuned value by 2% per point from a neutral 17 (mapping documented on deriveCombatStats). SP has no combat effect yet.
+- Verified: 162 unit tests, lint, format, build, and full e2e (42 passed, 6 skipped) pass; roster page inspected on desktop.
+- The Squad Builder and default battle are still class-based and do not use the roster; only Roster > Deploy squad does.
+
 ## Immediate next steps
 
-1. The next specification feature is a **persistent mercenary roster and nine-stat character sheet**, including randomized aptitudes/skill patterns. The document names STR, MAG, TEC, VIT, STM, SPI, AGI, CON, and SP; its eight primary stats have F–S aptitudes. Start with a small, playable vertical slice and tests for persistence and combat stat use before adding hiring currency, EXP, and a guild hub. The existing combat model has derived values, so map new attributes deliberately without replacing working rules all at once.
-2. Later: interactive targeting and melee timing, remaining classes/support skills, hiring currency, battle EXP and level-up rewards, and guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards, and history; none exists now. Do not label local practice as network PvP.
+1. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
+2. Hiring currency, battle EXP and level-ups (spend SP), guild hub.
+3. Later: interactive targeting and melee timing, remaining classes/support skills. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards, and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

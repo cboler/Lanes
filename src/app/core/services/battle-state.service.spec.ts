@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BattleStateService, COLLISION_BUFFER } from './battle-state.service';
 import { FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS } from '../models/unit-class.model';
 import { StatusEffectInstance } from '../models/status-effect.model';
+import { generateMercenary, seededRandom, deriveCombatStats } from '../models/mercenary.model';
 import { createDefaultDefensePlan } from '../models/defense-plan.model';
 
 describe('BattleStateService', () => {
@@ -321,5 +322,30 @@ describe('BattleStateService', () => {
     vi.advanceTimersByTime(600);
     expect(service.combatLogs().join('\n')).toContain('Enemy Fighter unleashed');
     expect(service.combatLogs().join('\n')).not.toContain('follows turn 5 order');
+  });
+
+  it('applies roster mercenary stats and names to player units, and a class-only squad clears them', () => {
+    const merc = generateMercenary('fighter', seededRandom(5));
+    merc.stats.con = 26;
+    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS], undefined, [merc]);
+    const unit = service.playerUnits()[0];
+    expect(unit.name).toBe(merc.name);
+    expect(unit.stats).toEqual(deriveCombatStats(FIGHTER_CLASS, merc));
+    expect(unit.maxHp).toBeGreaterThan(FIGHTER_CLASS.baseStats.maxHp);
+    expect(unit.currentHp).toBe(unit.maxHp);
+    expect(service.enemyUnits()[0].stats).toBe(FIGHTER_CLASS.baseStats);
+
+    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    expect(service.playerUnits()[0].name).toBe('Player Fighter');
+    expect(service.playerUnits()[0].stats).toBe(FIGHTER_CLASS.baseStats);
+  });
+
+  it('keeps roster stats through restart and defense practice', () => {
+    const merc = generateMercenary('archer', seededRandom(6));
+    service.initSkirmish([ARCHER_CLASS], undefined, undefined, [merc]);
+    service.initSkirmish();
+    expect(service.playerUnits()[0].name).toBe(merc.name);
+    service.initDefensePractice(createDefaultDefensePlan());
+    expect(service.playerUnits()[0].name).toBe(merc.name);
   });
 });
