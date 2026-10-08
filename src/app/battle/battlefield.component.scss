@@ -3,7 +3,7 @@
 }
 
 .battlefield-container {
-  --impact-delay: 300ms;
+  --impact-delay: 420ms;
   --player: #4d9bff;
   --enemy: #ff5a4f;
   --panel: rgba(9, 12, 20, 0.86);
@@ -1043,7 +1043,7 @@
   place-items: center;
   background: rgba(3, 5, 10, 0.72);
   /* Let the final blow land before the verdict covers it. */
-  animation: fade-in 0.4s ease 0.9s both;
+  animation: fade-in 0.4s ease 1.5s both;
 }
 
 @keyframes fade-in {

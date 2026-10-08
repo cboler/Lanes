@@ -1,12 +1,10 @@
 import { Team } from '../core/models/unit-instance.model';
 
 /**
- * Field sprites for each class, facing right. One SVG source feeds both the
- * WebGL stage (rasterized to textures) and the no-WebGL fallback (<img>).
+ * Flat SVG sprites for each class, facing right. The WebGL stage draws 3D
+ * characters; these are what units look like when WebGL is unavailable.
  */
-export const SPRITE_VIEWBOX = { x: -6, y: -8, width: 76, height: 84 };
-/** Where the feet touch the ground, as a fraction of the sprite height from the top. */
-export const SPRITE_FEET = (68 - SPRITE_VIEWBOX.y) / SPRITE_VIEWBOX.height;
+const SPRITE_VIEWBOX = { x: -6, y: -8, width: 76, height: 84 };
 
 type Pick = (player: string, enemy: string) => string;
 
@@ -115,17 +113,17 @@ const ART: Record<string, (c: Pick) => string> = {
     <circle cx="43" cy="39" r="2" fill="#facc15"/>`,
 };
 
-export function spriteSvg(classId: string, team: Team, width = 76, height = 84): string {
+function spriteSvg(classId: string, team: Team): string {
   const pick: Pick = (player, enemy) => (team === 'player' ? player : enemy);
   const { x, y, width: w, height: h } = SPRITE_VIEWBOX;
   // Enemies face left: mirror around the art's vertical centre line.
   const facing = team === 'enemy' ? ` transform="translate(${2 * x + w} 0) scale(-1 1)"` : '';
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${width}" height="${height}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${w}" height="${h}">` +
     `<g${facing}>${(ART[classId] ?? ART['fighter'])(pick)}</g></svg>`
   );
 }
 
-export function spriteUrl(classId: string, team: Team, width?: number, height?: number): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(spriteSvg(classId, team, width, height))}`;
+export function spriteUrl(classId: string, team: Team): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(spriteSvg(classId, team))}`;
 }

@@ -57,10 +57,41 @@ The user asked for "the three.js treatment" to get the presentation closer to th
   - Unit buttons stay focusable while the stage loads (opacity rather than visibility).
 - **Verified:** 170 unit tests; format, lint and production build (no budget warnings; 400 kB initial). Full e2e: 44 passed, 12 skipped desktop-only, twice. New e2e tests cover context-loss fallback and hold-to-walk. Checked by screenshots at all four viewports, with auto-battle contact sheets and reduced motion, plus six leave-and-return trips without errors. Played manually in the in-app browser.
 
+## 3D characters (2026-10-07, branch feat/3d-characters)
+
+The user has no artist budget and asked for real 3D characters and animations, built with Blender. They chose Quaternius's CC0 fantasy packs as the base and had Claude download them; the zips were fetched from itch.io into C:/Users/chris/LanesArt/ (outside the repo).
+
+- **Pipeline:** tools/characters/build.py runs in headless Blender 5.2. Per class, it:
+  - takes a Superhero base body (head only) and adds Ranger or Peasant outfit parts, retargeted onto the base rig, plus hair;
+  - adds modelled extras: helm, circlet, halo, hats, robe, sash, quiver, and the weapons (sword, shield, lance, staff, orb, bow, pistol) parented to hand bones;
+  - places a Muzzle empty and swaps alternate textures;
+  - decimates the whole character to a 9k-triangle budget, strips unused attributes and simplifies materials;
+  - exports a GLB, then meshopt-compresses it.
+
+  It also exports animations.glb: the UAL clips the game uses, plus a hand-authored Bow_Shoot. Output is about 2.3 MB in total.
+
+- **Runtime:** src/app/battle/stage-characters.ts loads the GLBs with MeshoptDecoder and clones each with SkeletonUtils.
+  - Team pieces use the "Team" material, recoloured blue or red, and hair is tinted per class.
+  - Clips retarget by bone name, keeping rotations plus the pelvis position.
+  - act() rescales a clip so its key frame lands on the choreography's beat. Enemies are mirrored, and the body turns square to the enemy while acting.
+  - The old procedural sculptor and ink outline are gone, along with the frame-rate problem they caused.
+  - stage-scene.ts adapts its render scale: from up to 1.75x device pixels down to 0.5x when frames stay over 40 ms, then back up when they drop under 20 ms. CI's software GL needed both this and the triangle budget, or the controller e2e test timed out at tablet and desktop sizes.
+- **Verified:**
+  - 178 unit tests; stage-characters.spec.ts uses a synthetic rig.
+  - Lint, format and build pass.
+  - Full e2e passes with one worker, as CI runs it. With parallel workers under SwiftShader some timing tests time out.
+  - The no-WebGL run passes: 43 passed, 13 skipped.
+  - Screenshots and an auto-battle to victory checked.
+- **Next for art:**
+  - Paid tiers of the outfit pack add Knight, Wizard and other outfits, which would replace some modelled extras.
+  - Equipment can swap hand-bone attachments.
+  - Toon shading or outlines could bring back the painted look.
+  - Juggle and combo animations would need launch and air-hit clips.
+
 ## Immediate next steps
 
 1. Interactive execution from the source: a point-of-impact reticle for ranged and magic skills (a timed press decides hit or miss or the landing spot), and melee combos with a Just Cancel window. These change rules, so they need deterministic inputs for defense/AI and tests. The stage already has per-skill choreography and an impact timeline to hook into.
-2. Art fidelity: the chibi SVGs are the weakest part of the presentation now. Grand Kingdom uses detailed, roughly 5-heads-tall paper-doll sprites. The next art step is splitting sprites into parts (head, torso, arms, weapon) for skeletal attack poses, plus more backdrops per battle.
+2. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
 3. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
 4. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), hiring currency, EXP and level-ups, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
