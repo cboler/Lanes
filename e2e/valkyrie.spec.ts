@@ -61,6 +61,19 @@ async function controller(page: Page, state: Partial<ControllerState> = {}): Pro
   await frames(page);
 }
 
+/**
+ * Press for exactly one frame, then release. Navigation repeats after 400 ms of wall-clock hold,
+ * so a press spanning several slow software-rendered frames would otherwise step twice.
+ */
+async function tap(page: Page, state: Partial<ControllerState>): Promise<void> {
+  await page.evaluate(async (next) => {
+    window.lanesTestController = { connected: true, buttons: [], axes: [0, 0, 0, 0], ...next };
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    window.lanesTestController = { connected: true, buttons: [], axes: [0, 0, 0, 0] };
+  }, state);
+  await frames(page);
+}
+
 test('movement, attacks, and Guard use independent turn resources', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.unit-node')).toHaveCount(8);
@@ -262,9 +275,7 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);
   await page.locator('#nav-link-home').focus();
-  // Release before asserting: a D-pad held past 400 ms repeats by design.
-  await controller(page, { buttons: [15] });
-  await controller(page);
+  await tap(page, { buttons: [15] });
   await expect(page.locator('#nav-link-squad')).toBeFocused();
   await controller(page, { buttons: [0] });
   await expect(page).toHaveURL(/\/squad$/);
