@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { seededRandom } from '../core/models/mercenary.model';
-import { CHARACTER_HEIGHT, createCharacterKit, type Character } from './stage-characters';
+import {
+  CHARACTER_HEIGHT,
+  createCharacterKit,
+  loadCharacterAssets,
+  type Character,
+} from './stage-characters';
 
 /*
  * The 2.5D battle stage: a side view of three lanes receding into depth, painted
@@ -912,7 +917,10 @@ export async function createStage(options: StageOptions): Promise<Stage> {
 
   // Units ----------------------------------------------------------------------
   const views = new Map<string, UnitView>();
-  const kit = createCharacterKit(reducedMotion);
+  const kit = createCharacterKit(
+    await loadCharacterAssets(['fighter', 'cleric', 'archer', 'witch', 'lancer', 'gunner']),
+    reducedMotion,
+  );
 
   const createView = (unit: StageUnit): UnitView => {
     const character = kit.create(unit.classId, unit.team, random());

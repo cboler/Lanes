@@ -23,7 +23,7 @@ Lanes is a playable local prototype moving toward the [Project Valkyrie design](
 - **Defense Orders**: Configure each defender's first four own turns with a skill or Guard and a target priority. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
 - **Mercenary Roster**: A persistent roster of named mercenaries with a nine-stat sheet (STR, MAG, TEC, VIT, STM, SPI, AGI, CON, SP) and randomized F–S aptitudes. Stats scale the combat numbers of the mercenary's class, and the roster page deploys a chosen squad into battle. Saved in browser storage on this device; there is no hiring, EXP, or guild hub yet.
 - **Controller Support**: Standard Gamepad API navigation, confirm/cancel, ability cycling, and one-step movement alongside keyboard and touch controls.
-- **Grand Kingdom–style Battle Stage**: A Three.js 2.5D side view: three lanes recede into depth in front of a painted backdrop, and outlined billboard sprites face off across them. A director camera frames every living unit. Each skill has its own choreography: arrows arc, bullets trace, fireballs and meteors explode, lancers lunge, holy light falls, and hits flash with knockback and screen shake. Damage numbers pop as the hit lands. The HUD follows Grand Kingdom's layout:
+- **Grand Kingdom–style Battle Stage**: A Three.js 2.5D side view: three lanes recede into depth in front of a painted backdrop, and rigged 3D mercenaries face off across them. Each class has its own outfit and a weapon held on its hand bone, and animations come from one shared clip library: stances, walks, sword swings, bow draws, pistol shots, spells, hits and deaths. A director camera frames every living unit. Each skill has its own choreography: arrows arc, bullets trace, fireballs and meteors explode, lancers lunge, holy light falls, and hits flash with knockback and screen shake. Damage numbers pop as the hit lands. The HUD follows Grand Kingdom's layout:
   - troop flags with remaining-unit pips at the top;
   - HP bars and LEADER tags above units;
   - the active unit's portrait and skills at the bottom-left, with the Move and Action gauges beside them;
@@ -33,15 +33,15 @@ Lanes is a playable local prototype moving toward the [Project Valkyrie design](
 
 ## Technical Stack
 
-| Component          | Technology                                               |
-| ------------------ | -------------------------------------------------------- |
-| Framework          | Angular 22 (Standalone Components, Signals)              |
-| Combat Engine      | Pure TypeScript (Zero external rule dependencies)        |
-| Visuals & UI       | SCSS, SVG/DOM, Three.js arena, handcrafted character art |
-| PWA Infrastructure | Angular Service Worker (`@angular/service-worker`)       |
-| Testing Stack      | Vitest (`npm test`) + Playwright (`npm run e2e`)         |
-| Code Quality       | ESLint + Prettier                                        |
-| Hosting            | GitHub Pages via GitHub Actions workflow                 |
+| Component          | Technology                                            |
+| ------------------ | ----------------------------------------------------- |
+| Framework          | Angular 22 (Standalone Components, Signals)           |
+| Combat Engine      | Pure TypeScript (Zero external rule dependencies)     |
+| Visuals & UI       | SCSS, SVG/DOM, Three.js arena, rigged glTF characters |
+| PWA Infrastructure | Angular Service Worker (`@angular/service-worker`)    |
+| Testing Stack      | Vitest (`npm test`) + Playwright (`npm run e2e`)      |
+| Code Quality       | ESLint + Prettier                                     |
+| Hosting            | GitHub Pages via GitHub Actions workflow              |
 
 ## Getting Started
 
@@ -124,6 +124,16 @@ Lanes/
 
 Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. Defense Orders can also be edited using these focused buttons.
 
+## Character art
+
+The battle characters are built by [tools/characters/build.py](tools/characters/build.py), a headless Blender 5.2 script. It assembles each class from CC0 packs by [Quaternius](https://quaternius.com): Universal Base Characters, Modular Character Outfits – Fantasy and Universal Animation Library. It adds modelled weapons and headgear and authors the bow draw. It writes meshopt-compressed GLBs to `public/assets/characters/`. The source packs are not in the repository. Download them from Quaternius, unzip them under `C:/Users/<you>/LanesArt/` (the `ART` path at the top of the script), then run:
+
+```bash
+blender -b --python tools/characters/build.py
+```
+
+Pass class ids after `--` to rebuild only some (`-- lancer witch`). The compression step runs `npx @gltf-transform/cli`.
+
 ## License
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](LICENSE) for details. The Quaternius character packs are CC0.

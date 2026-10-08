@@ -57,19 +57,40 @@ The user asked for "the three.js treatment" to get the presentation closer to th
   - Unit buttons stay focusable while the stage loads (opacity rather than visibility).
 - **Verified:** 170 unit tests; format, lint and production build (no budget warnings; 400 kB initial). Full e2e: 44 passed, 12 skipped desktop-only, twice. New e2e tests cover context-loss fallback and hold-to-walk. Checked by screenshots at all four viewports, with auto-battle contact sheets and reduced motion, plus six leave-and-return trips without errors. Played manually in the in-app browser.
 
-## 3D characters (2026-10-01, in progress, uncommitted on branch feat/3d-characters)
+## 3D characters (2026-10-07, branch feat/3d-characters)
 
-The user chose 3D models built by Claude (no artist budget) with visible weapons. Blender 5.2 is now installed at C:Program FilesBlender FoundationBlender 5.2 but was not needed for this pass.
+The user has no artist budget and asked for real 3D characters and animations, built with Blender. They chose Quaternius's CC0 fantasy packs as the base and had Claude download them; the zips were fetched from itch.io into C:/Users/chris/LanesArt/ (outside the repo).
 
-- **Done:** src/app/battle/stage-characters.ts builds each class in Three.js code: an 18-bone skeleton, one skinned mesh sculpted from primitives, weapons as attachments on hand bones, cel shading with an inverted-hull ink outline, and clips per weapon style (idle, walk, guard, attack, special, hit, death) played through AnimationMixer. Enemies are mirrored. Actions turn the body square to the enemy. stage-scene.ts uses these instead of billboard sprites; sprite-art.ts now only feeds the no-WebGL fallback. IMPACT_DELAY_MS is 420. Shaders are pre-compiled before the stage is shown.
-- **Verified:** 176 unit tests (6 new in stage-characters.spec.ts), lint and format pass. The no-WebGL e2e run passes (43 passed, 13 skipped).
-- **Open problem, do this first:** frame rate dropped. Yesterday the stage held 60 fps on desktop with no long tasks; with the characters the page delivers roughly 35 fps in battle on desktop and under 20 fps at the phone viewport in headless Chromium. JavaScript in the frame loop is cheap (about 3 ms per frame, render call 2.2 ms), so the cost is on the GPU or compositor side. Suspects, in order: the per-character toon material lit by three point lights, the outline pass doubling skinned draws, and 15k-vertex non-indexed meshes. This slowness is also what makes the controller e2e test flaky with WebGL on (a D-pad tap stretches into a held repeat).
-- **Not done:** README update, a final visual pass at phone sizes, the full WebGL e2e run passing twice, shipping.
+- **Pipeline:** tools/characters/build.py runs in headless Blender 5.2. Per class, it:
+  - takes a Superhero base body (head only) and adds Ranger or Peasant outfit parts, retargeted onto the base rig, plus hair;
+  - adds modelled extras: helm, circlet, halo, hats, robe, sash, quiver, and the weapons (sword, shield, lance, staff, orb, bow, pistol) parented to hand bones;
+  - places a Muzzle empty and swaps alternate textures;
+  - decimates, strips unused attributes and simplifies materials;
+  - exports a GLB, then meshopt-compresses it.
+
+  It also exports animations.glb: the UAL clips the game uses, plus a hand-authored Bow_Shoot. Output is about 3 MB in total.
+
+- **Runtime:** src/app/battle/stage-characters.ts loads the GLBs with MeshoptDecoder and clones each with SkeletonUtils.
+  - Team pieces use the "Team" material, recoloured blue or red, and hair is tinted per class.
+  - Clips retarget by bone name, keeping rotations plus the pelvis position.
+  - act() rescales a clip so its key frame lands on the choreography's beat. Enemies are mirrored, and the body turns square to the enemy while acting.
+  - The old procedural sculptor and ink outline are gone, along with the frame-rate problem they caused.
+- **Verified:**
+  - 178 unit tests; stage-characters.spec.ts uses a synthetic rig.
+  - Lint, format and build pass.
+  - Full e2e passes with one worker, as CI runs it. With parallel workers under SwiftShader some timing tests time out.
+  - The no-WebGL run passes: 43 passed, 13 skipped.
+  - Screenshots and an auto-battle to victory checked.
+- **Next for art:**
+  - Paid tiers of the outfit pack add Knight, Wizard and other outfits, which would replace some modelled extras.
+  - Equipment can swap hand-bone attachments.
+  - Toon shading or outlines could bring back the painted look.
+  - Juggle and combo animations would need launch and air-hit clips.
 
 ## Immediate next steps
 
 1. Interactive execution from the source: a point-of-impact reticle for ranged and magic skills (a timed press decides hit or miss or the landing spot), and melee combos with a Just Cancel window. These change rules, so they need deterministic inputs for defense/AI and tests. The stage already has per-skill choreography and an impact timeline to hook into.
-2. Art fidelity: the chibi SVGs are the weakest part of the presentation now. Grand Kingdom uses detailed, roughly 5-heads-tall paper-doll sprites. The next art step is splitting sprites into parts (head, torso, arms, weapon) for skeletal attack poses, plus more backdrops per battle.
+2. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
 3. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
 4. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), hiring currency, EXP and level-ups, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
