@@ -511,11 +511,17 @@ def strip_attributes(rig):
             o.data.uv_layers.remove(o.data.uv_layers[-1])
 
 
-def decimate(rig, limit=4500):
-    for o in rig.children:
-        if o.type == "MESH" and len(o.data.polygons) > limit:
-            mod = o.modifiers.new("Decimate", "DECIMATE")
-            mod.ratio = limit / len(o.data.polygons)
+def decimate(rig, budget=9000, keep=400):
+    """Fit the whole character in a triangle budget: eight are skinned every frame."""
+    meshes = [o for o in rig.children_recursive if o.type == "MESH" and len(o.data.polygons) > keep]
+    total = sum(len(o.data.polygons) for o in rig.children_recursive if o.type == "MESH")
+    if total <= budget:
+        return
+    small = total - sum(len(o.data.polygons) for o in meshes)
+    ratio = max(0.1, (budget - small) / (total - small))
+    for o in meshes:
+        mod = o.modifiers.new("Decimate", "DECIMATE")
+        mod.ratio = max(ratio, keep / len(o.data.polygons))
 
 
 def assemble(name, spec):

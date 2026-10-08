@@ -437,6 +437,8 @@ interface Tween {
 }
 
 const facing = (team: 'player' | 'enemy') => (team === 'player' ? 1 : -1);
+/** Lowest render scale under load; below this the stage turns to mush. */
+const MIN_PIXEL_RATIO = 0.5;
 const ease = (t: number) => 1 - (1 - t) ** 3;
 
 export async function createStage(options: StageOptions): Promise<Stage> {
@@ -445,7 +447,10 @@ export async function createStage(options: StageOptions): Promise<Stage> {
   if (!context) throw new Error('WebGL2 is unavailable.');
   const renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  // Adaptive resolution: weak GPUs and software rendering drop pixels before frames.
+  const maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.75);
+  let pixelRatio = maxPixelRatio;
+  renderer.setPixelRatio(pixelRatio);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1b2130);
@@ -1020,15 +1025,42 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     };
   };
 
+  const applySize = () => {
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(width, height, false);
+    particleMaterial.uniforms['scale'].value =
+      (height * pixelRatio) / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
+  };
+  /** Smoothed time between animation frames, in ms. */
+  let frameMs = 16;
+  let lastTick = 0;
+  let nextScaleAt = 0;
+  const adaptResolution = (time: number) => {
+    if (lastTick) frameMs += (Math.min(250, time - lastTick) - frameMs) * 0.1;
+    lastTick = time;
+    if (time < nextScaleAt) return;
+    const next =
+      frameMs > 40
+        ? Math.max(MIN_PIXEL_RATIO, pixelRatio * 0.75)
+        : frameMs < 20
+          ? Math.min(maxPixelRatio, pixelRatio * 1.15)
+          : pixelRatio;
+    if (Math.abs(next - pixelRatio) < 0.01) return;
+    // Drop quickly when struggling; climb back slowly so it does not oscillate.
+    nextScaleAt = time + (next < pixelRatio ? 500 : 2000);
+    pixelRatio = next;
+    applySize();
+    // Let the frame time settle at the new size before judging it again.
+    frameMs = 16 + (frameMs - 16) * 0.5;
+  };
+
   const resize = () => {
     const bounds = canvas.getBoundingClientRect();
     width = Math.max(1, Math.round(bounds.width));
     height = Math.max(1, Math.round(bounds.height));
-    renderer.setSize(width, height, false);
+    applySize();
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    particleMaterial.uniforms['scale'].value =
-      (height * renderer.getPixelRatio()) / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
     readSafeArea();
     reframe(true);
     snapCamera = true;
@@ -1437,6 +1469,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
   let lost = false;
   const loop = (time: number) => {
     frame = requestAnimationFrame(loop);
+    adaptResolution(time);
     const idle = !tweens.length && !timeline.length && now - lastMotion > 0.6;
     skipFrame = idle && !skipFrame;
     if (skipFrame) return;

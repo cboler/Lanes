@@ -65,16 +65,17 @@ The user has no artist budget and asked for real 3D characters and animations, b
   - takes a Superhero base body (head only) and adds Ranger or Peasant outfit parts, retargeted onto the base rig, plus hair;
   - adds modelled extras: helm, circlet, halo, hats, robe, sash, quiver, and the weapons (sword, shield, lance, staff, orb, bow, pistol) parented to hand bones;
   - places a Muzzle empty and swaps alternate textures;
-  - decimates, strips unused attributes and simplifies materials;
+  - decimates the whole character to a 9k-triangle budget, strips unused attributes and simplifies materials;
   - exports a GLB, then meshopt-compresses it.
 
-  It also exports animations.glb: the UAL clips the game uses, plus a hand-authored Bow_Shoot. Output is about 3 MB in total.
+  It also exports animations.glb: the UAL clips the game uses, plus a hand-authored Bow_Shoot. Output is about 2.3 MB in total.
 
 - **Runtime:** src/app/battle/stage-characters.ts loads the GLBs with MeshoptDecoder and clones each with SkeletonUtils.
   - Team pieces use the "Team" material, recoloured blue or red, and hair is tinted per class.
   - Clips retarget by bone name, keeping rotations plus the pelvis position.
   - act() rescales a clip so its key frame lands on the choreography's beat. Enemies are mirrored, and the body turns square to the enemy while acting.
   - The old procedural sculptor and ink outline are gone, along with the frame-rate problem they caused.
+  - stage-scene.ts adapts its render scale: from up to 1.75x device pixels down to 0.5x when frames stay over 40 ms, then back up when they drop under 20 ms. CI's software GL needed both this and the triangle budget, or the controller e2e test timed out at tablet and desktop sizes.
 - **Verified:**
   - 178 unit tests; stage-characters.spec.ts uses a synthetic rig.
   - Lint, format and build pass.
