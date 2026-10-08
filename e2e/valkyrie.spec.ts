@@ -258,6 +258,8 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await installController(page);
   await page.goto('/');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
+  // Wait for the stage so its start-up cannot stretch a button press into a held repeat.
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);
   await page.locator('#nav-link-home').focus();
   // Release before asserting: a D-pad held past 400 ms repeats by design.

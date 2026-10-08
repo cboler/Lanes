@@ -25,7 +25,7 @@ const FIELD_MAX_X = 0.95;
 /** Move Gauge spent per full battlefield width travelled. */
 const MOVE_COST_PER_FIELD = 50;
 /** Presentation only: when a skill visibly lands, at 1x speed. Rules resolve immediately. */
-export const IMPACT_DELAY_MS = 300;
+export const IMPACT_DELAY_MS = 420;
 
 export interface FloatingText {
   id: string;

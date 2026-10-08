@@ -57,6 +57,15 @@ The user asked for "the three.js treatment" to get the presentation closer to th
   - Unit buttons stay focusable while the stage loads (opacity rather than visibility).
 - **Verified:** 170 unit tests; format, lint and production build (no budget warnings; 400 kB initial). Full e2e: 44 passed, 12 skipped desktop-only, twice. New e2e tests cover context-loss fallback and hold-to-walk. Checked by screenshots at all four viewports, with auto-battle contact sheets and reduced motion, plus six leave-and-return trips without errors. Played manually in the in-app browser.
 
+## 3D characters (2026-10-01, in progress, uncommitted on branch feat/3d-characters)
+
+The user chose 3D models built by Claude (no artist budget) with visible weapons. Blender 5.2 is now installed at C:Program FilesBlender FoundationBlender 5.2 but was not needed for this pass.
+
+- **Done:** src/app/battle/stage-characters.ts builds each class in Three.js code: an 18-bone skeleton, one skinned mesh sculpted from primitives, weapons as attachments on hand bones, cel shading with an inverted-hull ink outline, and clips per weapon style (idle, walk, guard, attack, special, hit, death) played through AnimationMixer. Enemies are mirrored. Actions turn the body square to the enemy. stage-scene.ts uses these instead of billboard sprites; sprite-art.ts now only feeds the no-WebGL fallback. IMPACT_DELAY_MS is 420. Shaders are pre-compiled before the stage is shown.
+- **Verified:** 176 unit tests (6 new in stage-characters.spec.ts), lint and format pass. The no-WebGL e2e run passes (43 passed, 13 skipped).
+- **Open problem, do this first:** frame rate dropped. Yesterday the stage held 60 fps on desktop with no long tasks; with the characters the page delivers roughly 35 fps in battle on desktop and under 20 fps at the phone viewport in headless Chromium. JavaScript in the frame loop is cheap (about 3 ms per frame, render call 2.2 ms), so the cost is on the GPU or compositor side. Suspects, in order: the per-character toon material lit by three point lights, the outline pass doubling skinned draws, and 15k-vertex non-indexed meshes. This slowness is also what makes the controller e2e test flaky with WebGL on (a D-pad tap stretches into a held repeat).
+- **Not done:** README update, a final visual pass at phone sizes, the full WebGL e2e run passing twice, shipping.
+
 ## Immediate next steps
 
 1. Interactive execution from the source: a point-of-impact reticle for ranged and magic skills (a timed press decides hit or miss or the landing spot), and melee combos with a Just Cancel window. These change rules, so they need deterministic inputs for defense/AI and tests. The stage already has per-skill choreography and an impact timeline to hook into.

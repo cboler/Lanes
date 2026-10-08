@@ -1,19 +1,16 @@
 import * as THREE from 'three';
 import { seededRandom } from '../core/models/mercenary.model';
-import { SPRITE_FEET, SPRITE_VIEWBOX, spriteUrl } from './sprite-art';
+import { CHARACTER_HEIGHT, createCharacterKit, type Character } from './stage-characters';
 
 /*
  * The 2.5D battle stage: a side view of three lanes receding into depth, painted
- * backdrop, billboard sprites and skill choreography. It only renders state; the
- * rules engine has already resolved everything it shows. Loaded lazily with three.
+ * backdrop, animated 3D characters and skill choreography. It only renders state;
+ * the rules engine has already resolved everything it shows. Loaded lazily with three.
  */
 
 export const FIELD_WIDTH = 16;
 export const LANE_GAP = 3.2;
-const SPRITE_HEIGHT = 2.1;
-const SPRITE_WIDTH = (SPRITE_HEIGHT * SPRITE_VIEWBOX.width) / SPRITE_VIEWBOX.height;
-/** Top of the head (SVG y = 3) above the ground. */
-const HEAD_HEIGHT = (SPRITE_FEET - (3 - SPRITE_VIEWBOX.y) / SPRITE_VIEWBOX.height) * SPRITE_HEIGHT;
+const HEAD_HEIGHT = CHARACTER_HEIGHT;
 const PITCH = THREE.MathUtils.degToRad(18);
 const FOV = 11;
 
@@ -361,35 +358,6 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   return image;
 }
 
-/** Rasterize a class sprite with an ink outline and soft top-left lighting. */
-async function spriteTexture(classId: string, team: 'player' | 'enemy') {
-  const width = 304;
-  const height = 336;
-  const image = await loadImage(spriteUrl(classId, team, width, height));
-  const silhouette = document.createElement('canvas');
-  silhouette.width = width;
-  silhouette.height = height;
-  const s = silhouette.getContext('2d')!;
-  s.drawImage(image, 0, 0, width, height);
-  s.globalCompositeOperation = 'source-in';
-  s.fillStyle = '#0a0d16';
-  s.fillRect(0, 0, width, height);
-  return canvasTexture(width, height, (c) => {
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
-      c.drawImage(silhouette, Math.cos(angle) * 4.5, Math.sin(angle) * 4.5);
-    }
-    c.drawImage(image, 0, 0, width, height);
-    c.globalCompositeOperation = 'source-atop';
-    const light = c.createLinearGradient(0, 0, width, height);
-    light.addColorStop(0, 'rgba(255, 236, 200, 0.18)');
-    light.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-    light.addColorStop(1, 'rgba(8, 10, 28, 0.32)');
-    c.fillStyle = light;
-    c.fillRect(0, 0, width, height);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Skill presentation
 
@@ -442,8 +410,8 @@ interface UnitView {
   readonly id: string;
   readonly team: 'player' | 'enemy';
   readonly group: THREE.Group;
-  readonly body: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
-  readonly flash: { value: number };
+  readonly character: Character;
+  flash: number;
   readonly shadow: THREE.Mesh;
   readonly shield: THREE.Sprite;
   readonly buff: THREE.Mesh;
@@ -454,8 +422,6 @@ interface UnitView {
   dying: number;
   guard: number;
   knock: number;
-  spin: number;
-  phase: number;
 }
 
 interface Tween {
@@ -499,13 +465,6 @@ export async function createStage(options: StageOptions): Promise<Stage> {
   const beam = keep(beamTexture());
   const plane = keep(new THREE.PlaneGeometry(1, 1));
   const flatPlane = keep(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
-  const spritePlane = keep(
-    new THREE.PlaneGeometry(SPRITE_WIDTH, SPRITE_HEIGHT).translate(
-      0,
-      SPRITE_HEIGHT * (SPRITE_FEET - 0.5),
-      0,
-    ),
-  );
   const shock = keep(new THREE.RingGeometry(0.82, 1, 56).rotateX(-Math.PI / 2));
   const column = keep(new THREE.CylinderGeometry(0.5, 0.5, 7, 24, 1, true).translate(0, 3.5, 0));
 
@@ -953,40 +912,10 @@ export async function createStage(options: StageOptions): Promise<Stage> {
 
   // Units ----------------------------------------------------------------------
   const views = new Map<string, UnitView>();
-  const textures = new Map<string, Promise<THREE.Texture>>();
-  const textureFor = (classId: string, team: 'player' | 'enemy') => {
-    const key = `${classId}:${team}`;
-    let texture = textures.get(key);
-    if (!texture) {
-      texture = spriteTexture(classId, team).then(keep);
-      textures.set(key, texture);
-    }
-    return texture;
-  };
+  const kit = createCharacterKit(reducedMotion);
 
   const createView = (unit: StageUnit): UnitView => {
-    const flash = { value: 0 };
-    const material = new THREE.MeshBasicMaterial({
-      transparent: true,
-      depthWrite: false,
-      opacity: 0,
-      fog: false,
-    });
-    material.onBeforeCompile = (shader) => {
-      shader.uniforms['uFlash'] = flash;
-      shader.fragmentShader = `uniform float uFlash;\n${shader.fragmentShader}`.replace(
-        '#include <map_fragment>',
-        '#include <map_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), uFlash);',
-      );
-    };
-    material.customProgramCacheKey = () => 'lanes-sprite';
-    void textureFor(unit.classId, unit.team).then((map) => {
-      material.map = map;
-      material.opacity = 1;
-      material.needsUpdate = true;
-    });
-    const body = new THREE.Mesh(spritePlane, material);
-    body.renderOrder = 4;
+    const character = kit.create(unit.classId, unit.team, random());
     const shadow = new THREE.Mesh(flatPlane, basic({ map: shadowMap }));
     shadow.scale.set(1.5, 1, 0.55);
     shadow.position.y = 0.02;
@@ -1004,7 +933,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     buff.position.y = 0.04;
     buff.visible = false;
     const group = new THREE.Group();
-    group.add(shadow, buff, body, shield);
+    group.add(shadow, buff, character.root, shield);
     const home = new THREE.Vector3(worldX(unit.x), 0, laneZ(unit.lane));
     group.position.copy(home);
     scene.add(group);
@@ -1012,8 +941,8 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       id: unit.id,
       team: unit.team,
       group,
-      body,
-      flash,
+      character,
+      flash: 0,
       shadow,
       shield,
       buff,
@@ -1024,14 +953,12 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       dying: unit.alive ? -1 : 1,
       guard: unit.guard,
       knock: 0,
-      spin: 0,
-      phase: random() * Math.PI * 2,
     };
   };
 
   const removeView = (view: UnitView) => {
     scene.remove(view.group);
-    view.body.material.dispose();
+    view.character.dispose();
     (view.shadow.material as THREE.Material).dispose();
     view.shield.material.dispose();
     (view.buff.material as THREE.Material).dispose();
@@ -1104,8 +1031,8 @@ export async function createStage(options: StageOptions): Promise<Stage> {
   // Choreography -----------------------------------------------------------
   const chest = (view: UnitView, out = new THREE.Vector3()) =>
     out.copy(view.group.position).setY(HEAD_HEIGHT * 0.55);
-  const hand = (view: UnitView) =>
-    chest(view).add(new THREE.Vector3(facing(view.team) * 0.6, 0.12, 0.05));
+  /** Where the weapon is right now: projectiles and cast sparks start here. */
+  const hand = (view: UnitView) => view.character.muzzle(new THREE.Vector3());
 
   const hit = (
     attacker: UnitView,
@@ -1128,7 +1055,8 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       shockwave(target.group.position, look.color, 1.4, 0.6 * scale);
       return;
     }
-    target.flash.value = 0.7;
+    target.flash = 0.7;
+    target.character.act('hit', 0.11);
     const away =
       Math.sign(target.group.position.x - attacker.group.position.x) || -facing(target.team);
     target.knock = away * (effect.wasDefeated ? 0.55 : 0.28);
@@ -1165,6 +1093,27 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       tween(impact + 0.35 * scale, (k) => (punch = Math.max(punch, Math.sin(Math.PI * k) * 0.025)));
     }
 
+    // Each clip is timed so its key moment (strike, release) matches the effects below.
+    const release = impact * 0.5;
+    switch (look.delivery) {
+      case 'melee':
+      case 'lunge':
+      case 'pillar':
+        attacker.character.act('attack', impact);
+        break;
+      case 'arrow':
+      case 'bullet':
+      case 'snipe':
+      case 'bolt':
+        attacker.character.act('attack', release);
+        break;
+      case 'volley':
+        attacker.character.act('special', impact * 0.3);
+        break;
+      default:
+        attacker.character.act('special', impact * 0.8);
+    }
+
     switch (look.delivery) {
       case 'melee':
       case 'lunge': {
@@ -1185,7 +1134,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       }
       case 'spin':
       case 'shout':
-        attacker.spin = look.delivery === 'spin' ? impact + 0.1 : 0;
+        if (look.delivery === 'spin') attacker.character.spin(impact * 1.3);
         later(impact * 0.5, () => {
           shockwave(origin, look.color, FIELD_WIDTH * 0.55, 0.55 * scale);
           if (look.delivery === 'shout') burst(chest(attacker), look.color, 18, 2, 0.35);
@@ -1196,10 +1145,12 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       case 'bullet':
       case 'snipe':
       case 'bolt':
-        attacker.knock = -dir * 0.12;
-        burst(hand(attacker), look.color, look.delivery === 'bolt' ? 12 : 6, 1.4, 0.3);
+        later(release, () => {
+          attacker.knock = -dir * 0.12;
+          burst(hand(attacker), look.color, look.delivery === 'bolt' ? 12 : 6, 1.4, 0.3);
+        });
         for (const { view } of targets.slice(0, look.burst ? 1 : targets.length)) {
-          const flight = look.delivery === 'snipe' ? 0.08 : impact - 0.06 * scale;
+          const flight = look.delivery === 'snipe' ? 0.08 : impact - release;
           later(impact - flight, () =>
             projectile(
               hand(attacker),
@@ -1214,7 +1165,6 @@ export async function createStage(options: StageOptions): Promise<Stage> {
         later(impact, land);
         break;
       case 'volley':
-        attacker.knock = -dir * 0.1;
         for (const { view } of targets) {
           for (let i = 0; i < 5; i++) {
             const to = chest(view).add(
@@ -1264,7 +1214,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
         break;
       }
       case 'pillar':
-        burst(hand(attacker), look.color, 10, 1.2, 0.3);
+        later(impact * 0.6, () => burst(hand(attacker), look.color, 10, 1.2, 0.3));
         for (const { view } of targets)
           later(impact * 0.4, () => lightColumn(view.group.position, look.color, 0.75 * scale));
         later(impact, land);
@@ -1350,43 +1300,35 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     }
   };
 
-  const updateUnits = (dt: number, time: number) => {
+  const updateUnits = (dt: number) => {
     const follow = 1 - Math.exp(-dt * 11);
     for (const view of views.values()) {
-      const { group, body } = view;
-      const fromX = group.position.x;
+      const { group, character } = view;
       group.position.lerp(view.goal, follow);
       const laneTravel = Math.abs(view.goal.z - view.hopFrom);
       const hop =
         laneTravel > 0.01
           ? Math.sin(Math.PI * (1 - Math.abs(view.goal.z - group.position.z) / laneTravel)) * 0.45
           : 0;
-      const walking = Math.abs(group.position.x - fromX) > 0.0005;
+      const walking =
+        Math.abs(view.goal.x - group.position.x) > 0.03 ||
+        Math.abs(view.goal.z - group.position.z) > 0.08;
       if (
         walking ||
         group.position.distanceToSquared(view.goal) > 1e-4 ||
         Math.abs(view.knock) > 0.005 ||
-        view.flash.value > 0 ||
-        view.spin > 0 ||
+        view.flash > 0 ||
         (view.dying >= 0 && view.dying < 1)
       ) {
         lastMotion = now;
       }
       view.knock *= Math.exp(-dt * 9);
-      view.flash.value = Math.max(0, view.flash.value - dt * 6);
-      body.position.set(
-        view.offset.x + view.knock,
-        view.offset.y +
-          hop +
-          (walking && !reducedMotion ? Math.abs(Math.sin(time * 16)) * 0.08 : 0),
-        view.offset.z,
-      );
-      const breathe = reducedMotion ? 0 : Math.sin(time * 2.4 + view.phase);
-      body.scale.set(1 - breathe * 0.008, 1 + breathe * 0.016, 1);
-      if (view.spin > 0) {
-        view.spin -= dt;
-        body.scale.x = Math.cos(view.spin * 28);
-      }
+      view.flash = Math.max(0, view.flash - dt * 6);
+      const body = character.root;
+      body.position.set(view.offset.x + view.knock, view.offset.y + hop, view.offset.z);
+      character.flash(view.flash);
+      character.setBase(walking ? 'walk' : view.guard > 0 ? 'guard' : 'idle');
+      character.update(dt);
       view.shadow.position.set(body.position.x, 0.02, body.position.z);
       const shieldTarget = view.guard > 0 ? 0.85 : 0;
       view.shield.visible = view.shield.material.opacity > 0.02 || shieldTarget > 0;
@@ -1395,16 +1337,14 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       view.shield.position.x = facing(view.team) * 0.55 + body.position.x;
       if (view.buff.visible) view.buff.rotation.y += dt * 1.5;
       if (view.dying >= 0 && view.dying < 1) {
-        view.dying = Math.min(1, view.dying + dt * 1.5);
-        const k = ease(view.dying);
-        body.rotation.z = facing(view.team) * k * 1.25;
-        body.material.opacity = 1 - k;
-        view.shadow.scale.set(1.5 * (1 - k), 1, 0.55 * (1 - k));
-        if (view.dying < 0.2) burst(group.position.clone().setY(0.2), 0x8d8272, 2, 1.2, 0.5);
-      } else if (view.dying < 0 && body.material.map) {
-        body.rotation.z = 0;
-        body.material.opacity = 1;
-        view.shadow.scale.set(1.5, 1, 0.55);
+        // Fall (the death clip), lie a moment, then sink out of sight.
+        if (view.dying === 0) character.die();
+        view.dying = Math.min(1, view.dying + dt / 1.7);
+        const sink = Math.max(0, (view.dying - 0.7) / 0.3);
+        body.position.y -= sink * 0.5;
+        view.shadow.scale.set(1.5 * (1 - sink), 1, 0.55 * (1 - sink));
+        if (view.dying > 0.4 && view.dying < 0.5)
+          burst(group.position.clone().setY(0.15), 0x8d8272, 2, 1.2, 0.5);
       }
       group.visible = view.dying < 1;
     }
@@ -1529,7 +1469,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
           torch.flame.scale.setScalar(0.85 + flicker * 0.1);
         }
       }
-      updateUnits(dt, now);
+      updateUnits(dt);
       updateMarkers(now);
       updateParticles(dt);
       updateCamera(dt);
@@ -1560,6 +1500,9 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     }
     for (const view of views.values()) removeView(view);
     views.clear();
+    // Kept until now: disposing its materials earlier would release the compiled shaders.
+    warmUp.dispose();
+    kit.dispose();
     for (const item of disposables) item.dispose();
     for (const mesh of targetRings) mesh.material.dispose();
     renderer.dispose();
@@ -1572,14 +1515,14 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     options.onLost();
   };
 
-  // Everything visible on the first frame should already be decoded.
-  await Promise.all(
-    ['fighter', 'cleric', 'archer', 'witch', 'lancer', 'gunner'].flatMap((id) => [
-      textureFor(id, 'player'),
-      textureFor(id, 'enemy'),
-    ]),
-  );
+  // Compile the character shaders before the stage is shown, so the opening
+  // frames of a battle do not stutter. The fighter uses every material variant.
+  const warmUp = kit.create('fighter', 'player', 0);
+  scene.add(warmUp.root);
   resize();
+  await renderer.compileAsync(scene, camera);
+  scene.remove(warmUp.root);
+  if (lost) throw new Error('The stage was lost while starting.');
   frame = requestAnimationFrame(loop);
 
   return { sync, play, dispose };
