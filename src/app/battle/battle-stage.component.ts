@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { BattleStateService, IMPACT_DELAY_MS } from '../core/services/battle-state.service';
-import type { Stage, StageState } from './stage-scene';
+import type { Stage, StageState } from './stage-types';
 
 /** Must match the attributes stage-scene requests; a canvas keeps its first context. */
 const STAGE_CONTEXT: WebGLContextAttributes = { antialias: true };

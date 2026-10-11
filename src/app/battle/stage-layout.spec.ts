@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { FIELD_WIDTH, fitFrame, laneZ, placeCamera, worldX } from './stage-scene';
+import { FIELD_WIDTH, fitFrame, laneZ, placeCamera, worldX } from './stage-layout';
 
 describe('stage layout', () => {
   it('maps the battlefield onto the stage: player left, lane I furthest back', () => {
