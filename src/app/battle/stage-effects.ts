@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { Easing, Group, Tween } from 'three/examples/jsm/libs/tween.module.js';
 import type { CameraDirector } from './stage-camera';
 import type { Particles } from './stage-particles';
 import type { StageContext } from './stage-types';
 
-export const ease = (t: number) => 1 - (1 - t) ** 3;
+export const ease = Easing.Cubic.Out;
 
 export type ProjectileKind = 'arrow' | 'orb' | 'bullet';
 
@@ -37,30 +38,35 @@ export interface Effects {
   advance(dt: number): void;
 }
 
-interface Tween {
-  readonly start: number;
-  readonly duration: number;
-  readonly update: (progress: number) => void;
-  readonly done?: () => void;
-}
-
 export function createEffects(
   { scene, camera, assets }: StageContext,
   particles: Particles,
   director: CameraDirector,
 ): Effects {
   const { glow, slash, arrow, beam, shock, column } = assets;
-  const tweens: Tween[] = [];
-  const timeline: { at: number; run: () => void }[] = [];
+  // One tween.js group runs everything, on this stage's own clock rather than wall time.
+  const group = new Group();
   let now = 0;
   /** Last time anything but ambience moved. */
   let lastMotion = 0;
   const scratch = new THREE.Vector3();
   const projected = new THREE.Vector3();
 
-  const later: Effects['later'] = (delay, run) => timeline.push({ at: now + delay, run });
-  const tween: Effects['tween'] = (duration, update, done) =>
-    tweens.push({ start: now, duration: Math.max(0.01, duration), update, done });
+  const later: Effects['later'] = (delay, run) => {
+    new Tween({}, group)
+      .to({}, 0)
+      .delay(delay * 1000)
+      .onComplete(run)
+      .start(now * 1000);
+  };
+  const tween: Effects['tween'] = (duration, update, done) => {
+    const progress = { k: 0 };
+    const item = new Tween(progress, group)
+      .to({ k: 1 }, Math.max(0.01, duration) * 1000)
+      .onUpdate(() => update(progress.k));
+    if (done) item.onComplete(done);
+    item.start(now * 1000);
+  };
   const transient: Effects['transient'] = (object, duration, update) => {
     scene.add(object);
     tween(duration, update, () => {
@@ -190,21 +196,10 @@ export function createEffects(
     projectile,
     explode,
     touch: () => (lastMotion = now),
-    idle: () => !tweens.length && !timeline.length && now - lastMotion > 0.6,
+    idle: () => !group.getAll().length && now - lastMotion > 0.6,
     advance: (dt) => {
       now += dt;
-      for (let i = timeline.length - 1; i >= 0; i--) {
-        if (timeline[i].at <= now) timeline.splice(i, 1)[0].run();
-      }
-      for (let i = tweens.length - 1; i >= 0; i--) {
-        const item = tweens[i];
-        const progress = Math.min(1, (now - item.start) / item.duration);
-        item.update(progress);
-        if (progress >= 1) {
-          tweens.splice(i, 1);
-          item.done?.();
-        }
-      }
+      group.update(now * 1000);
     },
   };
 }
