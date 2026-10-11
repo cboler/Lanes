@@ -38,7 +38,7 @@ The user asked for "the three.js treatment" to get the presentation closer to th
 - a point-of-impact reticle that sweeps the ground for ranged and magic attacks;
 - melee combos with a white-flash Just Cancel window.
 
-- **Files:** src/app/battle/stage-scene.ts (all Three.js code, lazy chunk ~123 kB gz), battle-stage.component.ts (Angular host, WebGL detection and fallback, 8 s load timeout), sprite-art.ts (the class SVG art as strings, feeding both textures and the fallback <img>). Removed: arena-scene.component.ts, unit-sprite.component.ts. The battlefield template and SCSS were rewritten around the Grand Kingdom HUD. Every ID, class and ARIA hook the tests, keyboard and controller use is kept.
+- **Files:** src/app/battle/stage-scene.ts (renderer, frame loop and teardown) plus the stage-* modules it composes (types, layout, assets, particles, effects, camera, environment, markers, units, choreography, characters; one lazy chunk, ~150 kB gz), battle-stage.component.ts (Angular host, WebGL detection and fallback, 8 s load timeout), sprite-art.ts (the class SVG art as strings, feeding both textures and the fallback <img>). Removed: arena-scene.component.ts, unit-sprite.component.ts. The battlefield template and SCSS were rewritten around the Grand Kingdom HUD. Every ID, class and ARIA hook the tests, keyboard and controller use is kept.
 - **Stage:**
   - A perspective camera at 18° pitch and 11° FOV looks at three lanes: lane I at the back, z = (lane − 1) × 3.2.
   - arena.jpg is a screen-space background aligned so its skyline sits on the back wall line, with haze and rubble at the seam.
@@ -47,7 +47,7 @@ The user asked for "the three.js treatment" to get the presentation closer to th
   - Unit buttons remain DOM over the canvas, placed each frame from projected sprite bounds; data-unit-id links each button to its sprite.
 - **Choreography:**
   - BattleStateService.lastAction is emitted after rules resolve. Rules still apply instantly; the stage replays the action with hits at IMPACT_DELAY_MS (300 ms × speed). DOM numbers and HP bars use the same delay through --impact-delay.
-  - Each skill has a look (LOOKS in stage-scene.ts): melee lunge, arrow arc, volley rain, bullet/snipe tracer, fire bolt, inferno wave, meteor, light pillar, blessing, shout/spin shockwave, and a Bulwark buff.
+  - Each skill has a look (LOOKS in stage-choreography.ts): melee lunge, arrow arc, volley rain, bullet/snipe tracer, fire bolt, inferno wave, meteor, light pillar, blessing, shout/spin shockwave, and a Bulwark buff.
   - Hits flash, knock back and burst; Guard shows a hex shield; deaths topple and fade; embers and flickering torches give ambient life.
 - **Service additions:** lastAction, friendlyFireRisk (moved from the component), reachableSpan (used for the gold move-range strip), turnsLeftInRound (the timeline hourglass), plus shared movement constants.
 - **Controls:** holding A/D, the arrow keys, or the Retreat/Advance buttons walks continuously at 0.3 field per second, spending MG by the same rules; a tap is still one step. Walking stops on release, when blocked, out of MG, or on window blur. The controller keeps its deliberate one-step-per-push design.
