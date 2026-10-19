@@ -1,14 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ALL_CLASSES, getClassDefinition } from '../core/models/unit-class.model';
+import { getClassDefinition } from '../core/models/unit-class.model';
 import {
+  DEFENSE_LIMIT,
   DEFENSE_PRIORITIES,
   DefenseMember,
   DefensePlan,
   DefenseTargetPriority,
+  autoOrders,
 } from '../core/models/defense-plan.model';
 import { DefensePlanService } from '../core/services/defense-plan.service';
 import { BattleStateService } from '../core/services/battle-state.service';
+import { RosterService } from '../core/services/roster.service';
 
 @Component({
   selector: 'app-defense-setup',
@@ -21,28 +24,39 @@ import { BattleStateService } from '../core/services/battle-state.service';
 export class DefenseSetupComponent {
   private readonly saved = inject(DefensePlanService);
   private readonly battle = inject(BattleStateService);
+  private readonly roster = inject(RosterService);
   private readonly router = inject(Router);
 
-  protected readonly allClasses = ALL_CLASSES;
+  protected readonly limit = DEFENSE_LIMIT;
   protected readonly priorities = DEFENSE_PRIORITIES;
   protected readonly draft = signal<DefensePlan>(structuredClone(this.saved.plan()));
   protected readonly notice = signal(this.saved.warning());
   protected readonly dirty = signal(false);
 
+  /** Roster mercenaries not already defending. */
+  private readonly unused = computed(() => {
+    const taken = this.draft().members.map((member) => member.mercenary.id);
+    return this.roster.mercenaries().filter((merc) => !taken.includes(merc.id));
+  });
+  protected readonly canAdd = computed(
+    () => this.draft().members.length < DEFENSE_LIMIT && this.unused().length > 0,
+  );
+
   protected className(member: DefenseMember): string {
-    return getClassDefinition(member.classId).name;
+    return getClassDefinition(member.mercenary.classId).name;
   }
 
   protected portrait(member: DefenseMember): string {
-    return getClassDefinition(member.classId).portraitUrl;
+    return getClassDefinition(member.mercenary.classId).portraitUrl;
   }
 
   protected actionName(member: DefenseMember, abilityId: string): string {
     if (abilityId === 'auto') return 'Auto fallback';
     if (abilityId === 'guard') return 'Guard and end';
     return (
-      getClassDefinition(member.classId).abilities.find((ability) => ability.id === abilityId)
-        ?.name ?? abilityId
+      getClassDefinition(member.mercenary.classId).abilities.find(
+        (ability) => ability.id === abilityId,
+      )?.name ?? abilityId
     );
   }
 
@@ -56,7 +70,7 @@ export class DefenseSetupComponent {
   }
 
   protected hasTargetChoice(member: DefenseMember, abilityId: string): boolean {
-    return getClassDefinition(member.classId).abilities.some(
+    return getClassDefinition(member.mercenary.classId).abilities.some(
       (ability) => ability.id === abilityId && ability.target.startsWith('single-'),
     );
   }
@@ -69,23 +83,27 @@ export class DefenseSetupComponent {
     this.notice.set('Unsaved defense orders.');
   }
 
-  protected cycleClass(index: number): void {
+  /** Swaps in the next roster mercenary not already defending, in roster order. */
+  protected cycleMercenary(index: number): void {
+    const roster = this.roster.mercenaries();
+    const unused = this.unused();
+    if (!unused.length) return;
+    const current = roster.findIndex((m) => m.id === this.draft().members[index].mercenary.id);
+    const next = unused.find((m) => roster.indexOf(m) > current) ?? unused[0];
     this.update((plan) => {
       const member = plan.members[index];
-      const current = ALL_CLASSES.findIndex((cls) => cls.id === member.classId);
-      member.classId = ALL_CLASSES[(current + 1) % ALL_CLASSES.length].id;
-      // A new class has different skills; never leave invalid actions behind.
-      member.orders = this.autoOrders();
+      // Another class has different skills; never leave invalid actions behind.
+      if (next.classId !== member.mercenary.classId) member.orders = autoOrders();
+      member.mercenary = structuredClone(next);
     });
   }
 
-  private autoOrders(): DefenseMember['orders'] {
-    return Array.from({ length: 4 }, () => ({ abilityId: 'auto', targetPriority: 'closest' }));
-  }
-
   protected addMember(): void {
-    if (this.draft().members.length >= 4) return;
-    this.update((plan) => plan.members.push({ classId: 'fighter', orders: this.autoOrders() }));
+    const next = this.unused()[0];
+    if (!this.canAdd() || !next) return;
+    this.update((plan) =>
+      plan.members.push({ mercenary: structuredClone(next), orders: autoOrders() }),
+    );
   }
 
   protected removeMember(index: number): void {
@@ -99,7 +117,7 @@ export class DefenseSetupComponent {
       const options = [
         'auto',
         'guard',
-        ...getClassDefinition(member.classId).abilities.map((ability) => ability.id),
+        ...getClassDefinition(member.mercenary.classId).abilities.map((ability) => ability.id),
       ];
       const order = member.orders[turnIndex];
       order.abilityId = options[(options.indexOf(order.abilityId) + 1) % options.length];
@@ -127,7 +145,7 @@ export class DefenseSetupComponent {
       return;
     }
     this.dirty.set(false);
-    this.battle.initDefensePractice(this.saved.plan());
+    this.battle.initDefensePractice(this.saved.plan(), this.roster.squad());
     void this.router.navigate(['/']);
   }
 }

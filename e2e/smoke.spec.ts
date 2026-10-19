@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
   test('should load application cleanly without runtime errors or horizontal overflow', async ({

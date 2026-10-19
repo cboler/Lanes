@@ -1,9 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('saves a four-turn defense plan and practices against its first order', async ({ page }) => {
   await page.goto('/defense');
   await expect(page.getByRole('heading', { name: 'Defense Orders' })).toBeVisible();
-  await expect(page.locator('.defense-member')).toHaveCount(4);
+  // The default defense is drawn from the roster.
+  await expect(page.locator('.defense-member h2')).toHaveText(['Dara', 'Fiora', 'Edric', 'Aldric']);
   await page.getByRole('button', { name: 'Member 1 turn 1 action: Auto fallback' }).click();
   await expect(
     page.getByRole('button', { name: 'Member 1 turn 1 action: Guard and end' }),
@@ -18,20 +19,22 @@ test('saves a four-turn defense plan and practices against its first order', asy
   await page.locator('#practice-defense-btn').click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator('.battlefield-container > .practice-note')).toBeVisible();
+  // Dara is in the player squad too, so the defending copy is marked.
+  const defender = page.locator('.enemy-unit').filter({ hasText: 'Dara (Def)' });
+  await expect(defender).toHaveCount(1);
+  await expect(page.locator('.enemy-unit').filter({ hasText: 'Fiora' })).toHaveCount(1);
   await page.locator('#end-turn-btn').click();
   await page.locator('#end-turn-btn').click();
   await page.locator('#toggle-log-btn').click();
   await expect(page.locator('.combat-log-drawer')).toContainText(
-    'Enemy Lancer follows turn 1 order: Guard',
+    'Dara (Def) follows turn 1 order: Guard',
   );
-  await expect(
-    page.locator('.enemy-unit').filter({ hasText: 'Enemy Lancer' }).locator('.guard-badge'),
-  ).toBeVisible();
+  await expect(defender.locator('.guard-badge')).toBeVisible();
   await page.locator('#restart-battle-btn').click();
   await expect(page.locator('.battlefield-container > .practice-note')).toBeVisible();
 });
 
-test('class changes reset incompatible actions and roster stays within one to four', async ({
+test('swapping in a mercenary of another class resets its actions, and members stay one to four', async ({
   page,
 }) => {
   await page.goto('/defense');
@@ -39,7 +42,9 @@ test('class changes reset incompatible actions and roster stays within one to fo
   await first.getByRole('button', { name: 'Member 1 turn 1 action: Auto fallback' }).click();
   await first.getByRole('button', { name: 'Member 1 turn 1 action: Guard and end' }).click();
   await expect(first.getByRole('button', { name: /Member 1 turn 1 action: Thrust/ })).toBeVisible();
-  await first.getByRole('button', { name: 'Change class for member 1' }).click();
+  // The next mercenary not already defending is Brenna, an Archer.
+  await first.getByRole('button', { name: /Change mercenary for member 1/ }).click();
+  await expect(first.locator('h2')).toHaveText('Brenna');
   await expect(
     first.getByRole('button', { name: 'Member 1 turn 1 action: Auto fallback' }),
   ).toBeVisible();
@@ -53,6 +58,12 @@ test('class changes reset incompatible actions and roster stays within one to fo
     await page.locator('#add-defense-member-btn').click();
     await expect(page.locator('.defense-member')).toHaveCount(count + 1);
   }
+  await expect(page.locator('.defense-member h2')).toHaveText([
+    'Aldric',
+    'Brenna',
+    'Cassian',
+    'Dara',
+  ]);
   await expect(page.locator('#add-defense-member-btn')).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });

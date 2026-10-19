@@ -1,4 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
+
+// This file tests the randomly generated starter roster.
+test.use({ seedRoster: false });
 
 test('shows a persistent roster with stat sheets and deploys the chosen squad', async ({
   page,

@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { ALL_CLASSES, UnitClassDefinition } from '../core/models/unit-class.model';
+import { Mercenary } from '../core/models/mercenary.model';
 import { BattleStateService } from '../core/services/battle-state.service';
+import { RosterService, SQUAD_LIMIT } from '../core/services/roster.service';
 
 @Component({
   selector: 'app-squad-select',
@@ -15,18 +17,18 @@ import { BattleStateService } from '../core/services/battle-state.service';
 export class SquadSelectComponent {
   private readonly router = inject(Router);
   private readonly battle = inject(BattleStateService);
+  protected readonly roster = inject(RosterService);
 
   protected readonly allClasses = ALL_CLASSES;
-  protected readonly squadLimit = 4;
+  protected readonly squadLimit = SQUAD_LIMIT;
   protected readonly selectedClass = signal<UnitClassDefinition>(ALL_CLASSES[0]);
 
-  protected readonly playerSquad = signal<UnitClassDefinition[]>([
-    ALL_CLASSES[0], // Fighter
-    ALL_CLASSES[2], // Archer
-    ALL_CLASSES[1], // Cleric
-    ALL_CLASSES[4], // Lancer
-  ]);
+  /** Roster mercenaries not yet in the squad. */
+  protected readonly reserves = computed(() =>
+    this.roster.mercenaries().filter((merc) => !this.roster.squadIds().includes(merc.id)),
+  );
 
+  /** Skirmish opponents are generic class troops; defenses use mercenaries. */
   protected readonly enemySquad = signal<UnitClassDefinition[]>([
     ALL_CLASSES[4], // Lancer
     ALL_CLASSES[5], // Gunner
@@ -38,16 +40,10 @@ export class SquadSelectComponent {
     this.selectedClass.set(cls);
   }
 
-  protected addPlayerUnit(cls: UnitClassDefinition): void {
-    if (this.playerSquad().length < this.squadLimit) {
-      this.playerSquad.update((s) => [...s, cls]);
-    }
-  }
-
-  protected removePlayerUnit(index: number): void {
-    if (this.playerSquad().length > 1) {
-      this.playerSquad.update((s) => s.filter((_, i) => i !== index));
-    }
+  /** Adds or removes a mercenary; the roster keeps the squad between one and four. */
+  protected toggleMercenary(merc: Mercenary): void {
+    this.roster.toggleSquad(merc.id);
+    this.selectedClass.set(this.roster.classOf(merc));
   }
 
   protected addEnemyUnit(cls: UnitClassDefinition): void {
@@ -68,7 +64,7 @@ export class SquadSelectComponent {
   }
 
   protected deployToBattle(): void {
-    this.battle.initSkirmish(this.playerSquad(), this.enemySquad());
+    this.battle.deployMercenaries(this.roster.squad(), this.enemySquad());
     this.router.navigate(['/']);
   }
 }

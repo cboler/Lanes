@@ -138,6 +138,11 @@
   }
 
   .squad-title-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
     margin-bottom: var(--space-3);
     font-family: var(--font-heraldic);
     font-size: 0.85rem;
@@ -146,10 +151,71 @@
     color: #ffd700;
   }
 
+  .roster-link {
+    font-family: var(--font-family);
+    font-size: 0.75rem;
+    letter-spacing: 0;
+    color: var(--text-secondary);
+  }
+
   .squad-slots {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
     gap: var(--space-3);
+  }
+
+  .reserve-title {
+    margin: var(--space-4) 0 var(--space-2);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .reserve-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .reserve-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: 4px 12px 4px 4px;
+    border: 1px dashed var(--color-player);
+    border-radius: var(--radius-sm);
+    background: #121a2b;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: #1a2540;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  .reserve-img {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+  }
+
+  .reserve-name {
+    font-weight: 700;
+  }
+
+  .reserve-class {
+    font-size: 0.7rem;
+    color: var(--color-gold-antique);
   }
 }
 

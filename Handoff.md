@@ -23,7 +23,7 @@ Updated: 2026-10-18. Resume here after an implementation step or usage-limit int
 - New: src/app/core/models/mercenary.model*, core/services/roster.service*, src/app/roster/, e2e/roster.spec.ts, route /roster and a nav link. UnitInstance takes optional stat overrides; BattleStateService.initSkirmish takes an optional 4th arg of roster mercenaries aligned with the player squad (kept through restart and defense practice, cleared by a class-only squad).
 - Roster saves to localStorage (lanes.roster.v1), validated on load; a starter roster (one per class, random aptitudes) is generated on first run. Each stat scales the class's tuned value by 2% per point from a neutral 17 (mapping documented on deriveCombatStats). SP has no combat effect yet.
 - Verified: 162 unit tests, lint, format, build, and full e2e (42 passed, 6 skipped) pass; roster page inspected on desktop.
-- The Squad Builder and default battle are still class-based and do not use the roster; only Roster > Deploy squad does.
+- Superseded on 2026-10-18: the Squad Builder, default battle and defense plans now use the roster (see "Roster-driven squads").
 
 ## Grand Kingdom–style battle stage (2026-09-30, uncommitted)
 
@@ -123,11 +123,40 @@ The user picked interactive execution as the next Valkyrie milestone (spec 1.1.4
 - **Local note:** port 4200 on this machine was serving another project ("Singularity Seed"), and Playwright's reuseExistingServer silently tested it. Check what is on 4200 before trusting a local e2e run, or serve Lanes on another port.
 - **Not done:** the landing spot does not move hits to other units (a miss simply misses), there are no launch/juggle states or per-skill cursor modifiers (Precision Fire), and the defense editor does not mention timing.
 
+## Roster-driven squads (2026-10-18)
+
+The player's side and defense plans are now built from roster mercenaries, not classes.
+
+- **Player squad:**
+  - RosterService.squadIds is the one source of truth, shared by Roster and the War Room.
+  - The War Room lists the squad with ✕ to remove, plus Reserves buttons ("Add <name> to the squad"); the roster keeps the squad between one and four.
+  - The class library is for inspecting classes and adding opponents. #add-to-player-squad-btn is gone.
+  - The opponent side stays class-based ("Enemy Fighter").
+  - BattleStateService.deployMercenaries(squad, enemyClasses?) is the entry point. BattlefieldComponent uses it on a visit's first battle, and so do the Roster and War Room deploy buttons.
+- **Defense plan v2:** `{ version: 2, members: { mercenary, orders }[] }`.
+  - The mercenary is a full snapshot, so a plan is self-contained, as an async-PvP defense must be.
+  - parseDefensePlan(value, roster):
+    - It refreshes a snapshot from the roster when that mercenary is still in it, and otherwise keeps the snapshot.
+    - It upgrades a stored v1 plan (class only) by giving each member an unused roster mercenary of that class, and rejects the plan if there is none.
+    - It rejects the same mercenary defending twice.
+  - The storage key is still lanes.defense-plan.v1; the data carries its own version.
+  - The default plan prefers the classes lancer, gunner, witch and fighter from the roster, then fills up with anyone else.
+- **Defense editor:**
+  - "Change mercenary for member N" cycles to the next roster mercenary not already defending. A different class resets that member's orders to auto.
+  - Add member takes the next unused mercenary, and is disabled at four members or when the whole roster is already defending.
+- **Practice:**
+  - initDefensePractice(plan, squad?) takes the roster squad from the editor. Without it, a fresh load fell back to the old class squad.
+  - Defenders use their mercenary's name and derived stats. A name that matches a player unit gets " (Def)", since practice may pit a mercenary against itself.
+- **Tests:**
+  - e2e/fixtures.ts extends Playwright's `test`. It seeds a fixed roster with neutral stats (all 17, so combat numbers equal the class baselines): Aldric fighter, Brenna archer, Cassian cleric, Dara lancer, Edric witch, Fiora gunner, with the first four as the squad. It seeds only when storage is empty.
+  - Every spec imports `test`/`expect` from ./fixtures. roster.spec.ts sets `test.use({ seedRoster: false })` to test the random starter roster.
+  - 222 unit tests pass.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
-3. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), hiring currency, EXP and level-ups, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. The progression loop: post-battle EXP and level-ups (Mercenary.level exists but never changes), currency rewards, and hiring new mercenaries with that currency (the roster is fixed at the starter six). Defense snapshots already refresh from the roster, so levelled mercenaries carry into saved defenses.
+3. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

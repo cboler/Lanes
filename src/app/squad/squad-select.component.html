@@ -14,7 +14,7 @@
     </div>
 
     <button type="button" class="deploy-btn" id="deploy-squad-btn" (click)="deployToBattle()">
-      ⚔️ Deploy Formation ({{ playerSquad().length }} vs {{ enemySquad().length }})
+      ⚔️ Deploy Formation ({{ roster.squad().length }} vs {{ enemySquad().length }})
     </button>
   </header>
 
@@ -24,42 +24,66 @@
       <section class="formation-briefing" aria-labelledby="formation-briefing-title">
         <h2 id="formation-briefing-title">Four mercenaries. Three lanes.</h2>
         <p>
-          Deploy 1–4 units per side; a full squad of four is recommended. Melee units start in
-          front, while ranged and support units start at the rear. The fourth unit shares Lane I.
+          Field 1–4 of your roster's mercenaries against 1–4 opponent troops; a full squad of four
+          is recommended. Melee units start in front, while ranged and support units start at the
+          rear. The fourth unit shares Lane I.
         </p>
         <p class="tactical-triangle">
           <strong>Tactical triangle:</strong> Melee beats Ranged · Ranged beats Magic · Magic beats
           Melee. Specialists are neutral.
         </p>
       </section>
-      <!-- Player Squad -->
+      <!-- Player Squad: mercenaries from the roster -->
       <section class="squad-card player" aria-label="Player Vanguard Roster">
         <div class="squad-title-bar">
           <span class="squad-title">
-            🛡️ PLAYER VANGUARD ({{ playerSquad().length }}/{{ squadLimit }})
+            🛡️ YOUR MERCENARIES ({{ roster.squad().length }}/{{ squadLimit }})
           </span>
+          <a routerLink="/roster" class="roster-link" id="roster-sheets-link">Stat sheets ▸</a>
         </div>
         <div class="squad-slots">
-          @for (cls of playerSquad(); track $index; let idx = $index) {
+          @for (merc of roster.squad(); track merc.id; let idx = $index) {
             <div class="slot-item">
-              <img [src]="cls.portraitUrl" [alt]="cls.name" class="slot-img" />
+              <img
+                [src]="roster.classOf(merc).portraitUrl"
+                [alt]="roster.classOf(merc).name"
+                class="slot-img"
+              />
               <div class="slot-meta">
-                <span class="slot-name">{{ cls.name }}</span>
-                <span class="slot-role">{{ cls.role.toUpperCase() }}</span>
-                <span class="slot-position">{{ startingPosition(cls, idx) }}</span>
+                <span class="slot-name">{{ merc.name }}</span>
+                <span class="slot-role">{{ roster.classOf(merc).name }} · Lv {{ merc.level }}</span>
+                <span class="slot-position">{{ startingPosition(roster.classOf(merc), idx) }}</span>
               </div>
               <button
                 type="button"
                 class="slot-remove-btn"
-                [disabled]="playerSquad().length <= 1"
-                (click)="removePlayerUnit(idx)"
-                [attr.aria-label]="'Remove ' + cls.name + ' from player slot ' + (idx + 1)"
+                [disabled]="roster.squad().length <= 1"
+                (click)="toggleMercenary(merc)"
+                [attr.aria-label]="'Remove ' + merc.name + ' from the squad'"
               >
                 ✕
               </button>
             </div>
           }
         </div>
+        @if (reserves().length) {
+          <h3 class="reserve-title">Reserves</h3>
+          <div class="reserve-list">
+            @for (merc of reserves(); track merc.id) {
+              <button
+                type="button"
+                class="reserve-btn"
+                [disabled]="roster.squad().length >= squadLimit"
+                (click)="toggleMercenary(merc)"
+                [attr.aria-label]="'Add ' + merc.name + ' to the squad'"
+              >
+                <img [src]="roster.classOf(merc).portraitUrl" alt="" class="reserve-img" />
+                <span class="reserve-name">+ {{ merc.name }}</span>
+                <span class="reserve-class">{{ roster.classOf(merc).name }}</span>
+              </button>
+            }
+          </div>
+        }
       </section>
 
       <!-- Enemy Squad -->
@@ -94,7 +118,7 @@
 
       <!-- Quick Class Picker Grid -->
       <section class="class-picker-section" aria-label="Unit Class Library">
-        <h2 class="section-title">Select Class to Inspect & Assign</h2>
+        <h2 class="section-title">Class Library · Inspect or Add Opponents</h2>
         <div class="class-selector-grid">
           @for (cls of allClasses; track cls.id) {
             <button
@@ -252,15 +276,6 @@
 
         <!-- Assignment Controls -->
         <div class="assignment-actions">
-          <button
-            type="button"
-            class="assign-btn player"
-            id="add-to-player-squad-btn"
-            [disabled]="playerSquad().length >= squadLimit"
-            (click)="addPlayerUnit(activeCls)"
-          >
-            + Add to Player Squad
-          </button>
           <button
             type="button"
             class="assign-btn enemy"

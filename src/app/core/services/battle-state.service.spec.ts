@@ -9,8 +9,19 @@ import {
 } from '../models/unit-class.model';
 import { CHAIN_WINDOW } from '../engine/execution';
 import { StatusEffectInstance } from '../models/status-effect.model';
-import { generateMercenary, seededRandom, deriveCombatStats } from '../models/mercenary.model';
+import {
+  generateMercenary,
+  generateStarterRoster,
+  seededRandom,
+  deriveCombatStats,
+} from '../models/mercenary.model';
 import { createDefaultDefensePlan } from '../models/defense-plan.model';
+
+/** A defense mercenary with neutral stats, so it fights exactly like the Fighter class. */
+const defender = {
+  ...generateMercenary('fighter', seededRandom(11)),
+  stats: { str: 17, mag: 17, tec: 17, vit: 17, stm: 17, spi: 17, agi: 17, con: 17, sp: 10 },
+};
 
 describe('BattleStateService', () => {
   let service: BattleStateService;
@@ -270,10 +281,10 @@ describe('BattleStateService', () => {
   );
 
   it('runs saved orders, falls back when an order is unavailable, and preserves practice on restart', () => {
-    const plan = createDefaultDefensePlan();
+    const plan = createDefaultDefensePlan([defender]);
     plan.members = [
       {
-        classId: 'fighter',
+        mercenary: defender,
         orders: [
           { abilityId: 'guard', targetPriority: 'closest' },
           { abilityId: 'bulwark', targetPriority: 'closest' },
@@ -300,6 +311,18 @@ describe('BattleStateService', () => {
     expect(service.practicePlan()).toBeNull();
   });
 
+  it('fields defense mercenaries with their own names and stats, marking one facing itself', () => {
+    const strong = { ...defender, id: 'merc_strong', stats: { ...defender.stats, con: 26 } };
+    service.deployMercenaries([strong]);
+    expect(service.playerUnits()[0].name).toBe(strong.name);
+    service.initDefensePractice(createDefaultDefensePlan([strong, defender]));
+    const [first, second] = service.enemyUnits();
+    expect(first.name).toBe(`${strong.name} (Def)`);
+    expect(first.stats).toEqual(deriveCombatStats(FIGHTER_CLASS, strong));
+    expect(first.maxHp).toBeGreaterThan(FIGHTER_CLASS.baseStats.maxHp);
+    expect(second.stats).toEqual(FIGHTER_CLASS.baseStats);
+  });
+
   it('rejects corrupt practice plans without altering an active battle', () => {
     service.initSkirmish();
     const before = service.units();
@@ -309,10 +332,10 @@ describe('BattleStateService', () => {
   });
 
   it('uses exactly four scripted turns per defender, then switches to the fallback', () => {
-    const plan = createDefaultDefensePlan();
+    const plan = createDefaultDefensePlan([defender]);
     plan.members = [
       {
-        classId: 'fighter',
+        mercenary: defender,
         orders: Array.from({ length: 4 }, () => ({
           abilityId: 'guard',
           targetPriority: 'closest',
@@ -327,7 +350,7 @@ describe('BattleStateService', () => {
     }
     while (service.activeUnit()?.team === 'player') service.endCurrentTurn();
     vi.advanceTimersByTime(600);
-    expect(service.combatLogs().join('\n')).toContain('Enemy Fighter unleashed');
+    expect(service.combatLogs().join('\n')).toContain(`${defender.name} unleashed`);
     expect(service.combatLogs().join('\n')).not.toContain('follows turn 5 order');
   });
 
@@ -352,7 +375,7 @@ describe('BattleStateService', () => {
     service.initSkirmish([ARCHER_CLASS], undefined, undefined, [merc]);
     service.initSkirmish();
     expect(service.playerUnits()[0].name).toBe(merc.name);
-    service.initDefensePractice(createDefaultDefensePlan());
+    service.initDefensePractice(createDefaultDefensePlan(generateStarterRoster(seededRandom(3))));
     expect(service.playerUnits()[0].name).toBe(merc.name);
   });
 

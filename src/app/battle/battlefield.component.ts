@@ -24,6 +24,7 @@ import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
 import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
+import { RosterService } from '../core/services/roster.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DamageCalculator } from '../core/engine/damage-calculator';
 
@@ -44,6 +45,7 @@ const WALK_KEYS = ['a', 'd', 'arrowleft', 'arrowright'];
 })
 export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly battle = inject(BattleStateService);
+  private readonly roster = inject(RosterService);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
@@ -156,7 +158,8 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     if (this.battle.units().length === 0) {
-      this.battle.initSkirmish();
+      // The first battle of a visit fields the roster's squad.
+      this.battle.deployMercenaries(this.roster.squad());
     } else {
       this.battle.resume();
     }

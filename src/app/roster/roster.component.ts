@@ -26,13 +26,7 @@ export class RosterComponent {
   }
 
   protected deploy(): void {
-    const squad = this.roster.squad();
-    this.battle.initSkirmish(
-      squad.map((merc) => this.roster.classOf(merc)),
-      undefined,
-      undefined,
-      squad,
-    );
+    this.battle.deployMercenaries(this.roster.squad());
     this.router.navigate(['/']);
   }
 }

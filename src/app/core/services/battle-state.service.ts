@@ -148,14 +148,25 @@ export class BattleStateService {
   private defenseTurns = new Map<string, number>();
   private attemptedDefenseTurns = new Map<string, number>();
 
-  public initDefensePractice(value: unknown): void {
+  /** Practice against a defense plan, with `squad` attacking, or the last squad if none. */
+  public initDefensePractice(value: unknown, squad?: readonly Mercenary[]): void {
     const plan = parseDefensePlan(value);
     if (!plan) throw new Error('Defense plan is invalid.');
     this.initSkirmish(
-      [...this.playerSquad],
-      plan.members.map((member) => getClassDefinition(member.classId)),
+      squad ? squad.map((merc) => getClassDefinition(merc.classId)) : [...this.playerSquad],
+      plan.members.map((member) => getClassDefinition(member.mercenary.classId)),
       plan,
-      this.playerMercenaries,
+      squad ?? this.playerMercenaries,
+    );
+  }
+
+  /** A skirmish with roster mercenaries as the player's squad. */
+  public deployMercenaries(squad: readonly Mercenary[], enemySquad?: UnitClassDefinition[]): void {
+    this.initSkirmish(
+      squad.map((merc) => getClassDefinition(merc.classId)),
+      enemySquad,
+      undefined,
+      squad,
     );
   }
 
@@ -300,7 +311,23 @@ export class BattleStateService {
       if (newUnits.some((u) => u.team === 'enemy' && u.lane === lane && u.positionX === posX)) {
         posX = isFront ? 0.86 : 0.68;
       }
-      const unit = new UnitInstance(cls, `Enemy ${cls.name}`, 'enemy', lane, posX, 100);
+      // Defenders are the plan's mercenaries. Practice may pit a mercenary against itself.
+      const merc = activePlan?.members[idx]?.mercenary;
+      const name = !merc
+        ? `Enemy ${cls.name}`
+        : newUnits.some((u) => u.name === merc.name)
+          ? `${merc.name} (Def)`
+          : merc.name;
+      const unit = new UnitInstance(
+        cls,
+        name,
+        'enemy',
+        lane,
+        posX,
+        100,
+        undefined,
+        merc ? deriveCombatStats(cls, merc) : undefined,
+      );
       newUnits.push(unit);
       if (activePlan) this.defenseOrders.set(unit.id, activePlan.members[idx].orders);
     });

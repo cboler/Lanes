@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 interface ControllerState {
   connected: boolean;
@@ -83,7 +84,7 @@ test('movement, attacks, and Guard use independent turn resources', async ({ pag
   await timingOff(page);
   await page.goto('/');
   await expect(page.locator('.unit-node')).toHaveCount(8);
-  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Archer');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
   await expect(page.getByRole('progressbar', { name: 'Move Gauge', exact: true })).toHaveAttribute(
     'aria-valuenow',
     '100',
@@ -115,9 +116,7 @@ test('movement, attacks, and Guard use independent turn resources', async ({ pag
   await expect(page.locator(`[id="${archerId}"] .guard-badge`)).toContainText('Guard');
   await expect(page.locator('.acting-unit')).not.toHaveAttribute('id', archerId!);
   await page.locator('#toggle-log-btn').click();
-  await expect(page.locator('.combat-log-drawer')).toContainText(
-    'Player Archer converts remaining AP',
-  );
+  await expect(page.locator('.combat-log-drawer')).toContainText('Brenna converts remaining AP');
 });
 
 test('holding a move key walks continuously, spending MG, and stops on release', async ({
@@ -167,31 +166,40 @@ test('selecting and cancelling abilities is free, and Enter confirms only once',
   await expect(page.locator('#move-gauge')).toHaveAttribute('aria-valuenow', '100');
 });
 
-test('squads enforce one to four members and restart preserves the deployed formation', async ({
+test('the War Room fields one to four roster mercenaries and restart keeps the formation', async ({
   page,
 }) => {
+  const deployed = async () =>
+    (await page.locator('.player-unit .unit-name').allTextContents()).map((n) => n.trim()).sort();
+
+  // The first battle of a visit already fields the roster's squad.
+  await page.goto('/');
+  await expect(page.locator('.player-unit')).toHaveCount(4);
+  expect(await deployed()).toEqual(['Aldric', 'Brenna', 'Cassian', 'Dara']);
+
   await page.goto('/squad');
-  const playerRoster = page.getByRole('region', { name: 'Player Vanguard Roster' });
+  const squad = page.getByRole('region', { name: 'Player Vanguard Roster' });
   const enemyRoster = page.getByRole('region', { name: 'Enemy Vanguard Roster' });
-  await expect(playerRoster.locator('.slot-item')).toHaveCount(4);
+  await expect(squad.locator('.slot-name')).toHaveText(['Aldric', 'Brenna', 'Cassian', 'Dara']);
+  await expect(squad.locator('.reserve-btn')).toHaveCount(2);
+  await expect(squad.locator('.reserve-btn').first()).toBeDisabled();
   await expect(enemyRoster.locator('.slot-item')).toHaveCount(4);
-  await expect(page.locator('#add-to-player-squad-btn')).toBeDisabled();
   await expect(page.locator('#add-to-enemy-squad-btn')).toBeDisabled();
 
   for (let remaining = 4; remaining > 1; remaining--) {
-    await playerRoster.locator('.slot-remove-btn').last().click();
-    await expect(playerRoster.locator('.slot-item')).toHaveCount(remaining - 1);
+    await squad.locator('.slot-remove-btn').first().click();
+    await expect(squad.locator('.slot-item')).toHaveCount(remaining - 1);
   }
-  await expect(playerRoster.locator('.slot-remove-btn')).toBeDisabled();
+  await expect(squad.locator('.slot-remove-btn')).toBeDisabled();
   await expect(page.locator('#deploy-squad-btn')).toContainText('1 vs 4');
-  for (let added = 0; added < 3; added++) {
-    await page.locator('#add-to-player-squad-btn').click();
-    await expect(playerRoster.locator('.slot-item')).toHaveCount(added + 2);
+  for (const name of ['Fiora', 'Aldric', 'Edric']) {
+    await squad.getByRole('button', { name: `Add ${name} to the squad` }).click();
   }
-  await expect(playerRoster.locator('.slot-item')).toHaveCount(4);
-  await expect(page.locator('#add-to-player-squad-btn')).toBeDisabled();
+  await expect(squad.locator('.slot-name')).toHaveText(['Dara', 'Fiora', 'Aldric', 'Edric']);
+  await expect(squad.locator('.reserve-btn').first()).toBeDisabled();
   await page.locator('#deploy-squad-btn').click();
-  await expect(page.locator('.player-unit .unit-name')).toHaveText(Array(4).fill('Player Fighter'));
+  await expect(page.locator('.player-unit')).toHaveCount(4);
+  expect(await deployed()).toEqual(['Aldric', 'Dara', 'Edric', 'Fiora']);
   // Two members share lane one, standing apart. The stage positions units once it is ready.
   await expect
     .poll(async () => {
@@ -203,8 +211,8 @@ test('squads enforce one to four members and restart preserves the deployed form
     .toBe(2);
 
   await page.locator('#restart-battle-btn').click();
-  await expect(page.locator('.player-unit .unit-name')).toHaveText(Array(4).fill('Player Fighter'));
   await expect(page.locator('.enemy-unit')).toHaveCount(4);
+  expect(await deployed()).toEqual(['Aldric', 'Dara', 'Edric', 'Fiora']);
 });
 
 test('the battlefield remains playable when WebGL is unavailable', async ({ page }) => {
@@ -422,9 +430,9 @@ test('melee skills chain into a combo when pressed again in the window', async (
   });
   await page.clock.install();
   await page.goto('/');
-  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Archer');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
   await page.keyboard.press('e');
-  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Lancer');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Dara');
   await page.locator('#ability-btn-thrust').click();
   await expect(page.locator('.unit-node.selected-target')).toBeFocused();
   await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);

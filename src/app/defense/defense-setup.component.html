@@ -3,7 +3,10 @@
     <div>
       <a routerLink="/" class="tactical-btn secondary">◀ Return to battle</a>
       <h1 id="defense-title">Defense Orders</h1>
-      <p>Program your squad's first four turns, then challenge it in a local practice battle.</p>
+      <p>
+        Choose up to four roster mercenaries to defend, program their first four turns, then
+        challenge them in a local practice battle.
+      </p>
       <p>
         Each member follows its own four-turn list. Stunned turns use a slot. An unavailable order
         falls back to role-based tactics. After turn four, all members use those tactics.
@@ -37,14 +40,21 @@
         <div class="member-heading">
           <img [src]="portrait(member)" [alt]="className(member)" />
           <div>
-            <h2>Member {{ memberIndex + 1 }}</h2>
+            <h2>{{ member.mercenary.name }}</h2>
             <button
               type="button"
               class="tactical-btn secondary class-cycle"
-              (click)="cycleClass(memberIndex)"
-              [attr.aria-label]="'Change class for member ' + (memberIndex + 1)"
+              (click)="cycleMercenary(memberIndex)"
+              [attr.aria-label]="
+                'Change mercenary for member ' +
+                (memberIndex + 1) +
+                ': ' +
+                member.mercenary.name +
+                ', ' +
+                className(member)
+              "
             >
-              {{ className(member) }} ↻
+              {{ className(member) }} · Lv {{ member.mercenary.level }} ↻
             </button>
           </div>
           <button
@@ -102,13 +112,15 @@
     type="button"
     class="tactical-btn secondary add-member"
     id="add-defense-member-btn"
-    [disabled]="draft().members.length >= 4"
+    [disabled]="!canAdd()"
     (click)="addMember()"
   >
-    + Add member ({{ draft().members.length }}/4)
+    + Add member ({{ draft().members.length }}/{{ limit }})
   </button>
   <p class="practice-note">
-    Saved orders stay on this device. Practice uses the current player squad against this defense
-    squad; it does not contact another player.
+    Defenders are mercenaries from your roster; the plan keeps a copy of each one's stat sheet, as a
+    defense sent to another player would. Saved orders stay on this device. Practice uses your
+    current squad against this defense, so a mercenary may face itself; it does not contact another
+    player.
   </p>
 </section>
