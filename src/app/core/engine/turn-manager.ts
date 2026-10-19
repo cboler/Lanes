@@ -11,7 +11,10 @@ export class TurnManager {
 
   public setOrder(units: readonly UnitInstance[]): void {
     this._order.length = 0;
-    const living = units.filter((u) => u.isAlive).sort((a, b) => b.stats.speed - a.stats.speed);
+    // Objects such as barricades never take a turn.
+    const living = units
+      .filter((u) => u.isAlive && !u.isObject)
+      .sort((a, b) => b.stats.speed - a.stats.speed);
     this._order.push(...living);
     this._currentIndex = 0;
   }

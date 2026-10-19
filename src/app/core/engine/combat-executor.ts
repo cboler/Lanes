@@ -51,7 +51,7 @@ export class CombatExecutor {
   ): UnitInstance[] {
     const living = allUnits.filter((u) => u.isAlive);
     const enemies = living.filter((u) => u.team !== attacker.team);
-    const allies = living.filter((u) => u.team === attacker.team);
+    const allies = living.filter((u) => u.team === attacker.team && !u.isObject);
 
     switch (ability.target) {
       case 'self':
@@ -270,7 +270,8 @@ export class CombatExecutor {
       );
     for (const { effect, index } of order) {
       const target = effect.target;
-      if (!target.isAlive) continue;
+      // A barricade stands fast.
+      if (!target.isAlive || target.isObject) continue;
       const dir =
         Math.sign(target.positionX - attacker.positionX) || (attacker.team === 'player' ? 1 : -1);
       const pushed = Math.min(distance, slideRoom(target, dir, units));
@@ -294,7 +295,7 @@ export class CombatExecutor {
     target: UnitInstance,
   ): StatusEffectType | undefined {
     const status = ability.status;
-    if (!status || !target.isAlive) return undefined;
+    if (!status || !target.isAlive || target.isObject) return undefined;
     target.refreshStatusEffect(
       new StatusEffectInstance(status.type, status.duration, status.potency),
     );

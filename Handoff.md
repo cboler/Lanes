@@ -335,10 +335,40 @@ The user asked what they need to provide. Nothing is needed to run it: Blender 5
 - approving each download, or supplying images, for new battle backdrops;
 - art direction (for example toon outlines).
 
+## Battlefield objects: barricades and traps (2026-10-19)
+
+Spec 1.1.5 ("barricades to impede movement, traps to inflict damage or status"; siege weapons are not done).
+
+- **Barricades:** object units of BARRICADE_CLASS (unit-class.model.ts, flagged `object: true`; not in ALL_CLASSES). UnitInstance.isObject means:
+  - It takes no turns (TurnManager.setOrder skips it) and doesn't decide a battle (checkBattleStatus counts fighters only).
+  - It isn't in enemyUnits() or the troop pips, the leader tag or the reward kill count.
+  - It is never an ally target (no heals or buffs), takes no statuses and can't be knocked back.
+  - It is a unit, so it blocks movement (collision) and, as the nearest enemy in its lane, takes direct same-lane attacks (Shield Bash, Quick Shot) aimed at the units behind it. Cross-lane, any-lane and area skills go past it. Its HP and defenses scale with the contract level (barricadeStats).
+- **Traps:** src/app/core/models/field-object.model.ts.
+  - FieldTrap { kind: spikes | snare, team, lane, x, damage, status }. Spikes do 20 + 4 per level and poison; a snare does 15 + 3 per level and stuns for a turn.
+  - trapsCrossed finds the opposing side's traps in the lane within ±0.02 of the path; springTrap deals the damage (Guard absorbs) and applies the status.
+  - BattleStateService.traps holds them. springTraps runs after moveActiveUnit, after a lane switch (at the landing spot) and after a knockback (along the push), so shoving a foe onto a trap springs it.
+  - A trap is gone once sprung. A unit felled on its own turn ends that turn.
+- **Contracts:** Contract.objects (FieldObjectSpec[]; older saves have none).
+  - Easy sets 1 trap, Normal 1 barricade and 1 trap, Hard 1 barricade and 2 traps.
+  - Barricades stand at x 0.6, just ahead of the band's front line, in a random lane. Traps sit at x 0.44–0.56, one per lane.
+  - Objects come only from contracts (initSkirmish places them from activeContract).
+- **AI:**
+  - Lane choice, closing in and target sorting look at fighters, not objects.
+  - Damage to a barricade scores at 0.4×, so the AI breaks one only when nothing better is in reach.
+  - closeIn stops 0.04 short of an enemy trap ahead.
+- **Stage:** stage-objects.ts.
+  - createBarricade() is a procedural cheval-de-frise (log and crossed stakes) that answers the Character interface, used by stage-units for the 'barricade' class; a hit flashes it and death topples it.
+  - createTrapField draws spike rings or a rope coil per trap. A trap that disappears with a unit standing on it bursts; one that disappears because the battle reset just goes.
+  - StageState.traps comes from battle.traps().
+- **Fallback:** sprite-art has a barricade SVG. .trap-marker spans (📍 spikes, 🪢 snare) are positioned by x in fallback mode and visually hidden but announced (role img, aria-label) on the 3D stage.
+- **Tests:** field-object.model.spec.ts (crossing, springing, barricade blocking, no turns, no knockback, per-tier placement, parsing), plus a service case (barricade and snare from a contract, springing on walking, victory without breaking the barricade): 281 unit tests pass.
+  - e2e: a Hard contract shows the barricade (not counted in pips or turns) and two trap markers; the Normal-contract test excludes its barricade from the band.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Battlefield objects (barricades that block lanes and must be broken, traps), now that position matters; launch/juggle states need new clips. Make the Guild Hall the landing page once it has more to offer (story, quests). The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. Let players set objects too: a Fighter skill to raise a barricade, or an Archer skill to lay a trap, and objects in saved defense plans. Launch and juggle states need new clips. Make the Guild Hall the landing page once it has more to offer. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

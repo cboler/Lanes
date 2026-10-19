@@ -30,6 +30,7 @@ import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
 import { GuildService } from '../core/services/guild.service';
 import { Contract, TIERS } from '../core/models/contract.model';
+import { FieldTrap, TRAP_NAMES } from '../core/models/field-object.model';
 import { BattleRewards } from '../core/models/progression.model';
 import { StatusEffectType } from '../core/models/status-effect.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -484,6 +485,14 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     return !!active && needsReach(active, ability) && this.battle.validTargets().length === 0;
   }
 
+  protected trapsInLane(lane: number): FieldTrap[] {
+    return this.battle.traps().filter((trap) => trap.lane === lane);
+  }
+
+  protected trapName(trap: FieldTrap): string {
+    return TRAP_NAMES[trap.kind];
+  }
+
   protected isAimTarget(unit: UnitInstance): boolean {
     return !!this.battle.aim()?.targetIds.includes(unit.id);
   }
@@ -510,13 +519,15 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   /** Matches the 'leader' defense priority: the first living member of each side. */
   protected isLeader(unit: UnitInstance): boolean {
-    return this.battle.units().find((u) => u.team === unit.team && u.isAlive) === unit;
+    return (
+      this.battle.units().find((u) => u.team === unit.team && u.isAlive && !u.isObject) === unit
+    );
   }
 
   protected troopPips(team: Team): boolean[] {
     return this.battle
       .units()
-      .filter((unit) => unit.team === team)
+      .filter((unit) => unit.team === team && !unit.isObject)
       .map((unit) => unit.isAlive);
   }
 

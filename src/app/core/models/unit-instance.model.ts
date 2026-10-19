@@ -96,6 +96,11 @@ export class UnitInstance {
     return this._statusEffects.some((e) => e.type === type && !e.isExpired);
   }
 
+  /** A battlefield object such as a barricade: no turns, no statuses, does not count toward victory. */
+  public get isObject(): boolean {
+    return !!this.classDef.object;
+  }
+
   public get isStunned(): boolean {
     return this.hasEffect('stun');
   }

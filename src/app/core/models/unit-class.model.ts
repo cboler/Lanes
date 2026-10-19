@@ -13,7 +13,38 @@ export interface UnitClassDefinition {
   /** Skills a mercenary may learn by level, as its skill pattern decides. */
   readonly advancedAbilities: readonly AbilityDefinition[];
   readonly portraitUrl: string;
+  /** A battlefield object, not a fighter: it never takes a turn and does not count toward victory. */
+  readonly object?: true;
 }
+
+/**
+ * A wooden barricade a band raises in a lane (spec 1.1.5). It blocks movement and
+ * stands in front of the units behind it, so direct attacks hit it first, until it is
+ * broken or flanked through another lane.
+ */
+export const BARRICADE_CLASS: UnitClassDefinition = {
+  id: 'barricade',
+  name: 'Barricade',
+  description: 'A palisade of sharpened stakes. Blocks the lane until it is broken.',
+  role: 'tank',
+  archetype: 'specialist',
+  baseStats: {
+    maxHp: 150,
+    attack: 0,
+    defense: 30,
+    speed: 0,
+    agility: 0,
+    vitality: 0,
+    technique: 0,
+    magicAttack: 0,
+    magicDefense: 30,
+    meleeRange: 0,
+  },
+  abilities: [],
+  advancedAbilities: [],
+  portraitUrl: 'assets/units/fighter.jpg',
+  object: true,
+};
 
 export const FIGHTER_CLASS: UnitClassDefinition = {
   id: 'fighter',

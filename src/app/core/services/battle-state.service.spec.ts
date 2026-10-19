@@ -440,6 +440,34 @@ describe('BattleStateService', () => {
     );
   });
 
+  it('raises the barricades and traps of a contract band; a trap springs on whoever walks over it', () => {
+    const contract = {
+      ...generateContract('easy', 1, seededRandom(4)),
+      objects: [
+        { kind: 'barricade' as const, lane: 2, x: 0.6 },
+        { kind: 'trap' as const, trap: 'snare' as const, lane: 1, x: 0.4 },
+      ],
+    };
+    const archer = { ...defender, id: 'merc_archer', classId: 'archer' };
+    service.deployContract(contract, [archer]);
+    const wall = service.units().find((u) => u.isObject)!;
+    expect(wall.lane).toBe(2);
+    expect(service.enemyUnits()).not.toContain(wall);
+    expect(service.traps()).toHaveLength(1);
+    const hero = service.playerUnits()[0];
+    while (service.activeUnit() !== hero) vi.advanceTimersByTime(700);
+    // The archer's lane is 0; walk into lane 1 and over the snare.
+    if (hero.lane !== 1) service.switchActiveUnitLane(1);
+    service.moveActiveUnit(0.4 - hero.positionX + 0.01);
+    expect(service.traps()).toHaveLength(0);
+    expect(hero.isStunned).toBe(true);
+    expect(service.combatLogs().join(' ')).toContain('springs a snare');
+    // Felling the band wins, barricade or not.
+    for (const enemy of service.enemyUnits()) enemy.takeDamage(99999);
+    service.endCurrentTurn(true);
+    expect(service.battleStatus()).toBe('victory');
+  });
+
   it('refreshes squad sheets for the next restart', () => {
     service.deployMercenaries([defender]);
     service.refreshMercenaries([{ ...defender, stats: { ...defender.stats, con: 30 } }]);

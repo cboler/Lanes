@@ -9,6 +9,14 @@ const SPRITE_VIEWBOX = { x: -6, y: -8, width: 76, height: 84 };
 type Pick = (player: string, enemy: string) => string;
 
 const ART: Record<string, (c: Pick) => string> = {
+  barricade: () => `
+    <rect x="6" y="40" width="54" height="7" rx="2" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>
+    <rect x="6" y="54" width="54" height="7" rx="2" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>
+    <path d="M10 66 V30 L14 22 L18 30 V66 Z" fill="#a16207" stroke="#3b2208" stroke-width="2"/>
+    <path d="M24 66 V26 L28 18 L32 26 V66 Z" fill="#a16207" stroke="#3b2208" stroke-width="2"/>
+    <path d="M38 66 V28 L42 20 L46 28 V66 Z" fill="#a16207" stroke="#3b2208" stroke-width="2"/>
+    <path d="M52 66 V32 L56 24 L60 32 V66 Z" fill="#a16207" stroke="#3b2208" stroke-width="2"/>`,
+
   fighter: (c) => `
     <path d="M30 6 C30 2, 38 2, 40 8 C38 12, 32 10, 30 6 Z" fill="${c('#f59e0b', '#ef4444')}"/>
     <rect x="20" y="10" width="24" height="22" rx="6" fill="${c('#94a3b8', '#475569')}" stroke="#1e293b" stroke-width="2"/>

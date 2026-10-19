@@ -7,6 +7,7 @@ import {
 } from './mercenary.model';
 import { gainExp, expToNext, investPoint } from './progression.model';
 import { ALL_CLASSES } from './unit-class.model';
+import { FieldObjectSpec, TrapKind, parseObjectSpec } from './field-object.model';
 
 /*
  * The guild's contract board: battles against named bands of enemy mercenaries, scaled
@@ -25,6 +26,8 @@ export interface Contract {
   level: number;
   rewardMultiplier: number;
   enemies: Mercenary[];
+  /** Barricades and traps the band raises before the battle. */
+  objects: FieldObjectSpec[];
 }
 
 export const TIERS: Record<
@@ -115,7 +118,34 @@ export function generateContract(
     enemies.push(merc);
   }
   const id = `contract_${Math.floor(random() * 0xffffffff).toString(36)}`;
-  return { id, band, title, tier, level, rewardMultiplier: reward, enemies };
+  const objects = placeObjects(tier, random);
+  return { id, band, title, tier, level, rewardMultiplier: reward, enemies, objects };
+}
+
+/** How many barricades and traps each tier's band raises. */
+const OBJECTS: Record<ContractTier, { readonly barricades: number; readonly traps: number }> = {
+  easy: { barricades: 0, traps: 1 },
+  normal: { barricades: 1, traps: 1 },
+  hard: { barricades: 1, traps: 2 },
+};
+
+/**
+ * Barricades stand just ahead of the band's front line; traps wait in the middle of the
+ * field, where the player's units must walk to close in. No two traps share a lane.
+ */
+function placeObjects(tier: ContractTier, random: Random): FieldObjectSpec[] {
+  const { barricades, traps } = OBJECTS[tier];
+  const lanes = [0, 1, 2];
+  const objects: FieldObjectSpec[] = [];
+  for (let i = 0; i < barricades; i++) {
+    objects.push({ kind: 'barricade', lane: lanes[Math.floor(random() * 3)], x: 0.6 });
+  }
+  for (let i = 0; i < traps; i++) {
+    const [lane] = lanes.splice(Math.floor(random() * lanes.length), 1);
+    const trap: TrapKind = random() < 0.5 ? 'spikes' : 'snare';
+    objects.push({ kind: 'trap', trap, lane, x: Math.round((0.44 + random() * 0.12) * 100) / 100 });
+  }
+  return objects;
 }
 
 /** One contract of each tier. */
@@ -153,6 +183,9 @@ export function parseContract(value: unknown): Contract | null {
   )
     return null;
   const enemies = raw.enemies.map(parseMercenary);
+  // Contracts saved before objects existed have none.
+  const objects = Array.isArray(raw.objects) ? raw.objects.map(parseObjectSpec) : [];
+  if (objects.some((spec) => !spec)) return null;
   if (enemies.some((merc) => !merc)) return null;
   return {
     id: raw.id,
@@ -163,5 +196,6 @@ export function parseContract(value: unknown): Contract | null {
     // Never trust a saved multiplier: the tier decides it.
     rewardMultiplier: TIERS[raw.tier].reward,
     enemies: enemies as Mercenary[],
+    objects: objects as FieldObjectSpec[],
   };
 }

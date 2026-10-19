@@ -36,6 +36,15 @@ import {
 } from '../engine/assist';
 import { BattleReport } from '../models/progression.model';
 import { Contract } from '../models/contract.model';
+import {
+  FieldTrap,
+  TRAP_NAMES,
+  barricadeStats,
+  makeTrap,
+  springTrap,
+  trapsCrossed,
+} from '../models/field-object.model';
+import { BARRICADE_CLASS } from '../models/unit-class.model';
 import { knownAbilities } from '../models/skills.model';
 import {
   CHAIN_WINDOW,
@@ -173,6 +182,8 @@ export class BattleStateService {
   public readonly battleReport = signal<BattleReport | null>(null);
   /** Each side's assist gauge, 0 to ASSIST_MAX; every ASSIST_COST is one orb. */
   public readonly assistGauge = signal<AssistGauges>({ player: 0, enemy: 0 });
+  /** Traps on the field; each springs once on an enemy of the side that set it. */
+  public readonly traps = signal<FieldTrap[]>([]);
 
   /** Allies the player could call on now, if an orb is ready. */
   public readonly assistOptions = computed(() => {
@@ -307,7 +318,8 @@ export class BattleStateService {
   });
 
   public readonly enemyUnits = computed(() => {
-    return this.units().filter((u) => u.team === 'enemy');
+    // Fighters only: barricades are in units() but are not part of the band.
+    return this.units().filter((u) => u.team === 'enemy' && !u.isObject);
   });
 
   public get delayMultiplier(): number {
@@ -353,6 +365,7 @@ export class BattleStateService {
     this.lastAction.set(null);
     this.battleReport.set(null);
     this.assistGauge.set({ player: 0, enemy: 0 });
+    this.traps.set([]);
     this.mercenaryOf = new Map();
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
@@ -415,6 +428,26 @@ export class BattleStateService {
       newUnits.push(unit);
       if (activePlan) this.defenseOrders.set(unit.id, activePlan.members[idx].orders);
     });
+
+    for (const [index, spec] of (activeContract?.objects ?? []).entries()) {
+      if (spec.kind === 'barricade') {
+        newUnits.push(
+          new UnitInstance(
+            BARRICADE_CLASS,
+            'Barricade',
+            'enemy',
+            spec.lane,
+            spec.x,
+            100,
+            `enemy_barricade_${index}`,
+            barricadeStats(activeContract!.level),
+          ),
+        );
+      } else {
+        const trap = makeTrap(spec, 'enemy', activeContract!.level, `trap_${index}`);
+        this.traps.update((list) => [...list, trap]);
+      }
+    }
 
     this.units.set(newUnits);
     this.turnManager.setOrder(newUnits);
@@ -574,7 +607,9 @@ export class BattleStateService {
       return false;
     }
 
+    const fromX = unit.positionX;
     unit.positionX = targetX;
+    this.springTraps(unit, fromX, targetX);
     // Stepping away ends a combo.
     this.clearExecution();
     this.units.update((list) => [...list]);
@@ -606,6 +641,7 @@ export class BattleStateService {
     if (success) {
       this.clearExecution();
       this.addLog(`↕️ ${unit.name} shifted from Lane ${oldLane + 1} to Lane ${targetLane + 1}.`);
+      this.springTraps(unit, unit.positionX, unit.positionX);
       this.units.update((list) => [...list]);
       this.targetedUnitId.set(null);
       return true;
@@ -836,10 +872,43 @@ export class BattleStateService {
           : undefined,
       })),
     });
+    for (const effect of effects) {
+      if (effect.pushed && effect.target.isAlive) {
+        const dir = Math.sign(effect.target.positionX - attacker.positionX);
+        this.springTraps(
+          effect.target,
+          effect.target.positionX - dir * effect.pushed,
+          effect.target.positionX,
+        );
+      }
+    }
     this.units.update((list) => [...list]);
 
     // Check end condition
     this.checkBattleStatus();
+  }
+
+  /**
+   * Springs every enemy trap `unit` passed over between `fromX` and `toX`. Each fires
+   * once and is gone. A unit felled on its own turn ends that turn.
+   */
+  private springTraps(unit: UnitInstance, fromX: number, toX: number): void {
+    for (const trap of trapsCrossed(this.traps(), unit, fromX, toX)) {
+      if (!unit.isAlive) break;
+      const sprung = springTrap(trap, unit);
+      this.traps.update((list) => list.filter((t) => t.id !== trap.id));
+      const label = sprung.status === 'stun' ? 'STUN' : 'POISON';
+      this.triggerFloatingText(unit.id, `TRAP -${sprung.damage} · ${label}`, false, false);
+      this.addLog(
+        `🪤 ${unit.name} springs a ${TRAP_NAMES[trap.kind].toLowerCase()}: ${sprung.damage} damage.`,
+      );
+      if (sprung.defeated) this.addLog(`  💀 ${unit.name} has fallen!`);
+    }
+    this.units.update((list) => [...list]);
+    this.checkBattleStatus();
+    if (!unit.isAlive && unit.id === this.activeUnitId() && this.battleStatus() === 'active') {
+      this.scheduleTurnAction(() => this.endCurrentTurn(true), 600);
+    }
   }
 
   private processCombatEffects(
@@ -973,8 +1042,8 @@ export class BattleStateService {
         if (this.battleStatus() === 'active') this.triggerAiTurn();
         return;
       }
-      const allies = this.units().filter((u) => u.team === unit.team && u.isAlive);
-      const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive);
+      const allies = this.units().filter((u) => u.team === unit.team && u.isAlive && !u.isObject);
+      const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive && !u.isObject);
       const heal = unit.abilities.find(
         (a) =>
           a.damageType === 'healing' &&
@@ -1015,12 +1084,16 @@ export class BattleStateService {
           .flatMap((ability) => {
             const targets = CombatExecutor.getValidTargets(unit, ability, this.units());
             const target = [...targets].sort(
-              (a, b) => a.currentHp / a.maxHp - b.currentHp / b.maxHp,
+              (a, b) =>
+                Number(a.isObject) - Number(b.isObject) ||
+                a.currentHp / a.maxHp - b.currentHp / b.maxHp,
             )[0];
             if (!target) return [];
             const area = ability.target === 'all-enemies' || ability.target === 'same-lane-enemies';
             let score = (area ? targets : [target]).reduce((sum, t) => {
               const damage = DamageCalculator.calculateWithDefense(unit, t, ability);
+              // Breaking a barricade is worth less than hurting a fighter.
+              if (t.isObject) return sum + Math.min(t.currentHp, damage) * 0.4;
               // What the skill leaves behind (a stun, poison, a debuff) counts as well.
               return (
                 sum +
@@ -1067,7 +1140,7 @@ export class BattleStateService {
    */
   private closeIn(unit: UnitInstance): void {
     const foes = this.units().filter(
-      (u) => u.isAlive && u.team !== unit.team && u.lane === unit.lane,
+      (u) => u.isAlive && !u.isObject && u.team !== unit.team && u.lane === unit.lane,
     );
     if (!foes.length) return;
     const nearest = foes.reduce((a, b) =>
@@ -1077,7 +1150,15 @@ export class BattleStateService {
     if (gap <= 0) return;
     // Spend at most what is left, a hair under, since the gauge must cover the whole step.
     const affordable = unit.moveGauge.current / MOVE_COST_PER_FIELD - 0.001;
-    const step = Math.min(gap, affordable);
+    // Stop short of an enemy trap rather than walk onto it.
+    const dir = Math.sign(nearest.positionX - unit.positionX);
+    const trapAhead = this.traps()
+      .filter((t) => t.team !== unit.team && t.lane === unit.lane)
+      .map((t) => (t.x - unit.positionX) * dir)
+      .filter((ahead) => ahead > 0)
+      .sort((a, b) => a - b)[0];
+    const safe = trapAhead === undefined ? Infinity : trapAhead - 0.04;
+    const step = Math.min(gap, affordable, safe);
     if (step > 0.002) {
       this.moveActiveUnit(Math.sign(nearest.positionX - unit.positionX) * step, true);
     }
@@ -1166,8 +1247,9 @@ export class BattleStateService {
 
   private checkBattleStatus(): void {
     if (this.battleStatus() !== 'active') return;
-    const playerLiving = this.units().some((u) => u.team === 'player' && u.isAlive);
-    const enemyLiving = this.units().some((u) => u.team === 'enemy' && u.isAlive);
+    const fighting = this.units().filter((u) => u.isAlive && !u.isObject);
+    const playerLiving = fighting.some((u) => u.team === 'player');
+    const enemyLiving = fighting.some((u) => u.team === 'enemy');
 
     if (!playerLiving) {
       this.battleStatus.set('defeat');
@@ -1187,7 +1269,8 @@ export class BattleStateService {
       outcome: playerLiving ? 'victory' : 'defeat',
       rewardMultiplier: this.activeContract()?.rewardMultiplier ?? 1,
       contractId: this.activeContract()?.id,
-      enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive).length,
+      enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive && !u.isObject)
+        .length,
       mercenaries: this.units().flatMap((unit) => {
         const id = this.mercenaryOf.get(unit.id);
         return id ? [{ id, survived: unit.isAlive }] : [];

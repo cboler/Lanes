@@ -7,6 +7,7 @@ import { createEffects } from './stage-effects';
 import { createEnvironment } from './stage-environment';
 import { FOV, HEAD_HEIGHT, laneZ, worldX } from './stage-layout';
 import { createMarkers } from './stage-markers';
+import { createTrapField } from './stage-objects';
 import { createParticles } from './stage-particles';
 import type { Stage, StageContext, StageOptions, StageState } from './stage-types';
 import { createUnits } from './stage-units';
@@ -49,6 +50,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
   const markers = createMarkers(ctx);
   const director = createCameraDirector(camera, fog, overlay, random, reducedMotion);
   const effects = createEffects(ctx, particles, director);
+  const trapField = createTrapField(ctx, particles, effects);
   const units = await createUnits(ctx, particles, effects);
   const { views, kit } = units;
   let state: StageState | null = null;
@@ -102,6 +104,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     effects.touch();
     const previousActive = state?.activeId;
     state = next;
+    trapField.sync(next.traps, next.units);
     const seen = new Set<string>();
     for (const unit of next.units) {
       seen.add(unit.id);
@@ -191,6 +194,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       environment.ambience(dt, effects.now);
       units.update(dt);
       markers.update(effects.now, state, views);
+      trapField.update(effects.now);
       particles.update(dt);
       if (director.update(dt)) effects.touch();
       environment.alignBackdrop(width, height);
@@ -219,6 +223,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       node.style.removeProperty('height');
     }
     units.clear();
+    trapField.dispose();
     // Kept until now: disposing its materials earlier would release the compiled shaders.
     warmUp.dispose();
     kit.dispose();

@@ -20,8 +20,10 @@ test('takes a contract from the guild board, fights its band, and a win replaces
   await expect(page.locator('.contract-note')).toContainText(title);
   await expect(page.locator('.troop-banner.enemy .troop-name')).toHaveText(band);
   // The stage lists units lane by lane, so compare the band as a set.
-  await expect(page.locator('.enemy-unit')).toHaveCount(4);
-  const onField = await page.locator('.enemy-unit .unit-name').allTextContents();
+  // A Normal band also raises a barricade, which is not one of its fighters.
+  const fighters = page.locator('.enemy-unit').filter({ hasNotText: 'Barricade' });
+  await expect(fighters).toHaveCount(4);
+  const onField = await fighters.locator('.unit-name').allTextContents();
   expect(onField.map((name) => name.trim()).sort()).toEqual([...enemyNames].sort());
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
     true,
@@ -51,4 +53,16 @@ test('takes a contract from the guild board, fights its band, and a win replaces
     .locator('.contract-card[data-tier="normal"] .enemy-list li span')
     .allTextContents();
   expect(enemiesNow.map((text) => text.split(' · ')[0])).not.toEqual(enemyNames);
+});
+
+test('a hard contract raises a barricade and sets two traps', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Placement is independent of viewport.');
+  await page.goto('/guild');
+  await page.locator('#take-contract-hard').click();
+  await expect(page.locator('.enemy-unit')).toHaveCount(5);
+  await expect(page.locator('.enemy-unit').filter({ hasText: 'Barricade' })).toHaveCount(1);
+  await expect(page.locator('.trap-marker')).toHaveCount(2);
+  // The barricade is not part of the band: four pips, four turns' worth of foes.
+  await expect(page.locator('.troop-banner.enemy .pip')).toHaveCount(4);
+  await expect(page.locator('.turn-token.enemy')).toHaveCount(4);
 });

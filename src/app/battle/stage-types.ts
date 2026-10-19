@@ -21,6 +21,13 @@ export interface StageState {
   readonly moveRange: { readonly from: number; readonly to: number } | null;
   readonly targets: readonly { readonly id: string; readonly tone: 'enemy' | 'ally' | 'risk' }[];
   readonly focusedId: string | null;
+  /** Traps waiting on the field. */
+  readonly traps: readonly {
+    readonly id: string;
+    readonly kind: 'spikes' | 'snare';
+    readonly lane: number;
+    readonly x: number;
+  }[];
   /** Lanes covered by the selected area skill. */
   readonly areaLanes: readonly number[];
   /** Animation time scale: 1 at normal speed, smaller when faster. */

@@ -98,6 +98,16 @@
           [attr.data-lane]="laneIndex"
           [attr.aria-label]="'Lane ' + (laneIndex + 1)"
         >
+          @for (trap of trapsInLane(laneIndex); track trap.id) {
+            <span
+              class="trap-marker"
+              [class.drawn-on-stage]="staged()"
+              [style.left.%]="trap.x * 100"
+              role="img"
+              [attr.aria-label]="trapName(trap) + ' in lane ' + (laneIndex + 1)"
+              >{{ trap.kind === 'snare' ? '🪢' : '📍' }}</span
+            >
+          }
           @for (unit of getUnitsInLane(laneIndex); track unit.id) {
             <button
               type="button"
