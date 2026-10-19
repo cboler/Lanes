@@ -74,7 +74,13 @@ async function tap(page: Page, state: Partial<ControllerState>): Promise<void> {
   await frames(page);
 }
 
+/** These tests check gauges, focus and input rather than timing, so their skills land at once. */
+async function timingOff(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem('lanes.timing.v1', 'off'));
+}
+
 test('movement, attacks, and Guard use independent turn resources', async ({ page }) => {
+  await timingOff(page);
   await page.goto('/');
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Archer');
@@ -138,6 +144,7 @@ test('holding a move key walks continuously, spending MG, and stops on release',
 test('selecting and cancelling abilities is free, and Enter confirms only once', async ({
   page,
 }) => {
+  await timingOff(page);
   await page.goto('/');
   await page.locator('#ability-btn-piercing_arrow').click();
   await expect(page.locator('#confirm-ability-btn')).toBeEnabled();
@@ -201,6 +208,7 @@ test('squads enforce one to four members and restart preserves the deployed form
 });
 
 test('the battlefield remains playable when WebGL is unavailable', async ({ page }) => {
+  await timingOff(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
@@ -230,6 +238,7 @@ test('the WebGL stage draws the battle and falls back to DOM sprites if the GPU 
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Renderer lifecycle is independent of viewport.');
+  await timingOff(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
@@ -268,6 +277,7 @@ test('the WebGL stage draws the battle and falls back to DOM sprites if the GPU 
 test('standard controller navigates the squad screen, confirms targets, and moves one step', async ({
   page,
 }) => {
+  await timingOff(page);
   await installController(page);
   await page.goto('/');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
@@ -365,4 +375,116 @@ test('default auto-battle reaches a result and restart creates a fresh manual ba
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await expect(page.locator('#auto-battle-btn')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
+});
+
+test('ranged skills fire from a sweeping cursor, and a cursor left to run out misses', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('.unit-node.selected-target').click();
+  await expect(page.locator('.aim-panel')).toBeVisible();
+  await expect(page.locator('#aim-fire-btn')).toBeFocused();
+  const target = page.locator('.unit-node.aim-target');
+  await expect(target).toHaveCount(1);
+  const targetId = await target.getAttribute('id');
+  const hp = await target.locator('.hp-track').getAttribute('aria-valuenow');
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
+
+  // Untouched, the cursor runs off the end of the track: the AP is spent and nothing is hit.
+  await expect(page.locator('.aim-panel')).toHaveCount(0, { timeout: 4000 });
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+  await expect(page.locator(`[id="${targetId}"] .floating-text`)).toContainText('MISS');
+  await expect(page.locator(`[id="${targetId}"] .hp-track`)).toHaveAttribute('aria-valuenow', hp!);
+
+  // Space fires wherever focus is.
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('.aim-panel')).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.aim-panel')).toHaveCount(0);
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '60');
+});
+
+test('melee skills chain into a combo when pressed again in the window', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Combo timing is independent of viewport.');
+  // The window is about a second wide; a software-rendered stage can stall key events past it,
+  // so the combo runs on a paused clock. Each press is followed by one frame so Angular renders.
+  // Advancing the clock runs every queued frame, so use the cheap DOM stage, not WebGL.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'WebGL2RenderingContext', {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await page.clock.install();
+  await page.goto('/');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Archer');
+  await page.keyboard.press('e');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Player Lancer');
+  await page.locator('#ability-btn-thrust').click();
+  await expect(page.locator('.unit-node.selected-target')).toBeFocused();
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000);
+  const press = async (key: string) => {
+    await page.keyboard.press(key);
+    await page.clock.runFor(16);
+  };
+  await press('Enter');
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '85');
+  await expect(page.locator('.combo-panel')).toContainText('1 hit');
+  await expect(page.locator('#ability-btn-thrust')).toHaveClass(/chainable/);
+
+  // Too early, before the strike lands: swallowed, so a double tap cannot drop the combo.
+  await page.clock.runFor(184);
+  await press('1');
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '85');
+
+  // On the white flash: a Just Cancel.
+  await page.clock.runFor(400);
+  await press('1');
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '70');
+  await expect(page.locator('.combo-panel')).toContainText('2 hits');
+
+  // Left alone, the window closes.
+  await page.clock.runFor(1300);
+  await expect(page.locator('.combo-panel')).toHaveCount(0);
+  await page.clock.resume();
+  await page.locator('#toggle-log-btn').click();
+  await expect(page.locator('.combat-log-drawer')).toContainText('JUST CANCEL');
+});
+
+test('a controller confirms a target, then fires the aim with A', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Controller input is independent of viewport.');
+  await installController(page);
+  await page.goto('/');
+  await expect(page.locator('.controller-status')).toContainText('Controller connected');
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
+  await frames(page);
+  await page.locator('#ability-btn-quick_shot').focus();
+  await controller(page, { buttons: [0] });
+  await expect(page.locator('.unit-node.selected-target')).toBeFocused();
+  await controller(page);
+  await controller(page, { buttons: [0] });
+  await expect(page.locator('#aim-fire-btn')).toBeFocused();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
+  await controller(page);
+  await controller(page, { buttons: [0] });
+  await expect(page.locator('.aim-panel')).toHaveCount(0);
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+});
+
+test('turning timing off resolves skills at once and is remembered', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'The preference is independent of viewport.');
+  await page.goto('/');
+  await page.locator('#timing-toggle-btn').click();
+  await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'false');
+  await page.reload();
+  await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+  await expect(page.locator('.aim-panel')).toHaveCount(0);
 });

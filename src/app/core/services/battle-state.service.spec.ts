@@ -5,7 +5,9 @@ import {
   ARCHER_CLASS,
   CLERIC_CLASS,
   GUNNER_CLASS,
+  LANCER_CLASS,
 } from '../models/unit-class.model';
+import { CHAIN_WINDOW } from '../engine/execution';
 import { StatusEffectInstance } from '../models/status-effect.model';
 import { generateMercenary, seededRandom, deriveCombatStats } from '../models/mercenary.model';
 import { createDefaultDefensePlan } from '../models/defense-plan.model';
@@ -409,5 +411,98 @@ describe('BattleStateService', () => {
     service.endCurrentTurn();
     expect(service.turnsLeftInRound()).toBe(2);
     expect(service.turnOrder()).toHaveLength(3);
+  });
+
+  describe('interactive execution', () => {
+    beforeEach(() => service.timingEnabled.set(true));
+
+    it('aims a ranged skill: nothing is spent until the player fires, then the press is graded', () => {
+      service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+      const archer = service.activeUnit()!;
+      const fighter = service.enemyUnits()[0];
+      service.selectAbility('quick_shot');
+      expect(service.commitSelectedAbility()).toBe(true);
+      const aim = service.aim()!;
+      expect(aim.targetIds).toEqual([fighter.id]);
+      expect(archer.actionGauge.current).toBe(100);
+      // Nothing else can happen while the cursor sweeps.
+      expect(service.moveActiveUnit(0.04)).toBe(false);
+      service.endCurrentTurn();
+      expect(service.activeUnit()).toBe(archer);
+
+      vi.advanceTimersByTime(aim.center * aim.sweepMs);
+      expect(service.fireAim()).toBe(true);
+      expect(service.aim()).toBeNull();
+      expect(service.lastAction()?.grade).toBe('critical');
+      expect(archer.actionGauge.current).toBe(80);
+      expect(fighter.currentHp).toBeLessThan(fighter.maxHp);
+      expect(service.fireAim()).toBe(false);
+    });
+
+    it('a cursor left to run off the track misses and still spends the AP', () => {
+      service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+      const archer = service.activeUnit()!;
+      const fighter = service.enemyUnits()[0];
+      service.selectAbility('quick_shot');
+      service.commitSelectedAbility();
+      vi.advanceTimersByTime(service.aim()!.sweepMs + 1);
+      expect(service.aim()).toBeNull();
+      expect(service.lastAction()?.grade).toBe('miss');
+      expect(service.lastAction()?.effects[0].missed).toBe(true);
+      expect(fighter.currentHp).toBe(fighter.maxHp);
+      expect(archer.actionGauge.current).toBe(80);
+    });
+
+    it('with timing off, a confirm resolves at once at normal power', () => {
+      service.timingEnabled.set(false);
+      service.initSkirmish([ARCHER_CLASS], [FIGHTER_CLASS]);
+      service.selectAbility('quick_shot');
+      expect(service.commitSelectedAbility()).toBe(true);
+      expect(service.aim()).toBeNull();
+      expect(service.lastAction()?.grade).toBeUndefined();
+      expect(service.activeUnit()!.actionGauge.current).toBe(80);
+    });
+
+    it('chains melee skills in the combo window, with a Just Cancel on the flash', () => {
+      service.initSkirmish([LANCER_CLASS], [FIGHTER_CLASS]);
+      const lancer = service.activeUnit()!;
+      service.selectAbility('thrust');
+      expect(service.commitSelectedAbility()).toBe(true);
+      expect(service.lastAction()?.grade).toBeUndefined();
+      expect(service.combo()).toEqual(expect.objectContaining({ count: 1, abilityId: 'thrust' }));
+      const afterFirst = lancer.actionGauge.current;
+
+      // A press before the strike lands is swallowed and keeps the combo.
+      expect(service.chainAbility('thrust')).toBe(true);
+      expect(lancer.actionGauge.current).toBe(afterFirst);
+
+      vi.advanceTimersByTime(CHAIN_WINDOW.justFrom + 20);
+      expect(service.chainAbility('thrust')).toBe(true);
+      expect(service.lastAction()?.grade).toBe('just');
+      expect(service.combo()?.count).toBe(2);
+
+      vi.advanceTimersByTime(CHAIN_WINDOW.close + 1);
+      expect(service.combo()).toBeNull();
+      expect(service.chainAbility('thrust')).toBe(false);
+    });
+
+    it('moving ends a combo', () => {
+      service.initSkirmish([LANCER_CLASS], [FIGHTER_CLASS]);
+      service.selectAbility('thrust');
+      service.commitSelectedAbility();
+      expect(service.combo()).not.toBeNull();
+      service.moveActiveUnit(-0.04);
+      expect(service.combo()).toBeNull();
+    });
+
+    it('enemy turns resolve without timing grades', () => {
+      service.initSkirmish([FIGHTER_CLASS], [ARCHER_CLASS]);
+      expect(service.activeUnit()?.team).toBe('enemy');
+      vi.advanceTimersByTime(700);
+      expect(service.lastAction()).not.toBeNull();
+      expect(service.lastAction()?.grade).toBeUndefined();
+      expect(service.aim()).toBeNull();
+      expect(service.combo()).toBeNull();
+    });
   });
 });

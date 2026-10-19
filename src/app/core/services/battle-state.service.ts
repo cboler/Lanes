@@ -18,6 +18,17 @@ import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-p
 import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
+import {
+  CHAIN_WINDOW,
+  ExecutionGrade,
+  aimGrade,
+  aimSweepMs,
+  aimZoneCenter,
+  chainGrade,
+  executionKind,
+} from '../engine/execution';
+
+const TIMING_KEY = 'lanes.timing.v1';
 
 export const COLLISION_BUFFER = 0.08;
 const FIELD_MIN_X = 0.05;
@@ -33,6 +44,8 @@ export interface FloatingText {
   text: string;
   isHealing: boolean;
   isFriendlyFire: boolean;
+  /** A timing result (critical, Just Cancel) rather than a number. */
+  isGrade: boolean;
 }
 
 /** A resolved skill, published so the stage can replay it; rules have already applied it. */
@@ -40,13 +53,54 @@ export interface BattleAction {
   readonly seq: number;
   readonly attackerId: string;
   readonly abilityId: string;
+  readonly grade?: ExecutionGrade;
   readonly effects: readonly {
     readonly targetId: string;
     readonly isHealing: boolean;
     readonly guardAbsorbed: number;
     readonly wasDefeated: boolean;
     readonly isFriendlyFire: boolean;
+    readonly missed: boolean;
   }[];
+}
+
+/** A ranged or magic skill waiting for the player to fire its sweeping cursor. */
+export interface AimState {
+  readonly abilityId: string;
+  readonly targetIds: readonly string[];
+  /** Where the target sits on the track, 0 to 1. */
+  readonly center: number;
+  readonly sweepMs: number;
+  readonly startedAt: number;
+}
+
+/** A melee skill just landed; another melee skill pressed in the window chains on. */
+export interface ComboState {
+  readonly attackerId: string;
+  readonly abilityId: string;
+  readonly targetId: string | null;
+  readonly openedAt: number;
+  /** Skills in the combo so far. */
+  readonly count: number;
+  /** The animation time scale when the window opened. */
+  readonly speed: number;
+}
+
+const GRADE_LOGS: Record<ExecutionGrade, string> = {
+  critical: '🎯 Dead centre! Critical hit ×1.3.',
+  hit: '🎯 On target.',
+  graze: '🎯 Grazed: half damage.',
+  miss: '💨 Missed! The shot found only dirt.',
+  chain: '🔗 Chained ×1.1.',
+  just: '⚡ JUST CANCEL! ×1.3.',
+};
+
+function readTimingPreference(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(TIMING_KEY) !== 'off';
+  } catch {
+    return true;
+  }
 }
 
 export type BattleStatus = 'active' | 'victory' | 'defeat';
@@ -76,7 +130,13 @@ export class BattleStateService {
   public readonly hitUnitId = signal<string | null>(null);
   public readonly lastAction = signal<BattleAction | null>(null);
 
+  /** Player skills use aim and combo timing; off resolves them at normal power, like the AI. */
+  public readonly timingEnabled = signal(readTimingPreference());
+  public readonly aim = signal<AimState | null>(null);
+  public readonly combo = signal<ComboState | null>(null);
+
   private actionTimer: ReturnType<typeof setTimeout> | null = null;
+  private executionTimer: ReturnType<typeof setTimeout> | null = null;
   private turnVersion = 0;
   private battleVersion = 0;
   private suspended = false;
@@ -275,6 +335,21 @@ export class BattleStateService {
     }
   }
 
+  public toggleTiming(): void {
+    const next = !this.timingEnabled();
+    this.timingEnabled.set(next);
+    try {
+      globalThis.localStorage?.setItem(TIMING_KEY, next ? 'on' : 'off');
+    } catch {
+      // Storage can be blocked; the choice still holds for this session.
+    }
+    this.addLog(
+      next
+        ? '🎯 Timing: ON — aim and chain your attacks.'
+        : '🎯 Timing: OFF — attacks land at normal power.',
+    );
+  }
+
   public toggleAutoSpeed(): void {
     const next = this.autoBattleSpeed() === '1x' ? '2x' : '1x';
     this.autoBattleSpeed.set(next);
@@ -387,6 +462,8 @@ export class BattleStateService {
     }
 
     unit.positionX = targetX;
+    // Stepping away ends a combo.
+    this.clearExecution();
     this.units.update((list) => [...list]);
     return true;
   }
@@ -414,6 +491,7 @@ export class BattleStateService {
     const oldLane = unit.lane;
     const success = LaneSwitcher.trySwitchLane(unit, targetLane);
     if (success) {
+      this.clearExecution();
       this.addLog(`↕️ ${unit.name} shifted from Lane ${oldLane + 1} to Lane ${targetLane + 1}.`);
       this.units.update((list) => [...list]);
       this.targetedUnitId.set(null);
@@ -428,31 +506,129 @@ export class BattleStateService {
 
   public selectAbility(abilityId: string | null): void {
     if (!this.canAct(false)) return;
+    this.clearExecution();
     this.selectedAbilityId.set(abilityId);
     this.targetedUnitId.set(this.validTargets()[0]?.id ?? null);
   }
 
-  public executeSelectedAbility(targetOverride?: UnitInstance, automated = false): boolean {
+  /** The player's confirm: starts the aim, or resolves the skill and opens a combo window. */
+  public commitSelectedAbility(targetOverride?: UnitInstance): boolean {
+    const attacker = this.activeUnit();
+    const ability = this.selectedAbility();
+    if (!attacker || !ability || !this.canAct(false)) return false;
+    const kind = this.timingEnabled() ? executionKind(attacker, ability) : 'none';
+    if (kind !== 'aim') {
+      if (!this.executeSelectedAbility(targetOverride)) return false;
+      if (kind === 'combo') this.openCombo(attacker, ability, 1);
+      return true;
+    }
+    const targets = this.resolveTargets(ability, targetOverride);
+    if (!targets) return false;
+    if (attacker.actionGauge.current < ability.actionCost) {
+      this.addLog('⚠️ Insufficient action gauge.');
+      return false;
+    }
+    const sweepMs = aimSweepMs(ability);
+    this.aim.set({
+      abilityId: ability.id,
+      targetIds: targets.map((t) => t.id),
+      center: aimZoneCenter(attacker, targets),
+      sweepMs,
+      startedAt: performance.now(),
+    });
+    // Letting the cursor run off the end of the track is a miss.
+    this.executionTimer = setTimeout(() => this.fireAim(), sweepMs);
+    return true;
+  }
+
+  /** Fires the pending aim where the cursor is now. */
+  public fireAim(): boolean {
+    const aim = this.aim();
+    if (!aim) return false;
+    this.clearExecution();
+    const cursor = (performance.now() - aim.startedAt) / aim.sweepMs;
+    const grade = cursor >= 1 ? 'miss' : aimGrade(cursor, aim.center);
+    const target = this.units().find((u) => u.id === aim.targetIds[0]);
+    return this.executeSelectedAbility(target, false, grade);
+  }
+
+  /**
+   * Presses a skill during an open combo window. Returns false when it is not a chain
+   * (wrong skill, window closed), so the caller can treat it as an ordinary selection.
+   */
+  public chainAbility(abilityId: string): boolean {
+    const combo = this.combo();
+    const attacker = this.activeUnit();
+    if (!combo || !attacker || attacker.id !== combo.attackerId || !this.canAct(false))
+      return false;
+    const ability = attacker.classDef.abilities.find((a) => a.id === abilityId);
+    if (!ability || executionKind(attacker, ability) !== 'combo') return false;
+    const grade = chainGrade(performance.now() - combo.openedAt, combo.speed);
+    // A press before the strike lands is swallowed, so a double tap cannot drop the combo.
+    if (grade === 'early') return true;
+    this.clearExecution();
+    if (!grade || attacker.actionGauge.current < ability.actionCost) return false;
+    const targets = CombatExecutor.getValidTargets(attacker, ability, this.units());
+    const target = targets.find((t) => t.id === combo.targetId) ?? targets[0];
+    if (!target) return false;
+    this.selectedAbilityId.set(ability.id);
+    if (!this.executeSelectedAbility(target, false, grade)) return false;
+    const count = combo.count + 1;
+    this.triggerFloatingText(
+      attacker.id,
+      grade === 'just' ? `JUST CANCEL · ${count} hits` : `${count} hit combo`,
+      false,
+      false,
+      true,
+    );
+    this.openCombo(attacker, ability, count);
+    return true;
+  }
+
+  private openCombo(attacker: UnitInstance, ability: AbilityDefinition, count: number): void {
+    const canChain = attacker.classDef.abilities.some(
+      (a) => executionKind(attacker, a) === 'combo' && a.actionCost <= attacker.actionGauge.current,
+    );
+    if (!canChain || this.battleStatus() !== 'active') return;
+    const speed = this.delayMultiplier;
+    this.combo.set({
+      attackerId: attacker.id,
+      abilityId: ability.id,
+      targetId: this.lastAction()?.effects[0]?.targetId ?? null,
+      openedAt: performance.now(),
+      count,
+      speed,
+    });
+    this.executionTimer = setTimeout(() => this.clearExecution(), CHAIN_WINDOW.close * speed);
+  }
+
+  /** The units a confirm would hit, or null (with a log line) when there is no legal target. */
+  private resolveTargets(
+    ability: AbilityDefinition,
+    targetOverride?: UnitInstance,
+  ): UnitInstance[] | null {
+    if (!ability.target.startsWith('single-')) return this.validTargets();
+    const target = targetOverride ?? this.units().find((u) => u.id === this.targetedUnitId());
+    if (!target || !this.validTargets().some((t) => t.id === target.id)) {
+      this.addLog(`⚠️ Select a valid target in range for ${ability.name}.`);
+      return null;
+    }
+    return [target];
+  }
+
+  public executeSelectedAbility(
+    targetOverride?: UnitInstance,
+    automated = false,
+    grade?: ExecutionGrade,
+  ): boolean {
     const attacker = this.activeUnit();
     const ability = this.selectedAbility();
     if (!attacker || !ability || !this.canAct(automated)) return false;
 
-    let targets: UnitInstance[];
+    const targets = this.resolveTargets(ability, targetOverride);
+    if (!targets) return false;
 
-    if (ability.target === 'all-enemies' || ability.target === 'all-allies') {
-      targets = this.validTargets();
-    } else if (ability.target === 'same-lane-enemies') {
-      targets = this.validTargets();
-    } else {
-      const target = targetOverride ?? this.units().find((u) => u.id === this.targetedUnitId());
-      if (!target || !this.validTargets().some((t) => t.id === target.id)) {
-        this.addLog(`⚠️ Select a valid target in range for ${ability.name}.`);
-        return false;
-      }
-      targets = [target];
-    }
-
-    const result = CombatExecutor.execute(attacker, ability, targets, this.units());
+    const result = CombatExecutor.execute(attacker, ability, targets, this.units(), grade);
     if (!result.success) {
       this.addLog(`⚠️ ${result.failureReason}`);
       return false;
@@ -465,17 +641,19 @@ export class BattleStateService {
       if (version === this.battleVersion) this.attackingUnitId.set(null);
     }, 350 * this.delayMultiplier);
 
-    this.processCombatEffects(attacker, ability, result.effects);
+    this.processCombatEffects(attacker, ability, result.effects, grade);
     this.lastAction.set({
       seq: ++this.actionSeq,
       attackerId: attacker.id,
       abilityId: ability.id,
+      grade,
       effects: result.effects.map((effect) => ({
         targetId: effect.target.id,
         isHealing: effect.isHealing,
         guardAbsorbed: effect.guardAbsorbed,
         wasDefeated: effect.wasDefeated,
         isFriendlyFire: effect.isFriendlyFire,
+        missed: effect.missed,
       })),
     });
     this.units.update((list) => [...list]);
@@ -494,17 +672,30 @@ export class BattleStateService {
     attacker: UnitInstance,
     ability: AbilityDefinition,
     effects: readonly TargetEffect[],
+    grade?: ExecutionGrade,
   ): void {
     this.addLog(`💥 ${attacker.name} unleashed [${ability.name}]!`);
+    if (grade) this.addLog(`  ${GRADE_LOGS[grade]}`);
 
     for (const eff of effects) {
-      const effectText = eff.statusApplied
+      if (eff.missed) {
+        this.triggerFloatingText(eff.target.id, 'MISS', false, false, true);
+        this.addLog(`  💨 ${eff.target.name} is untouched.`);
+        continue;
+      }
+      const amountText = eff.statusApplied
         ? 'DEF +25'
         : eff.isHealing
           ? `+${eff.amount} HP`
           : eff.guardAbsorbed > 0
             ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
             : `-${eff.amount} HP`;
+      const effectText =
+        grade === 'critical'
+          ? `CRIT ${amountText}`
+          : grade === 'graze'
+            ? `GRAZE ${amountText}`
+            : amountText;
 
       // Trigger hit flash animation on damaged target
       if (!eff.isHealing) {
@@ -515,7 +706,13 @@ export class BattleStateService {
         }, 350 * this.delayMultiplier);
       }
 
-      this.triggerFloatingText(eff.target.id, effectText, eff.isHealing, eff.isFriendlyFire);
+      this.triggerFloatingText(
+        eff.target.id,
+        effectText,
+        eff.isHealing,
+        eff.isFriendlyFire,
+        grade === 'critical',
+      );
 
       if (eff.guardAbsorbed > 0) {
         this.addLog(`  🛡️ ${eff.target.name}'s Guard absorbed ${eff.guardAbsorbed} damage.`);
@@ -697,6 +894,8 @@ export class BattleStateService {
   private canAct(automated: boolean): boolean {
     const unit = this.activeUnit();
     if (!unit || unit.isStunned || this.suspended || this.battleStatus() !== 'active') return false;
+    // While the cursor sweeps, the only thing the player can do is fire.
+    if (!automated && this.aim()) return false;
     return automated ? unit.team === 'enemy' || this.isAutoBattle() : this.canPlayerAct();
   }
 
@@ -752,9 +951,10 @@ export class BattleStateService {
     text: string,
     isHealing: boolean,
     isFriendlyFire: boolean,
+    isGrade = false,
   ): void {
     const id = `ft_${Date.now()}_${Math.random()}`;
-    const newEntry: FloatingText = { id, targetId, text, isHealing, isFriendlyFire };
+    const newEntry: FloatingText = { id, targetId, text, isHealing, isFriendlyFire, isGrade };
     this.floatingTexts.update((list) => [...list, newEntry]);
 
     setTimeout(() => {
@@ -771,5 +971,16 @@ export class BattleStateService {
       clearTimeout(this.actionTimer);
       this.actionTimer = null;
     }
+    this.clearExecution();
+  }
+
+  /** Drops a pending aim (no AP spent) or an open combo window. */
+  private clearExecution(): void {
+    if (this.executionTimer) {
+      clearTimeout(this.executionTimer);
+      this.executionTimer = null;
+    }
+    this.aim.set(null);
+    this.combo.set(null);
   }
 }

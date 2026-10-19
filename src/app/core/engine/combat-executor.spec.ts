@@ -271,4 +271,36 @@ describe('CombatExecutor', () => {
     fighter.tickStatusEffects();
     expect(fighter.effectiveDefense).toBe(50);
   });
+
+  it('scales damage by the execution grade, and no grade matches a plain hit', () => {
+    const damageAt = (grade?: 'critical' | 'hit' | 'graze' | 'just') => {
+      const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero', 'player', 1);
+      const enemy = new UnitInstance(FIGHTER_CLASS, 'Foe', 'enemy', 1);
+      return CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy], [enemy], grade)
+        .effects[0].amount;
+    };
+    expect(damageAt()).toBe(damageAt('hit'));
+    expect(damageAt('critical')).toBeGreaterThan(damageAt());
+    expect(damageAt('just')).toBe(damageAt('critical'));
+    expect(damageAt('graze')).toBeLessThan(damageAt());
+  });
+
+  it('a miss spends AP but hurts nobody, allies included', () => {
+    const gunner = new UnitInstance(GUNNER_CLASS, 'Gunner', 'player', 0, 0.14);
+    const ally = new UnitInstance(FIGHTER_CLASS, 'Ally', 'player', 0, 0.32);
+    const enemy = new UnitInstance(FIGHTER_CLASS, 'Foe', 'enemy', 0, 0.68);
+    enemy.enterGuard();
+    const guard = enemy.guardPoints;
+    const shot = GUNNER_CLASS.abilities[2];
+    const all = [gunner, ally, enemy];
+    const result = CombatExecutor.execute(gunner, shot, [enemy], all, 'miss');
+    expect(result.success).toBe(true);
+    expect(result.effects).toEqual([
+      expect.objectContaining({ target: enemy, amount: 0, missed: true }),
+    ]);
+    expect(gunner.actionGauge.current).toBe(100 - shot.actionCost);
+    expect(ally.currentHp).toBe(ally.maxHp);
+    expect(enemy.currentHp).toBe(enemy.maxHp);
+    expect(enemy.guardPoints).toBe(guard);
+  });
 });

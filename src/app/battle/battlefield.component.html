@@ -26,6 +26,17 @@
       <button
         type="button"
         class="tactical-btn secondary"
+        [class.active-gold]="battle.timingEnabled()"
+        id="timing-toggle-btn"
+        (click)="battle.toggleTiming()"
+        [attr.aria-pressed]="battle.timingEnabled()"
+        title="Aim ranged and magic skills, and chain melee combos. Off: every attack lands at normal power."
+      >
+        🎯 Timing: {{ battle.timingEnabled() ? 'ON' : 'OFF' }}
+      </button>
+      <button
+        type="button"
+        class="tactical-btn secondary"
         id="speed-toggle-btn"
         (click)="battle.toggleAutoSpeed()"
         title="Toggle combat speed"
@@ -91,6 +102,7 @@
               [class.enemy-unit]="unit.team === 'enemy'"
               [class.acting-unit]="unit.id === battle.activeUnitId()"
               [class.targetable]="isTargetable(unit)"
+              [class.aim-target]="isAimTarget(unit)"
               [class.selected-target]="
                 battle.selectedAbility() && battle.targetedUnitId() === unit.id
               "
@@ -140,6 +152,7 @@
                     class="floating-text"
                     [class.heal]="float.isHealing"
                     [class.friendly-fire]="float.isFriendlyFire"
+                    [class.grade]="float.isGrade"
                     >{{ float.text }}</span
                   >
                 }
@@ -184,7 +197,44 @@
       <span class="troop-crest">☠</span>
     </div>
 
-    @if (battle.selectedAbility(); as ability) {
+    @for (aim of aimView(); track aim.key) {
+      <section class="aim-panel" aria-label="Aim" [style]="aim.style">
+        <span class="aim-copy">
+          <strong>🎯 {{ aim.name }}</strong>
+          <span class="aim-hint">Fire as the cursor crosses the gold · Space, Enter, A or tap</span>
+        </span>
+        <button
+          #aimFire
+          type="button"
+          class="aim-track"
+          id="aim-fire-btn"
+          (click)="battle.fireAim()"
+          aria-label="Fire"
+        >
+          <span class="aim-zone graze"></span>
+          <span class="aim-zone hit"></span>
+          <span class="aim-zone critical"></span>
+          <span class="aim-rail"><span class="aim-cursor"></span></span>
+        </button>
+      </section>
+    }
+
+    @for (combo of comboView(); track combo.key) {
+      <section class="combo-panel" aria-label="Combo" [style]="combo.style">
+        <span class="combo-copy">
+          <strong>🔗 {{ combo.count }} hit{{ combo.count === 1 ? '' : 's' }}</strong>
+          <span class="aim-hint">Press a melee skill or the target on the white flash</span>
+        </span>
+        <span class="combo-meter" aria-hidden="true">
+          <span class="combo-zone chain"></span>
+          <span class="combo-zone just"></span>
+          <span class="aim-rail"><span class="aim-cursor"></span></span>
+        </span>
+      </section>
+      <div class="just-flash" aria-hidden="true"></div>
+    }
+
+    @if (!battle.aim() && battle.selectedAbility(); as ability) {
       @if (battle.canPlayerAct()) {
         <section class="targeting-panel" aria-label="Confirm ability">
           <div class="targeting-copy">
@@ -202,7 +252,7 @@
             class="tactical-btn primary"
             id="confirm-ability-btn"
             [disabled]="battle.validTargets().length === 0"
-            (click)="battle.executeSelectedAbility()"
+            (click)="battle.commitSelectedAbility()"
           >
             Confirm
           </button>
@@ -308,7 +358,8 @@
                 class="skill-btn"
                 [id]="'ability-btn-' + ability.id"
                 [class.selected]="battle.selectedAbilityId() === ability.id"
-                [disabled]="active.actionGauge.current < ability.actionCost"
+                [class.chainable]="canChain(ability)"
+                [disabled]="active.actionGauge.current < ability.actionCost || !!battle.aim()"
                 [title]="ability.description"
                 (click)="onSelectAbility(ability)"
               >

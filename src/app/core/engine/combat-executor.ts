@@ -2,6 +2,7 @@ import { AbilityDefinition } from '../models/ability.model';
 import { UnitInstance } from '../models/unit-instance.model';
 import { StatusEffectInstance, StatusEffectType } from '../models/status-effect.model';
 import { DamageCalculator } from './damage-calculator';
+import { ExecutionGrade, GRADE_POWER } from './execution';
 
 export interface TargetEffect {
   readonly target: UnitInstance;
@@ -11,6 +12,8 @@ export interface TargetEffect {
   readonly isHealing: boolean;
   readonly wasDefeated: boolean;
   readonly isFriendlyFire: boolean;
+  /** The shot missed: no damage, no Guard spent. */
+  readonly missed: boolean;
 }
 
 export interface CombatResult {
@@ -67,13 +70,15 @@ export class CombatExecutor {
 
   /**
    * Executes an ability from attacker against targeted units, deducting action cost
-   * and calculating damage/healing with friendly fire considerations.
+   * and calculating damage/healing with friendly fire considerations. `grade` is the player's
+   * execution timing; AI and defense orders pass none, which resolves at normal power.
    */
   public static execute(
     attacker: UnitInstance,
     ability: AbilityDefinition,
     selectedTargets: readonly UnitInstance[],
     allBattlefieldUnits: readonly UnitInstance[] = selectedTargets,
+    grade?: ExecutionGrade,
   ): CombatResult {
     if (!attacker.isAlive) {
       return { success: false, failureReason: 'Attacker is dead.', effects: [] };
@@ -125,8 +130,26 @@ export class CombatExecutor {
             isHealing: false,
             wasDefeated: false,
             isFriendlyFire: false,
+            missed: false,
           },
         ],
+      };
+    }
+
+    const power = grade ? GRADE_POWER[grade] : 1;
+    if (power === 0) {
+      // A miss spends the AP but lands nowhere, so it cannot catch allies either.
+      return {
+        success: true,
+        effects: selectedTargets.map((target) => ({
+          target,
+          amount: 0,
+          guardAbsorbed: 0,
+          isHealing: false,
+          wasDefeated: false,
+          isFriendlyFire: false,
+          missed: true,
+        })),
       };
     }
 
@@ -167,9 +190,10 @@ export class CombatExecutor {
           isHealing: true,
           wasDefeated: false,
           isFriendlyFire: false,
+          missed: false,
         });
       } else {
-        const damage = DamageCalculator.calculateWithDefense(attacker, target, ability);
+        const damage = DamageCalculator.calculateWithDefense(attacker, target, ability, power);
         const wasAlive = target.isAlive;
         const guardBefore = target.guardPoints;
         const amount = target.takeDamage(damage);
@@ -182,6 +206,7 @@ export class CombatExecutor {
           isHealing: false,
           wasDefeated,
           isFriendlyFire,
+          missed: false,
         });
       }
     }

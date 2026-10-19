@@ -18,6 +18,7 @@ Lanes is a playable local prototype moving toward the [Project Valkyrie design](
   - **Witch**: Glass-cannon elemental caster with Fire Bolt, Inferno (lane AoE), and Meteor (battlefield AoE with friendly-fire risk).
   - **Lancer**: Fast melee striker with long polearm reach, Thrust, Piercing Lunge (cross-lane), and Whirlwind.
   - **Gunner**: Explosive ranged powerhouse with Quick Fire, Snipe (cross-lane), and Explosive Shot (lane AoE with friendly-fire risk).
+- **Interactive Execution**: As in Grand Kingdom, attacks reward timing. Ranged and magic skills fire from a cursor sweeping toward the target: dead centre is a critical (×1.3), the gold band a hit, its edge a graze (half damage), and anything else, including letting the cursor run out, misses while still spending the AP. Melee skills chain: after a strike lands, pressing a melee skill (or the target) again links a combo (×1.1), and pressing it on the white flash is a Just Cancel (×1.3). Enemy AI, defense orders and Auto-Battle always resolve at normal power, so they stay deterministic. The 🎯 Timing toggle turns timing off for players who prefer it; it is remembered on this device.
 - **Cross-Lane & AoE Mechanics**: Select abilities can reach across lanes or strike full lanes, while careless high-impact spells risk friendly fire.
 - **Squad Formation Builder**: Inspect class dossiers and assemble 1–4 members per side. Four is the default; two units share one lane.
 - **Defense Orders**: Configure each defender's first four own turns with a skill or Guard and a target priority. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
@@ -99,7 +100,7 @@ Lanes/
 │   │   ├── battle/          # Battle HUD, Three.js stage (lazy chunk) and sprite art
 │   │   ├── defense/         # Local four-turn defense editor
 │   │   ├── core/
-│   │   │   ├── engine/      # CombatExecutor, DamageCalculator, TurnManager, LaneSwitcher
+│   │   │   ├── engine/      # CombatExecutor, DamageCalculator, TurnManager, LaneSwitcher, execution timing
 │   │   │   ├── models/      # UnitInstance, UnitClassDefinition, Ability, Stats
 │   │   │   └── services/    # BattleStateService (reactive signals)
 │   │   ├── squad/           # War Room squad builder and class dossier
@@ -120,9 +121,11 @@ Lanes/
 | Shift Lane Up/Down | `W`/`S` or arrows  | Shift buttons           |
 | Select Ability 1–3 | `1`, `2`, `3`      | Ability cards           |
 | Confirm/Cancel     | `Enter` / `Escape` | Target / Cancel buttons |
+| Fire the aim       | `Space` / `Enter`  | Aim track or target     |
+| Chain a combo      | `1`–`3` or `Enter` | Ability card or target  |
 | Guard and end      | `E`                | Guard & End button      |
 
-Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. Defense Orders can also be edited using these focused buttons.
+Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller, D-pad or left stick moves focus, A activates the focused button, B cancels, LB/RB cycles abilities, and the right stick moves one step after each release. While aiming, the aim track holds focus, so A fires; during a combo, A on the target or LB/RB chains the next skill. Defense Orders can also be edited using these focused buttons.
 
 ## Character art
 

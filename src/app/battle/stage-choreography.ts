@@ -57,6 +57,8 @@ export function createChoreography(
 ): Choreography {
   const { views, chest, hand } = units;
   const scratch = new THREE.Vector3();
+  /** The action that last moved each attacker; an older retreat yields to a newer approach. */
+  const movers = new WeakMap<UnitView, Play>();
 
   /** Runs now when there is no delay, so steps at the same moment keep their listed order. */
   const after = (delay: number, run: () => void) => (delay > 0 ? effects.later(delay, run) : run());
@@ -79,6 +81,17 @@ export function createChoreography(
     speed: number,
   ) => {
     const at = chest(target);
+    if (effect.missed) {
+      const away = facing(attacker.team) * 0.9;
+      particles.burst(
+        scratch.set(target.group.position.x + away, 0.15, target.group.position.z),
+        0xb59a72,
+        12,
+        1.6,
+        0.3,
+      );
+      return;
+    }
     if (effect.isHealing) {
       for (let i = 0; i < 18; i++) {
         particles.spawn(
@@ -122,18 +135,22 @@ export function createChoreography(
         if (step.keepLane) goal.z = origin.z;
         const reach = goal.sub(origin);
         play.reach = reach;
-        effects.tween(seconds(play, step.duration), (k) =>
-          attacker.offset.copy(reach).multiplyScalar(ease(k)),
-        );
+        // A chained attack starts from wherever the last one left the attacker.
+        const from = attacker.offset.clone();
+        movers.set(attacker, play);
+        effects.tween(seconds(play, step.duration), (k) => {
+          if (movers.get(attacker) === play) attacker.offset.lerpVectors(from, reach, ease(k));
+        });
       }),
 
     retreat: (step, play, delay) =>
       after(delay, () => {
         const { attacker, reach } = play;
         if (!reach) return;
-        effects.tween(seconds(play, step.duration), (k) =>
-          attacker.offset.copy(reach).multiplyScalar(1 - ease(k)),
-        );
+        effects.tween(seconds(play, step.duration), (k) => {
+          if (movers.get(attacker) === play)
+            attacker.offset.copy(reach).multiplyScalar(1 - ease(k));
+        });
       }),
 
     slash: (_step, play, delay) =>
@@ -178,10 +195,13 @@ export function createChoreography(
     projectile: (step, play, delay) =>
       after(delay, () => {
         const shots = step.targets === 'first' ? play.targets.slice(0, 1) : play.targets;
-        for (const { view } of shots) {
+        for (const { view, effect } of shots) {
+          const to = chest(view);
+          // A miss sails past and lands in the dirt behind the target.
+          if (effect.missed) to.set(to.x + play.dir * 0.9, 0.15, to.z);
           effects.projectile(
             hand(play.attacker),
-            chest(view),
+            to,
             seconds(play, step.duration),
             play.look.color,
             step.kind,

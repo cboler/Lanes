@@ -1,12 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   HostListener,
   OnInit,
   OnDestroy,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -15,6 +18,7 @@ import {
   FloatingText,
   IMPACT_DELAY_MS,
 } from '../core/services/battle-state.service';
+import { AIM_ZONES, CHAIN_WINDOW, executionKind } from '../core/engine/execution';
 import { Team, UnitInstance } from '../core/models/unit-instance.model';
 import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
@@ -54,6 +58,57 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     () => `${Math.round(IMPACT_DELAY_MS * this.battle.delayMultiplier)}ms`,
   );
 
+  private readonly aimFire = viewChild<ElementRef<HTMLButtonElement>>('aimFire');
+
+  /*
+   * The aim track and combo meter are CSS animations started from the service's clock.
+   * Each is computed once per aim or combo, and rendered through a one-item list keyed on
+   * its start time, so a new aim or chain restarts the animation instead of shifting it.
+   */
+  protected readonly aimView = computed(() => {
+    const aim = this.battle.aim();
+    if (!aim) return [];
+    const ability = untracked(this.battle.activeUnit)?.classDef.abilities.find(
+      (a) => a.id === aim.abilityId,
+    );
+    return [
+      {
+        key: aim.startedAt,
+        name: ability?.name ?? '',
+        style: {
+          '--aim-center': aim.center,
+          '--aim-critical': AIM_ZONES.critical,
+          '--aim-hit': AIM_ZONES.hit,
+          '--aim-graze': AIM_ZONES.graze,
+          '--sweep-ms': `${aim.sweepMs}ms`,
+          '--sweep-delay': `${-(performance.now() - aim.startedAt)}ms`,
+        },
+      },
+    ];
+  });
+
+  protected readonly comboView = computed(() => {
+    const combo = this.battle.combo();
+    if (!combo) return [];
+    const close = CHAIN_WINDOW.close;
+    const elapsed = performance.now() - combo.openedAt;
+    return [
+      {
+        key: combo.openedAt,
+        count: combo.count,
+        style: {
+          '--chain-open': CHAIN_WINDOW.open / close,
+          '--just-from': CHAIN_WINDOW.justFrom / close,
+          '--just-to': CHAIN_WINDOW.justTo / close,
+          '--sweep-ms': `${close * combo.speed}ms`,
+          '--sweep-delay': `${-elapsed}ms`,
+          '--flash-ms': `${(CHAIN_WINDOW.justTo - CHAIN_WINDOW.justFrom) * combo.speed}ms`,
+          '--flash-delay': `${CHAIN_WINDOW.justFrom * combo.speed - elapsed}ms`,
+        },
+      },
+    ];
+  });
+
   /** Upcoming turns with an hourglass where the current round ends. */
   protected readonly timeline = computed(() => {
     const order = this.battle.turnOrder();
@@ -66,6 +121,8 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   });
 
   constructor() {
+    // Enter, Space and a controller's A all press the focused control, so give it the fire button.
+    effect(() => this.aimFire()?.nativeElement.focus());
     inject(GamepadService)
       .actions.pipe(takeUntilDestroyed())
       .subscribe((action) => {
@@ -186,6 +243,15 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // While aiming, Space and Enter fire wherever focus is. Firing twice is harmless.
+    if (this.battle.aim()) {
+      if (event.key === ' ' || event.key === 'Enter') {
+        this.battle.fireAim();
+        event.preventDefault();
+      }
+      return;
+    }
+
     // Native controls own Enter/Space; handling them again here would double-cast.
     if (
       (event.key === 'Enter' || event.key === ' ') &&
@@ -252,7 +318,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       case ' ':
       case 'enter':
         if (this.battle.selectedAbility()) {
-          this.battle.executeSelectedAbility();
+          this.battle.commitSelectedAbility();
+          event.preventDefault();
+        } else if (this.battle.combo()) {
+          this.battle.chainAbility(this.battle.combo()!.abilityId);
           event.preventDefault();
         }
         break;
@@ -277,6 +346,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   protected onSelectAbility(ability: AbilityDefinition): void {
     if (!this.battle.canPlayerAct()) return;
+    if (this.battle.combo() && this.battle.chainAbility(ability.id)) return;
     if (this.battle.selectedAbilityId() === ability.id) {
       this.battle.selectAbility(null);
     } else {
@@ -288,13 +358,38 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   protected onUnitClick(unit: UnitInstance): void {
     if (!this.battle.canPlayerAct()) return;
+    if (this.battle.aim()) {
+      this.battle.fireAim();
+      return;
+    }
+    const combo = this.battle.combo();
+    // Pressing the target again repeats the last melee skill as the next link.
+    if (combo && unit.id === combo.targetId) {
+      this.battle.chainAbility(combo.abilityId);
+      return;
+    }
     const selectedAbility = this.battle.selectedAbility();
     if (!selectedAbility) return;
 
     const isValid = this.battle.validTargets().some((t) => t.id === unit.id);
     if (isValid) {
-      this.battle.executeSelectedAbility(unit);
+      this.battle.commitSelectedAbility(unit);
     }
+  }
+
+  protected isAimTarget(unit: UnitInstance): boolean {
+    return !!this.battle.aim()?.targetIds.includes(unit.id);
+  }
+
+  /** Skills that can be pressed now to extend the open combo. */
+  protected canChain(ability: AbilityDefinition): boolean {
+    const active = this.battle.activeUnit();
+    return (
+      !!active &&
+      !!this.battle.combo() &&
+      executionKind(active, ability) === 'combo' &&
+      ability.actionCost <= active.actionGauge.current
+    );
   }
 
   protected isTargetable(unit: UnitInstance): boolean {

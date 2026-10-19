@@ -35,6 +35,8 @@ export interface StageAction {
     readonly isHealing: boolean;
     readonly guardAbsorbed: number;
     readonly wasDefeated: boolean;
+    /** The shot landed beside the target: it kicks up dirt and nobody flinches. */
+    readonly missed?: boolean;
   }[];
 }
 

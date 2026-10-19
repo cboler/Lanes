@@ -1,11 +1,11 @@
 # Project Valkyrie handoff
 
-Updated: 2026-09-30. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
+Updated: 2026-10-18. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
 
 ## Current checkpoint
 
 - Base commit: 38b5567 Add controller support and four-unit tactics (after 0611899). That committed milestone includes separate Move and Action gauges, Guard, four-unit squads, archetype advantage, Three.js terrain with a fallback, controller navigation, and a playable responsive battle.
-- The next milestone is **local four-turn defense orders and practice**. Preserve it. New files are under src/app/defense/, src/app/core/models/defense-plan.model*, src/app/core/engine/defense-policy*, src/app/core/services/defense-plan.service*, and e2e/defense.spec.ts; battle integration, navigation, tests, and README are also updated.
+- Defense orders and practice (below) are committed. The latest milestone is **interactive execution** (aim and combo timing); see its section. New files are under src/app/defense/, src/app/core/models/defense-plan.model*, src/app/core/engine/defense-policy*, src/app/core/services/defense-plan.service*, and e2e/defense.spec.ts; battle integration, navigation, tests, and README are also updated.
 - Defense plans save to localStorage (lanes.defense-plan.v1), contain one to four members and four orders each, and are validated on load and battle start. A member's own turn advances its order slot, including a stunned turn. A valid scripted skill or Guard runs once; an unavailable order uses role tactics; role tactics also take over after turn four. The practice battle uses the current player squad against the saved defenders. The UI clearly says this is local practice, with no other player or backend.
 - The plan editor uses accessible buttons that work with the existing controller focus navigation. A class change resets incompatible skill orders. Target priority affects legal single-target skills, including heals; area skill target controls are disabled. Failed storage keeps a session copy and shows a warning.
 - A previously observed repeated-fallback issue was fixed: an unavailable scripted action is attempted only once per defender turn, even if fallback AI performs multiple actions in that turn.
@@ -88,12 +88,46 @@ The user has no artist budget and asked for real 3D characters and animations, b
   - Toon shading or outlines could bring back the painted look.
   - Juggle and combo animations would need launch and air-hit clips.
 
+## Interactive execution (2026-10-18, branch feat/interactive-execution)
+
+The user picked interactive execution as the next Valkyrie milestone (spec 1.1.4).
+
+- **Rules:** src/app/core/engine/execution.ts is pure and decides how a skill is executed and what a press is worth.
+  - Ranged/magic/specialist damage skills are 'aim'; melee-archetype damage skills are 'combo'; heals and Bulwark are 'none'.
+  - Grades and their damage multipliers, applied after defense: critical ×1.3, hit ×1, graze ×0.5, miss ×0, chain ×1.1, just ×1.3.
+  - CombatExecutor.execute and DamageCalculator.calculateWithDefense take an optional grade (or power). A miss spends AP, but deals no damage, takes no Guard and causes no friendly fire. TargetEffect and BattleAction carry `missed`; BattleAction carries `grade`.
+  - **No grade means normal power.** Enemy AI, defense orders and Auto-Battle never pass one, so they stay deterministic. This is what an async-PvP replay will need.
+- **Aim:**
+  - The track is the ground ahead of the attacker. The zone centre is aimZoneCenter, based on distance plus 0.08 per lane, clamped to 0.3–0.88.
+  - Zone half-widths are 0.035 / 0.12 / 0.22. The sweep lasts 1500 − 10 × AP cost ms (Quick Shot 1300, Meteor 950).
+  - Letting the cursor run off the end is a miss. Nothing else can be done while aiming, and the aim cannot be cancelled.
+- **Combo:**
+  - CHAIN_WINDOW at 1x: presses before 420 ms are swallowed (double-tap protection); a Just Cancel is 560–760 ms; the window closes at 1150 ms.
+  - The window scales with the speed toggle to match the stage's melee beat.
+  - Pressing a melee skill, or the target, chains it. Moving, switching lanes, selecting normally or ending the turn drops the combo.
+- **Service:**
+  - BattleStateService.commitSelectedAbility is the player's confirm: it starts the aim, or executes and then opens a combo. fireAim and chainAbility follow from there.
+  - executeSelectedAbility(target, automated, grade) is unchanged for the AI.
+  - Signals: aim, combo, timingEnabled. The timing preference is saved in localStorage as lanes.timing.v1 = on/off, and defaults to on.
+  - The service clock is performance.now(); unit tests use Vitest fake timers, which fake it too.
+- **UI:**
+  - The aim panel (#aim-fire-btn, focused so Enter/Space/A fire) and the combo meter take the targeting panel's slot.
+  - A .just-flash overlay shows the window; under reduced motion it is an inset outline.
+  - Aimed units get a dashed .aim-target reticle, chainable skills get .chainable, and grades float in gold (FloatingText.isGrade).
+  - The 🎯 Timing toggle is #timing-toggle-btn. CSS animations start from the service clock with a negative delay; each aim or combo is rendered in a one-item @for keyed on its start time, so the animation restarts.
+- **Stage:** A missed shot flies past and kicks up dirt behind the target, with no flinch. Chained melee approaches start from the attacker's current offset, and an older retreat yields to a newer approach (the `movers` map in stage-choreography.ts).
+- **Tests:** execution.spec.ts, plus grade, miss, aim, combo and AI-has-no-grade cases in the executor and service specs (217 unit tests). Verified: format, lint, build:pages, and the full e2e suite with one worker (51 passed, 21 desktop-only skips).
+  - e2e tests that check gauges, focus or controller repeat now opt out with timingOff(page).
+  - New e2e tests cover aim run-out (miss) and Space fire, the combo, controller A fire, and the persisted toggle.
+  - The combo e2e runs on Playwright's paused clock with the WebGL stage disabled. Advancing the clock runs every queued frame, and in real time SwiftShader can stall key events past the window. Under a paused clock, step at least 16 ms after each press so Angular renders.
+- **Local note:** port 4200 on this machine was serving another project ("Singularity Seed"), and Playwright's reuseExistingServer silently tested it. Check what is on 4200 before trusting a local e2e run, or serve Lanes on another port.
+- **Not done:** the landing spot does not move hits to other units (a miss simply misses), there are no launch/juggle states or per-skill cursor modifiers (Precision Fire), and the defense editor does not mention timing.
+
 ## Immediate next steps
 
-1. Interactive execution from the source: a point-of-impact reticle for ranged and magic skills (a timed press decides hit or miss or the landing spot), and melee combos with a Just Cancel window. These change rules, so they need deterministic inputs for defense/AI and tests. The stage already has per-skill choreography and an impact timeline to hook into.
-2. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-3. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
-4. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), hiring currency, EXP and level-ups, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
+2. Fold the roster into the Squad Builder and defense plan (choose mercenaries, not classes), so defenses are built from real characters. This is also what an async-PvP defense snapshot will need to contain.
+3. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), hiring currency, EXP and level-ups, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

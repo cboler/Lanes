@@ -42,6 +42,8 @@ export class DamageCalculator {
     attacker: UnitInstance,
     target: UnitInstance,
     ability: AbilityDefinition,
+    /** The execution grade's multiplier; healing ignores it. */
+    power = 1,
   ): number {
     if (ability.damageType === 'healing') {
       return this.calculateRaw(attacker, ability);
@@ -53,6 +55,6 @@ export class DamageCalculator {
 
     const net = Math.max(1, raw - defense);
     // MVP tuning: the tactical triangle adds 25% after defense, with no reverse penalty.
-    return Math.floor(net * (this.hasAdvantage(attacker, target) ? 1.25 : 1));
+    return Math.max(1, Math.floor(net * (this.hasAdvantage(attacker, target) ? 1.25 : 1) * power));
   }
 }
