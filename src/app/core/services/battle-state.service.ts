@@ -18,6 +18,7 @@ import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-p
 import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
+import { chooseBuff, statusValue } from '../engine/ai-tactics';
 import { BattleReport } from '../models/progression.model';
 import { knownAbilities } from '../models/skills.model';
 import {
@@ -869,6 +870,12 @@ export class BattleStateService {
         this.selectedAbilityId.set(heal.id);
         executed = this.executeSelectedAbility(wounded, true);
       }
+      // A buff first when it helps enough and still leaves AP to attack; the next pass attacks.
+      const buff = !executed && enemies.length ? chooseBuff(unit, this.units()) : null;
+      if (buff) {
+        this.selectedAbilityId.set(buff.id);
+        executed = this.executeSelectedAbility(undefined, true);
+      }
       if (!executed && enemies.length) {
         const closest = [...enemies].sort(
           (a, b) =>
@@ -895,15 +902,15 @@ export class BattleStateService {
             )[0];
             if (!target) return [];
             const area = ability.target === 'all-enemies' || ability.target === 'same-lane-enemies';
-            let score = (area ? targets : [target]).reduce(
-              (sum, t) =>
+            let score = (area ? targets : [target]).reduce((sum, t) => {
+              const damage = DamageCalculator.calculateWithDefense(unit, t, ability);
+              // What the skill leaves behind (a stun, poison, a debuff) counts as well.
+              return (
                 sum +
-                Math.min(
-                  t.currentHp + t.guardPoints,
-                  DamageCalculator.calculateWithDefense(unit, t, ability),
-                ),
-              0,
-            );
+                Math.min(t.currentHp + t.guardPoints, damage) +
+                statusValue(ability, t, damage)
+              );
+            }, 0);
             if (ability.friendlyFire) {
               score -= allies
                 .filter(

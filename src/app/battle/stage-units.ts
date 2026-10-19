@@ -18,7 +18,15 @@ export interface UnitView {
   flash: number;
   readonly shadow: THREE.Mesh;
   readonly shield: THREE.Sprite;
+  /** A gold ring on the ground for a buff; red-gold when Attack is up. */
   readonly buff: THREE.Mesh;
+  /** A purple ring for a debuff. */
+  readonly debuff: THREE.Mesh;
+  /** Stars circling the head while stunned. */
+  readonly stars: THREE.Group;
+  /** Poisoned: green drops fall from the body now and then. */
+  poisoned: boolean;
+  drip: number;
   readonly goal: THREE.Vector3;
   readonly offset: THREE.Vector3;
   hopFrom: number;
@@ -73,8 +81,25 @@ export async function createUnits(
     buff.scale.set(1.5, 1, 1.5);
     buff.position.y = 0.04;
     buff.visible = false;
+    const debuff = new THREE.Mesh(
+      flatPlane,
+      basic({ map: ring, color: 0xb57bff, blending: THREE.AdditiveBlending }),
+    );
+    debuff.scale.set(1.2, 1, 1.2);
+    debuff.position.y = 0.05;
+    debuff.visible = false;
+    const stars = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const star = effects.glowSprite(0xfff2a0, 0.42);
+      const angle = (i / 3) * Math.PI * 2;
+      star.position.set(Math.cos(angle) * 0.42, 0, Math.sin(angle) * 0.42);
+      stars.add(star);
+    }
+    // Around the head, below the name plate the overlay draws above it.
+    stars.position.y = HEAD_HEIGHT * 0.9;
+    stars.visible = false;
     const group = new THREE.Group();
-    group.add(shadow, buff, character.root, shield);
+    group.add(shadow, buff, debuff, character.root, shield, stars);
     const home = new THREE.Vector3(worldX(unit.x), 0, laneZ(unit.lane));
     group.position.copy(home);
     scene.add(group);
@@ -87,6 +112,10 @@ export async function createUnits(
       shadow,
       shield,
       buff,
+      debuff,
+      stars,
+      poisoned: false,
+      drip: 0,
       goal: home.clone(),
       offset: new THREE.Vector3(),
       hopFrom: home.z,
@@ -103,6 +132,8 @@ export async function createUnits(
     (view.shadow.material as THREE.Material).dispose();
     view.shield.material.dispose();
     (view.buff.material as THREE.Material).dispose();
+    (view.debuff.material as THREE.Material).dispose();
+    for (const star of view.stars.children) (star as THREE.Sprite).material.dispose();
   };
 
   const chest: Units['chest'] = (view, out = new THREE.Vector3()) =>
@@ -145,6 +176,26 @@ export async function createUnits(
         (shieldTarget - view.shield.material.opacity) * Math.min(1, dt * 6);
       view.shield.position.x = facing(view.team) * 0.55 + body.position.x;
       if (view.buff.visible) view.buff.rotation.y += dt * 1.5;
+      if (view.debuff.visible) view.debuff.rotation.y -= dt * 1.1;
+      if (view.stars.visible) {
+        view.stars.position.x = body.position.x;
+        if (!reducedMotion) view.stars.rotation.y += dt * 3.5;
+        effects.touch();
+      }
+      if (view.poisoned && view.alive) {
+        view.drip -= dt;
+        if (view.drip <= 0) {
+          view.drip = reducedMotion ? 1.2 : 0.35 + random() * 0.3;
+          particles.burst(
+            chest(view).setX(group.position.x + body.position.x),
+            0x9be564,
+            6,
+            0.6,
+            0.32,
+          );
+        }
+        effects.touch();
+      }
       if (view.dying >= 0 && view.dying < 1) {
         // Fall (the death clip), lie a moment, then sink out of sight.
         if (view.dying === 0) character.die();

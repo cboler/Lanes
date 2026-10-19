@@ -139,7 +139,7 @@ export class BattleStageComponent {
         x: unit.positionX,
         alive: unit.isAlive,
         guard: unit.guardPoints,
-        buffed: unit.hasEffect('defense-up'),
+        statuses: unit.statusEffects.filter((e) => !e.isExpired).map((e) => e.type),
       })),
       activeId: active?.id ?? null,
       moveRange: controllable && !ability ? battle.reachableSpan(active) : null,

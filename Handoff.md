@@ -240,11 +240,25 @@ The user wants the battle page never to scroll: "that doesn't make for a fun gam
   - The smoke test checks the full shell (footer, brand) on /status. The controller test starts its D-pad navigation on /status.
   - Menus (Roster, War Room) may still scroll.
 
+## AI buffs and statuses on the stage (2026-10-19)
+
+- **AI:** src/app/core/engine/ai-tactics.ts is pure.
+  - statusValue(ability, target, damage) prices a skill's status in HP: stun 40, poison up to potency × duration, attack-down and defense-down their potency. It is 0 when the target already has it or the hit kills.
+  - The role AI adds statusValue to its damage score, so a stun or debuff can beat a slightly bigger hit.
+  - chooseBuff(unit, units) picks a pure buff when it reaches the caster (self buffs) or at least two allies who lack it, and leaves AP for the cheapest attack. The AI casts it, then attacks on the next pass.
+  - Class troops' Fighters now raise Bulwark when they have AP to spare.
+- **Stage:**
+  - StageUnit.statuses replaces `buffed`.
+  - A ground ring shows buffs: gold for Defense, red-gold once Attack is up. A purple ring shows debuffs.
+  - Three glowing stars circle a stunned unit's head, below the DOM name plate (static under reduced motion).
+  - Poisoned units shed green particles every 0.35–0.65 s (every 1.2 s under reduced motion). The frame loop stays awake while stars or poison show.
+- **Tests:** ai-tactics.spec.ts; 253 unit tests and 67 e2e tests pass.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
 2. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
-3. Teach the role AI to use pure buffs (Rally, Sanctuary, Battle Trance) and debuffs sensibly, and show statuses on the 3D stage (stun stars, poison tint, buff auras) beyond the HTML badges.
+3. A tighter stage camera on phone portrait, where the tall narrow stage leaves the 3D figures small.
 
 ## Request, references, and constraints
 

@@ -125,7 +125,15 @@ export async function createStage(options: StageOptions): Promise<Stage> {
         particles.burst(units.chest(view), 0x9fd4ff, 14, 1.6, 0.3);
       }
       view.guard = unit.guard;
-      view.buff.visible = unit.buffed && unit.alive;
+      const has = (type: string) => unit.alive && unit.statuses.some((s) => s === type);
+      view.buff.visible = has('defense-up') || has('attack-up');
+      // Gold for Defense, red-gold once Attack is up too.
+      (view.buff.material as THREE.MeshBasicMaterial).color.setHex(
+        has('attack-up') ? 0xff8a5c : 0xffd36a,
+      );
+      view.debuff.visible = has('defense-down') || has('attack-down');
+      view.stars.visible = has('stun');
+      view.poisoned = has('poison');
     }
     for (const [id, view] of views) {
       if (!seen.has(id)) {

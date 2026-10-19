@@ -1,4 +1,5 @@
 import type { PerspectiveCamera, Scene } from 'three';
+import type { StatusEffectType } from '../core/models/status-effect.model';
 import type { StageAssets } from './stage-assets';
 
 export interface StageUnit {
@@ -9,7 +10,8 @@ export interface StageUnit {
   readonly x: number;
   readonly alive: boolean;
   readonly guard: number;
-  readonly buffed: boolean;
+  /** Active statuses: shown as rings, stars and drips on the unit. */
+  readonly statuses: readonly StatusEffectType[];
 }
 
 export interface StageState {
