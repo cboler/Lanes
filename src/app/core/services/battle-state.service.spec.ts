@@ -117,6 +117,8 @@ describe('BattleStateService', () => {
     service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
     const active = service.activeUnit()!;
     const enemy = service.enemyUnits()[0];
+    // A Fighter's shield only reaches so far: start within reach.
+    enemy.positionX = active.positionX + 0.15;
     const initialHp = enemy.currentHp;
 
     service.selectAbility(active.classDef.abilities[0].id);
@@ -362,6 +364,7 @@ describe('BattleStateService', () => {
     const foe = service.enemyUnits()[0];
     fighter.lane = archer.lane;
     foe.lane = archer.lane;
+    foe.positionX = fighter.positionX + 0.15;
     expect(service.assistOptions()).toEqual([]);
     service.selectAbility('quick_shot');
     service.executeSelectedAbility(foe);
@@ -386,6 +389,7 @@ describe('BattleStateService', () => {
     const target = service.playerUnits()[0];
     enemyFighter.lane = target.lane;
     enemyArcher.lane = target.lane;
+    enemyFighter.positionX = target.positionX + 0.15;
     target.takeDamage(target.maxHp - 5);
     service.assistGauge.set({ player: 0, enemy: 100 });
     expect(service.activeUnit()).toBe(enemyArcher);
@@ -412,6 +416,28 @@ describe('BattleStateService', () => {
     // Any other deployment ends the contract.
     service.deployMercenaries([defender]);
     expect(service.activeContract()).toBeNull();
+  });
+
+  it('walks enemy melee into reach before it strikes', () => {
+    service.initSkirmish([ARCHER_CLASS], [LANCER_CLASS, FIGHTER_CLASS]);
+    const enemyFighter = service.enemyUnits()[1];
+    const archer = service.playerUnits()[0];
+    // Line the enemy Fighter up alone with the archer, out of reach.
+    enemyFighter.lane = archer.lane;
+    service.enemyUnits()[0].lane = 2;
+    const start = enemyFighter.positionX;
+    while (service.activeUnit() !== enemyFighter) {
+      if (service.activeUnit()?.team === 'player') service.endCurrentTurn();
+      else vi.advanceTimersByTime(700);
+    }
+    // It may raise Bulwark first; give it a few AI beats to walk in and strike.
+    vi.advanceTimersByTime(2000);
+    expect(enemyFighter.positionX).toBeLessThan(start);
+    expect(Math.abs(enemyFighter.positionX - archer.positionX)).toBeLessThanOrEqual(0.19);
+    // The archer's Guard may soak the blow, so check that it struck at all.
+    expect(service.combatLogs().join(' ')).toMatch(
+      /Enemy Fighter unleashed \[(Shield Bash|Provoke)\]/,
+    );
   });
 
   it('refreshes squad sheets for the next restart', () => {

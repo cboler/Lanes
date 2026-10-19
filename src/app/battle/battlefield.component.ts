@@ -21,6 +21,7 @@ import {
 } from '../core/services/battle-state.service';
 import { AIM_ZONES, CHAIN_WINDOW, executionKind, justWindow } from '../core/engine/execution';
 import { ASSIST_COST } from '../core/engine/assist';
+import { needsReach } from '../core/engine/field';
 import { Team, UnitInstance } from '../core/models/unit-instance.model';
 import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
@@ -475,6 +476,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   protected tierLabel(contract: Contract): string {
     return TIERS[contract.tier].label;
+  }
+
+  /** A melee skill with nobody in reach: the player has to walk closer first. */
+  protected outOfReach(ability: AbilityDefinition): boolean {
+    const active = this.battle.activeUnit();
+    return !!active && needsReach(active, ability) && this.battle.validTargets().length === 0;
   }
 
   protected isAimTarget(unit: UnitInstance): boolean {

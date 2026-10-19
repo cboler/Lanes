@@ -101,7 +101,7 @@ describe('CombatExecutor', () => {
   });
 
   it('blocks direct attacks to backline units when a frontline enemy is in the way', () => {
-    const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero Fighter', 'player', 1, 0.2);
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero Fighter', 'player', 1, 0.5);
     const frontlineEnemy = new UnitInstance(FIGHTER_CLASS, 'Frontline Tank', 'enemy', 1, 0.65);
     const backlineEnemy = new UnitInstance(WITCH_CLASS, 'Backline Witch', 'enemy', 1, 0.85);
 
@@ -319,7 +319,7 @@ describe('CombatExecutor', () => {
 
     it('leaves a damaging skill status on its target, refreshing rather than stacking', () => {
       const fighter = veteran(FIGHTER_CLASS, 'Hero', 'player', 0.3);
-      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.7);
+      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.45);
       const blow = skill(FIGHTER_CLASS, 'crushing_blow');
       const result = CombatExecutor.execute(fighter, blow, [foe], [fighter, foe]);
       expect(result.effects[0].statusApplied).toBe('defense-down');
@@ -331,7 +331,7 @@ describe('CombatExecutor', () => {
 
     it('stuns, and a miss lands no status', () => {
       const fighter = veteran(FIGHTER_CLASS, 'Hero', 'player', 0.3);
-      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.7);
+      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.45);
       const charge = skill(FIGHTER_CLASS, 'shield_charge');
       CombatExecutor.execute(fighter, charge, [foe], [fighter, foe], 'miss');
       expect(foe.isStunned).toBe(false);

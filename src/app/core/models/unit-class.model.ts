@@ -38,7 +38,9 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
     {
       id: 'shield_bash',
       name: 'Shield Bash',
-      description: 'Strike with the shield edge. Quick, low-cost, and reliable.',
+      description:
+        'Strike with the shield edge. Quick, low-cost, and reliable. Knocks the target back.',
+      knockback: 0.08,
       actionCost: 20,
       damageType: 'physical',
       powerMultiplier: 0.9,
@@ -68,7 +70,9 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
     {
       id: 'shield_charge',
       name: 'Shield Charge',
-      description: 'Slam into the nearest foe behind your shield, stunning it for a turn.',
+      description:
+        'Slam into the nearest foe behind your shield, stunning it for a turn. Drives the target far back.',
+      knockback: 0.14,
       actionCost: 45,
       damageType: 'physical',
       powerMultiplier: 1.1,
@@ -397,7 +401,9 @@ export const LANCER_CLASS: UnitClassDefinition = {
     {
       id: 'whirlwind',
       name: 'Whirlwind',
-      description: 'Spin the lance in a wide arc, striking every enemy in this lane.',
+      description:
+        'Spin the lance in a wide arc, striking every enemy in this lane. Sweeps them all back.',
+      knockback: 0.06,
       actionCost: 40,
       damageType: 'physical',
       powerMultiplier: 0.7,
@@ -480,7 +486,9 @@ export const GUNNER_CLASS: UnitClassDefinition = {
     {
       id: 'explosive_shot',
       name: 'Explosive Shot',
-      description: 'Fire an explosive round that detonates across the lane. Allies beware!',
+      description:
+        'Fire an explosive round that detonates across the lane. Allies beware! The blast throws enemies back.',
+      knockback: 0.06,
       actionCost: 35,
       damageType: 'physical',
       powerMultiplier: 0.65,

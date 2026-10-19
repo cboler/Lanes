@@ -20,6 +20,14 @@ import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
 import { chooseBuff, statusValue } from '../engine/ai-tactics';
 import {
+  COLLISION_BUFFER,
+  FIELD_MAX_X,
+  FIELD_MIN_X,
+  MOVE_COST_PER_FIELD,
+  meleeReach,
+  needsReach,
+} from '../engine/field';
+import {
   ASSIST_COST,
   ASSIST_MAX,
   AssistGauges,
@@ -41,11 +49,7 @@ import {
 
 const TIMING_KEY = 'lanes.timing.v1';
 
-export const COLLISION_BUFFER = 0.08;
-const FIELD_MIN_X = 0.05;
-const FIELD_MAX_X = 0.95;
-/** Move Gauge spent per full battlefield width travelled. */
-const MOVE_COST_PER_FIELD = 50;
+export { COLLISION_BUFFER };
 /** Presentation only: when a skill visibly lands, at 1x speed. Rules resolve immediately. */
 export const IMPACT_DELAY_MS = 420;
 
@@ -73,6 +77,8 @@ export interface BattleAction {
     readonly isFriendlyFire: boolean;
     readonly missed: boolean;
     readonly isBuff: boolean;
+    /** Where a knocked-back target stood before the shove, so the stage can hold it there until impact. */
+    readonly pushedFrom?: number;
   }[];
 }
 
@@ -824,6 +830,10 @@ export class BattleStateService {
         isFriendlyFire: effect.isFriendlyFire,
         missed: effect.missed,
         isBuff: ability.powerMultiplier === 0,
+        pushedFrom: effect.pushed
+          ? effect.target.positionX -
+            Math.sign(effect.target.positionX - attacker.positionX) * effect.pushed
+          : undefined,
       })),
     });
     this.units.update((list) => [...list]);
@@ -856,7 +866,8 @@ export class BattleStateService {
             : eff.guardAbsorbed > 0
               ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
               : `-${eff.amount} HP`;
-      const amountText = [numbers, status].filter(Boolean).join(' · ');
+      const shove = eff.crash ? `SLAM -${eff.crash}` : eff.pushed ? 'PUSHED' : '';
+      const amountText = [numbers, status, shove].filter(Boolean).join(' · ');
       const effectText =
         grade === 'critical'
           ? `CRIT ${amountText}`
@@ -898,6 +909,12 @@ export class BattleStateService {
 
       if (status && ability.powerMultiplier !== 0) {
         this.addLog(`  ✨ ${eff.target.name}: ${status}.`);
+      }
+
+      if (eff.crash) {
+        this.addLog(`  💥 ${eff.target.name} is slammed back for ${eff.crash} more damage.`);
+      } else if (eff.pushed) {
+        this.addLog(`  ↩️ ${eff.target.name} is knocked back.`);
       }
 
       if (eff.wasDefeated) {
@@ -987,9 +1004,7 @@ export class BattleStateService {
         if (!enemies.some((u) => u.lane === unit.lane)) {
           this.switchActiveUnitLane(unit.lane + Math.sign(closest.lane - unit.lane), true);
         }
-        if (unit.classDef.archetype === 'melee') {
-          this.moveActiveUnit(Math.sign(closest.positionX - unit.positionX) * 0.08, true);
-        }
+        if (unit.classDef.archetype === 'melee') this.closeIn(unit);
         const choices = unit.abilities
           .filter(
             (a) =>
@@ -1046,6 +1061,28 @@ export class BattleStateService {
     }, 600);
   }
 
+  /**
+   * Walks a melee unit along its lane until the nearest enemy there is within reach,
+   * as far as its Move Gauge allows. Lane-mates in the way stop it short.
+   */
+  private closeIn(unit: UnitInstance): void {
+    const foes = this.units().filter(
+      (u) => u.isAlive && u.team !== unit.team && u.lane === unit.lane,
+    );
+    if (!foes.length) return;
+    const nearest = foes.reduce((a, b) =>
+      Math.abs(b.positionX - unit.positionX) < Math.abs(a.positionX - unit.positionX) ? b : a,
+    );
+    const gap = Math.abs(nearest.positionX - unit.positionX) - meleeReach(unit) + 0.01;
+    if (gap <= 0) return;
+    // Spend at most what is left, a hair under, since the gauge must cover the whole step.
+    const affordable = unit.moveGauge.current / MOVE_COST_PER_FIELD - 0.001;
+    const step = Math.min(gap, affordable);
+    if (step > 0.002) {
+      this.moveActiveUnit(Math.sign(nearest.positionX - unit.positionX) * step, true);
+    }
+  }
+
   /** The AI spends an orb only when an ally's pursuit would defeat its target outright. */
   private tryLethalAssist(unit: UnitInstance): boolean {
     if (this.assistGauge()[unit.team] < ASSIST_COST) return false;
@@ -1071,6 +1108,8 @@ export class BattleStateService {
       return true;
     }
     const ability = unit.abilities.find((candidate) => candidate.id === order.abilityId);
+    // A scripted melee order walks into reach first, as a player would.
+    if (ability && needsReach(unit, ability)) this.closeIn(unit);
     const target =
       ability && chooseDefenseTarget(unit, ability, this.units(), order.targetPriority);
     if (ability && target && unit.actionGauge.current >= ability.actionCost) {

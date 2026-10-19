@@ -439,10 +439,14 @@ test('melee skills chain into a combo when pressed again in the window', async (
       configurable: true,
     });
   });
+  // Dara fights alone, front to front with the enemy Lancer: exactly at polearm reach.
+  await page.addInitScript(() => {
+    const raw = JSON.parse(localStorage.getItem('lanes.roster.v1')!);
+    raw.squadIds = ['merc_dara'];
+    localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
+  });
   await page.clock.install();
   await page.goto('/');
-  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
-  await page.keyboard.press('e');
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Dara');
   await page.locator('#ability-btn-thrust').click();
   await expect(page.locator('.unit-node.selected-target')).toBeFocused();
@@ -599,12 +603,41 @@ test('a full assist orb calls an ally to attack outside its turn, free of AP', a
   await expect(page.locator('#assist-btn')).toContainText('Assist · 1');
   await page.keyboard.press('q');
   await expect(page.locator('.assist-panel')).toBeVisible();
-  await expect(page.locator('.assist-panel')).toContainText('Aldric: Shield Bash');
+  // Aldric's shield cannot reach the enemy line from where he starts; Cassian's smite can.
+  await expect(page.locator('.assist-panel')).not.toContainText('Aldric');
+  await expect(page.locator('.assist-panel')).toContainText('Cassian: Holy Smite');
   await page.keyboard.press('1');
   await expect(page.locator('.assist-panel')).toHaveCount(0);
   await expect(page.locator('#assist-btn')).toHaveCount(0);
   // Brenna, whose turn it is, spent nothing.
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
   await page.locator('#toggle-log-btn').click();
-  await expect(page.locator('.combat-log-drawer')).toContainText("Aldric answers Brenna's call");
+  await expect(page.locator('.combat-log-drawer')).toContainText("Cassian answers Brenna's call");
+});
+
+test('melee skills need the enemy within reach; walking closer brings it in', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Reach rules are independent of viewport.');
+  await timingOff(page);
+  await page.addInitScript(() => {
+    const raw = JSON.parse(localStorage.getItem('lanes.roster.v1')!);
+    raw.squadIds = ['merc_dara'];
+    localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
+  });
+  await page.goto('/');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Dara');
+  // Two steps back puts the enemy Lancer just beyond her polearm.
+  await page.locator('#move-left-btn').click();
+  await page.locator('#move-left-btn').click();
+  await page.locator('#ability-btn-thrust').click();
+  await expect(page.locator('#reach-warning')).toBeVisible();
+  await expect(page.locator('#confirm-ability-btn')).toBeDisabled();
+  await page.locator('#ability-btn-thrust').click();
+  await page.locator('#move-right-btn').click();
+  await page.locator('#move-right-btn').click();
+  await page.locator('#ability-btn-thrust').click();
+  await expect(page.locator('#reach-warning')).toHaveCount(0);
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '85');
 });

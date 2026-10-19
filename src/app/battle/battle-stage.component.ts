@@ -59,6 +59,11 @@ export class BattleStageComponent {
   private readonly destroyRef = inject(DestroyRef);
   private stage: Stage | null = null;
   private playedSeq = 0;
+  /**
+   * Rules move a knocked-back unit at once; the stage holds it where it stood until the
+   * blow lands, then lets it slide. Unit id → the position it is held at.
+   */
+  private readonly held = signal<ReadonlyMap<string, number>>(new Map());
 
   constructor() {
     afterNextRender(() => void this.start());
@@ -71,6 +76,12 @@ export class BattleStageComponent {
       const action = this.battle.lastAction();
       if (!action || action.seq <= this.playedSeq) return;
       this.playedSeq = action.seq;
+      const pushed = action.effects.filter((effect) => effect.pushedFrom !== undefined);
+      if (pushed.length) {
+        this.held.set(new Map(pushed.map((effect) => [effect.targetId, effect.pushedFrom!])));
+        const release = () => this.held.set(new Map());
+        setTimeout(release, IMPACT_DELAY_MS * this.battle.delayMultiplier);
+      }
       this.stage?.play(action);
     });
   }
@@ -130,13 +141,14 @@ export class BattleStageComponent {
     const controllable = battle.canPlayerAct() && !!active;
     const targets = controllable && ability ? battle.validTargets() : [];
     const speed = battle.delayMultiplier;
+    const held = this.held();
     return {
       units: units.map((unit) => ({
         id: unit.id,
         classId: unit.classDef.id,
         team: unit.team,
         lane: unit.lane,
-        x: unit.positionX,
+        x: held.get(unit.id) ?? unit.positionX,
         alive: unit.isAlive,
         guard: unit.guardPoints,
         statuses: unit.statusEffects.filter((e) => !e.isExpired).map((e) => e.type),

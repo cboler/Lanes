@@ -303,6 +303,11 @@
                 {{ battle.friendlyFireRisk().length === 1 ? 'ally' : 'allies' }} in the blast.
               </span>
             }
+            @if (outOfReach(ability)) {
+              <span class="friendly-fire-warning" id="reach-warning">
+                ⚔ No enemy in reach: advance (D / ▶) to close in.
+              </span>
+            }
           </div>
           <button
             type="button"

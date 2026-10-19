@@ -3,6 +3,7 @@ import { UnitInstance } from '../models/unit-instance.model';
 import { StatusEffectInstance, StatusEffectType } from '../models/status-effect.model';
 import { DamageCalculator } from './damage-calculator';
 import { ExecutionGrade, GRADE_POWER } from './execution';
+import { inReach, needsReach, slideRoom } from './field';
 
 export interface TargetEffect {
   readonly target: UnitInstance;
@@ -14,6 +15,10 @@ export interface TargetEffect {
   readonly isFriendlyFire: boolean;
   /** The shot missed: no damage, no Guard spent. */
   readonly missed: boolean;
+  /** How far a knockback moved the target along its lane, as a field fraction. */
+  readonly pushed?: number;
+  /** Extra damage from being slammed into a lane-mate or the field's edge (included in amount). */
+  readonly crash?: number;
 }
 
 export interface CombatResult {
@@ -27,6 +32,19 @@ export class CombatExecutor {
    * Identifies valid targets for an ability given the battlefield context.
    */
   public static getValidTargets(
+    attacker: UnitInstance,
+    ability: AbilityDefinition,
+    allUnits: readonly UnitInstance[],
+  ): UnitInstance[] {
+    const targets = this.inScope(attacker, ability, allUnits);
+    // A melee weapon reaches only so far along the lane: close in, or the skill has no target.
+    return needsReach(attacker, ability)
+      ? targets.filter((target) => inReach(attacker, target))
+      : targets;
+  }
+
+  /** Who a skill's target scope covers, before melee reach. */
+  private static inScope(
     attacker: UnitInstance,
     ability: AbilityDefinition,
     allUnits: readonly UnitInstance[],
@@ -224,7 +242,50 @@ export class CombatExecutor {
       }
     }
 
+    if (ability.knockback)
+      this.knockBack(attacker, ability.knockback, effects, allBattlefieldUnits);
     return { success: true, effects };
+  }
+
+  /**
+   * Shoves every enemy the skill hit back along its lane, farthest first so a crowd
+   * spreads rather than stacks. A target that cannot travel the full distance is slammed
+   * into a lane-mate or the field's edge and takes a quarter of the hit again.
+   */
+  private static knockBack(
+    attacker: UnitInstance,
+    distance: number,
+    effects: TargetEffect[],
+    units: readonly UnitInstance[],
+  ): void {
+    const order = effects
+      .map((effect, index) => ({ effect, index }))
+      .filter(
+        ({ effect }) => !effect.missed && !effect.isHealing && effect.target.team !== attacker.team,
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(b.effect.target.positionX - attacker.positionX) -
+          Math.abs(a.effect.target.positionX - attacker.positionX),
+      );
+    for (const { effect, index } of order) {
+      const target = effect.target;
+      if (!target.isAlive) continue;
+      const dir =
+        Math.sign(target.positionX - attacker.positionX) || (attacker.team === 'player' ? 1 : -1);
+      const pushed = Math.min(distance, slideRoom(target, dir, units));
+      target.positionX += dir * pushed;
+      let crash = 0;
+      if (pushed < distance - 1e-6)
+        crash = target.takeDamage(Math.max(1, Math.floor(effect.amount / 4)));
+      effects[index] = {
+        ...effect,
+        amount: effect.amount + crash,
+        wasDefeated: effect.wasDefeated || !target.isAlive,
+        pushed,
+        crash,
+      };
+    }
   }
 
   /** Leaves the skill's status on a target still standing; returns its type if applied. */

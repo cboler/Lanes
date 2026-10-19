@@ -38,4 +38,6 @@ export interface AbilityDefinition {
   readonly crossLane?: boolean;
   readonly friendlyFire?: boolean;
   readonly status?: AbilityStatus;
+  /** Shoves enemies hit back along their lane by this share of the field's width. */
+  readonly knockback?: number;
 }

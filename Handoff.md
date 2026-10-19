@@ -311,10 +311,34 @@ The spec's MVP "Basic Guild Hub". The user said the backend waits until the game
   - e2e/guild.spec.ts takes the Normal contract, checks the band and the no-scroll layout, restarts, wins (through the dev handle), and sees the board replace it.
   - The controller test now steps through Guild on its way to Squad Builder.
 
+## Melee reach and knockback (2026-10-19)
+
+Spec 1.1.1: a unit's position "dictates its attack range". Until now melee skills hit from anywhere, so movement barely mattered.
+
+- **Field:** src/app/core/engine/field.ts holds the field geometry (FIELD_MIN_X/MAX_X, COLLISION_BUFFER, MOVE_COST_PER_FIELD, moved out of the service, which re-exports COLLISION_BUFFER). It also has meleeReach(unit) = 0.18 × stats.meleeRange (Fighter 0.18, Lancer 0.36), needsReach (melee archetype, enemy-targeted, not all-enemies), inReach, and slideRoom (the distance to the edge or a lane-mate).
+- **Reach:** CombatExecutor.getValidTargets filters by reach after the target scope (inScope), so melee AoE (Provoke, Whirlwind, Skewer) also hits only enemies within reach. Starting formations put the Lancer exactly at reach of the enemy front line; a Fighter has to advance about 0.18 (9 MG).
+- **Knockback:**
+  - AbilityDefinition.knockback is a field fraction: Shield Bash 0.08, Shield Charge 0.14, Whirlwind 0.06, Explosive Shot 0.06.
+  - After damage, enemies hit (never allies, misses or heals) are pushed directly away from the attacker, farthest first.
+  - A push cut short by a lane-mate or the edge is a slam: it does a quarter of the hit again (included in amount).
+  - TargetEffect has pushed and crash; text reads "PUSHED" or "SLAM -n", with matching log lines.
+- **AI:** closeIn(unit) walks a melee unit toward the nearest enemy in its lane until it is in reach, as far as its MG allows (this replaces the old fixed 0.08 step). Scripted defense orders with a melee skill close in first too.
+- **Stage:** BattleAction effects carry pushedFrom. The battle-stage component holds a pushed unit's x there (a `held` signal) until IMPACT_DELAY_MS × speed, so it slides back as the blow lands rather than before.
+- **UI:** the targeting panel shows #reach-warning ("No enemy in reach: advance…") when a melee skill has no target in reach; Confirm is disabled then.
+- **Tests:** field.spec.ts (reach, slide room, push, slam, blast pushing only enemies), an AI close-in case, and updated tests that had melee attacking from across the field: 274 unit tests pass. In e2e, the combo test fields Dara alone (front to front with the enemy Lancer), the assist test now expects Cassian's Holy Smite, and a new test steps Dara out of and back into reach.
+
+## Blender pipeline: what it needs (2026-10-19)
+
+The user asked what they need to provide. Nothing is needed to run it: Blender 5.2 is installed under C:/Program Files/Blender Foundation, the Quaternius packs (UBC, UAL, Outfits) are in C:/Users/chris/LanesArt, and tools/characters/build.py is in the repo. Only these need the user:
+
+- buying Quaternius's paid tiers, for more outfits (Knight, Wizard) and animations (launch, juggle);
+- approving each download, or supplying images, for new battle backdrops;
+- art direction (for example toon outlines).
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Knockback/launch states and battlefield objects (barricades, traps). Make the Guild Hall the landing page once it has more to offer (story, quests). The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. Battlefield objects (barricades that block lanes and must be broken, traps), now that position matters; launch/juggle states need new clips. Make the Guild Hall the landing page once it has more to offer (story, quests). The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 
