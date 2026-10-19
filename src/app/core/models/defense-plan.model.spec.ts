@@ -90,4 +90,14 @@ describe('defense plan validation', () => {
     const extra = generateMercenary('lancer', seededRandom(99));
     expect(parseDefensePlan(twoLancers, [...roster, extra])?.members).toHaveLength(2);
   });
+
+  it('accepts orders only for skills the defender has learned', () => {
+    const plan = createDefaultDefensePlan(roster);
+    const member = plan.members[0];
+    const step = member.mercenary.pattern[1];
+    member.orders[0].abilityId = step.id;
+    expect(parseDefensePlan(plan)).toBeNull();
+    member.mercenary.level = step.level;
+    expect(parseDefensePlan(plan)?.members[0].orders[0].abilityId).toBe(step.id);
+  });
 });

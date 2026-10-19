@@ -45,8 +45,10 @@ export function executionKind(unit: UnitInstance, ability: AbilityDefinition): E
 }
 
 /** How long the cursor takes to cross the track: heavier skills sweep faster. */
-export function aimSweepMs(ability: AbilityDefinition): number {
-  return 1500 - ability.actionCost * 10;
+export function aimSweepMs(ability: AbilityDefinition, supports: readonly string[] = []): number {
+  const ms = 1500 - ability.actionCost * 10;
+  // Precision Fire, the spec's example of a skill that slows the cursor.
+  return supports.includes('precision_fire') ? Math.round(ms * 1.25) : ms;
 }
 
 /**
@@ -77,10 +79,21 @@ export function aimGrade(cursor: number, center: number): AimGrade {
  * Grades a chain press `elapsed` ms after the previous skill. 'early' is ignored by the
  * caller; null means the window has closed. `speed` scales the window with the animation.
  */
-export function chainGrade(elapsed: number, speed = 1): ChainGrade | 'early' | null {
+export function chainGrade(
+  elapsed: number,
+  speed = 1,
+  supports: readonly string[] = [],
+): ChainGrade | 'early' | null {
   if (elapsed < CHAIN_WINDOW.open * speed) return 'early';
   if (elapsed > CHAIN_WINDOW.close * speed) return null;
-  return elapsed >= CHAIN_WINDOW.justFrom * speed && elapsed <= CHAIN_WINDOW.justTo * speed
-    ? 'just'
-    : 'chain';
+  const { justFrom, justTo } = justWindow(supports);
+  return elapsed >= justFrom * speed && elapsed <= justTo * speed ? 'just' : 'chain';
+}
+
+/** The Just Cancel flash at 1x, in ms; Rhythm makes it half as long again, on both sides. */
+export function justWindow(supports: readonly string[] = []): { justFrom: number; justTo: number } {
+  const { justFrom, justTo } = CHAIN_WINDOW;
+  if (!supports.includes('rhythm')) return { justFrom, justTo };
+  const extra = (justTo - justFrom) / 4;
+  return { justFrom: justFrom - extra, justTo: justTo + extra };
 }

@@ -503,3 +503,47 @@ test('turning timing off resolves skills at once and is remembered', async ({ pa
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
   await expect(page.locator('.aim-panel')).toHaveCount(0);
 });
+
+test('a veteran uses a skill its pattern taught, leaving a status on the target', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const neutral = { str: 17, mag: 17, tec: 17, vit: 17, stm: 17, spi: 17, agi: 17, con: 17 };
+    const aptitudes = {
+      str: 'C',
+      mag: 'C',
+      tec: 'C',
+      vit: 'C',
+      stm: 'C',
+      spi: 'C',
+      agi: 'C',
+      con: 'C',
+    };
+    const brenna = {
+      id: 'merc_brenna',
+      name: 'Brenna',
+      classId: 'archer',
+      level: 9,
+      aptitudes,
+      stats: { ...neutral, sp: 10 },
+      pattern: [
+        { id: 'pinning_shot', level: 3 },
+        { id: 'arrow_storm', level: 6 },
+      ],
+    };
+    localStorage.setItem(
+      'lanes.roster.v1',
+      JSON.stringify({ version: 1, mercenaries: [brenna], squadIds: [brenna.id] }),
+    );
+    localStorage.setItem('lanes.timing.v1', 'off');
+  });
+  await page.goto('/');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  await expect(page.locator('.skill-btn')).toHaveCount(5);
+  await expect(page.locator('#ability-btn-pinning_shot')).toContainText('Pinning Shot');
+  await page.keyboard.press('4');
+  await expect(page.locator('#ability-btn-pinning_shot')).toHaveClass(/selected/);
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '55');
+  await expect(page.locator('.enemy-unit .status-badge')).toContainText(['STUN']);
+});

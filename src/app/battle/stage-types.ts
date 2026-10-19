@@ -37,6 +37,8 @@ export interface StageAction {
     readonly wasDefeated: boolean;
     /** The shot landed beside the target: it kicks up dirt and nobody flinches. */
     readonly missed?: boolean;
+    /** A pure buff landed: the target glows rather than flinches. */
+    readonly isBuff?: boolean;
   }[];
 }
 

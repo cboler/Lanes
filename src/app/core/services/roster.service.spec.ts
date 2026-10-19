@@ -198,5 +198,26 @@ describe('RosterService', () => {
       expect(saved.invested.str).toBe(1);
       expect(saved.stats.str).toBeGreaterThan(merc.stats.str);
     });
+
+    it('equips supports within SP and names skills a level-up teaches', () => {
+      const service = TestBed.inject(RosterService);
+      const merc = service.mercenaries()[0];
+      expect(service.toggleSupport(merc.id, 'vigor')).toBe(true);
+      expect(service.mercenaries()[0].supports).toEqual(['vigor']);
+      expect(service.toggleSupport(merc.id, 'might')).toBe(false);
+      expect(service.toggleSupport(merc.id, 'vigor')).toBe(true);
+      expect(service.mercenaries()[0].supports).toEqual([]);
+
+      const step = merc.pattern[0];
+      const rewards = service.claimRewards({
+        id: 'learn',
+        outcome: 'victory',
+        enemiesDefeated: 4,
+        mercenaries: [{ id: merc.id, survived: true }],
+      });
+      const paid = rewards.mercenaries[0];
+      const skill = service.classOf(merc).advancedAbilities.find((a) => a.id === step.id)!;
+      expect(paid.learned.includes(skill.name)).toBe(paid.level >= step.level);
+    });
   });
 });

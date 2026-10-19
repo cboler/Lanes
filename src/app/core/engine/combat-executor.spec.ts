@@ -303,4 +303,66 @@ describe('CombatExecutor', () => {
     expect(enemy.currentHp).toBe(enemy.maxHp);
     expect(enemy.guardPoints).toBe(guard);
   });
+
+  describe('skill statuses', () => {
+    const veteran = (
+      cls: typeof FIGHTER_CLASS,
+      name: string,
+      team: 'player' | 'enemy',
+      x: number,
+    ) =>
+      new UnitInstance(cls, name, team, 1, x, 100, undefined, undefined, {
+        abilities: [...cls.abilities, ...cls.advancedAbilities],
+      });
+    const skill = (cls: typeof FIGHTER_CLASS, id: string) =>
+      cls.advancedAbilities.find((a) => a.id === id)!;
+
+    it('leaves a damaging skill status on its target, refreshing rather than stacking', () => {
+      const fighter = veteran(FIGHTER_CLASS, 'Hero', 'player', 0.3);
+      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.7);
+      const blow = skill(FIGHTER_CLASS, 'crushing_blow');
+      const result = CombatExecutor.execute(fighter, blow, [foe], [fighter, foe]);
+      expect(result.effects[0].statusApplied).toBe('defense-down');
+      expect(foe.effectiveDefense).toBe(35);
+      fighter.actionGauge.recover(100);
+      CombatExecutor.execute(fighter, blow, [foe], [fighter, foe]);
+      expect(foe.effectiveDefense).toBe(35);
+    });
+
+    it('stuns, and a miss lands no status', () => {
+      const fighter = veteran(FIGHTER_CLASS, 'Hero', 'player', 0.3);
+      const foe = veteran(FIGHTER_CLASS, 'Foe', 'enemy', 0.7);
+      const charge = skill(FIGHTER_CLASS, 'shield_charge');
+      CombatExecutor.execute(fighter, charge, [foe], [fighter, foe], 'miss');
+      expect(foe.isStunned).toBe(false);
+      fighter.actionGauge.recover(100);
+      CombatExecutor.execute(fighter, charge, [foe], [fighter, foe]);
+      expect(foe.isStunned).toBe(true);
+    });
+
+    it('buffs every ally with a pure status skill and refuses to waste a repeat', () => {
+      const fighter = veteran(FIGHTER_CLASS, 'Hero', 'player', 0.3);
+      const ally = new UnitInstance(CLERIC_CLASS, 'Ally', 'player', 0, 0.2);
+      const rally = skill(FIGHTER_CLASS, 'rally');
+      const targets = CombatExecutor.getValidTargets(fighter, rally, [fighter, ally]);
+      const result = CombatExecutor.execute(fighter, rally, targets, [fighter, ally]);
+      expect(result.success).toBe(true);
+      expect(result.effects.map((e) => e.amount)).toEqual([0, 0]);
+      expect(ally.effectiveAttack).toBe(CLERIC_CLASS.baseStats.attack + 15);
+      const again = CombatExecutor.execute(fighter, rally, targets, [fighter, ally]);
+      expect(again.failureReason).toBe('Rally is already active.');
+    });
+
+    it('refuses skills the unit has not learned', () => {
+      const fighter = new UnitInstance(FIGHTER_CLASS, 'Rookie', 'player', 1, 0.3);
+      const foe = new UnitInstance(FIGHTER_CLASS, 'Foe', 'enemy', 1, 0.7);
+      const result = CombatExecutor.execute(
+        fighter,
+        skill(FIGHTER_CLASS, 'shield_charge'),
+        [foe],
+        [fighter, foe],
+      );
+      expect(result.failureReason).toContain('does not belong');
+    });
+  });
 });

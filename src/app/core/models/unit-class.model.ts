@@ -8,7 +8,10 @@ export interface UnitClassDefinition {
   readonly role: UnitRole;
   readonly archetype: CombatArchetype;
   readonly baseStats: UnitBaseStats;
+  /** Skills every mercenary of the class knows from level 1. */
   readonly abilities: readonly AbilityDefinition[];
+  /** Skills a mercenary may learn by level, as its skill pattern decides. */
+  readonly advancedAbilities: readonly AbilityDefinition[];
   readonly portraitUrl: string;
 }
 
@@ -57,7 +60,41 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
       actionCost: 30,
       damageType: 'physical',
       powerMultiplier: 0,
-      target: 'single-ally',
+      target: 'self',
+      status: { type: 'defense-up', duration: 2, potency: 25 },
+    },
+  ],
+  advancedAbilities: [
+    {
+      id: 'shield_charge',
+      name: 'Shield Charge',
+      description: 'Slam into the nearest foe behind your shield, stunning it for a turn.',
+      actionCost: 45,
+      damageType: 'physical',
+      powerMultiplier: 1.1,
+      target: 'single-enemy',
+      status: { type: 'stun', duration: 1, potency: 0 },
+    },
+    {
+      id: 'rally',
+      name: 'Rally',
+      description: 'A rousing cry: +15 Attack for every ally through their next turn.',
+      actionCost: 35,
+      damageType: 'physical',
+      powerMultiplier: 0,
+      target: 'all-allies',
+      crossLane: true,
+      status: { type: 'attack-up', duration: 2, potency: 15 },
+    },
+    {
+      id: 'crushing_blow',
+      name: 'Crushing Blow',
+      description: 'A heavy overhead strike that dents armour: -15 Defense for two turns.',
+      actionCost: 40,
+      damageType: 'physical',
+      powerMultiplier: 1.5,
+      target: 'single-enemy',
+      status: { type: 'defense-down', duration: 2, potency: 15 },
     },
   ],
 };
@@ -109,6 +146,39 @@ export const CLERIC_CLASS: UnitClassDefinition = {
       damageType: 'healing',
       powerMultiplier: 0.7,
       target: 'all-allies',
+      crossLane: true,
+    },
+  ],
+  advancedAbilities: [
+    {
+      id: 'renew',
+      name: 'Renew',
+      description: 'A deep restoration for one ally anywhere on the field.',
+      actionCost: 40,
+      damageType: 'healing',
+      powerMultiplier: 1.9,
+      target: 'single-ally-any-lane',
+      crossLane: true,
+    },
+    {
+      id: 'sanctuary',
+      name: 'Sanctuary',
+      description: 'Ward the whole party: +15 Defense for every ally through their next turn.',
+      actionCost: 40,
+      damageType: 'healing',
+      powerMultiplier: 0,
+      target: 'all-allies',
+      crossLane: true,
+      status: { type: 'defense-up', duration: 2, potency: 15 },
+    },
+    {
+      id: 'judgement',
+      name: 'Judgement',
+      description: 'Holy light that falls on any enemy, in any lane.',
+      actionCost: 45,
+      damageType: 'magical',
+      powerMultiplier: 1.4,
+      target: 'single-enemy-any-lane',
       crossLane: true,
     },
   ],
@@ -164,6 +234,39 @@ export const ARCHER_CLASS: UnitClassDefinition = {
       target: 'same-lane-enemies',
     },
   ],
+  advancedAbilities: [
+    {
+      id: 'poison_arrow',
+      name: 'Poison Arrow',
+      description: 'A tainted arrow: light damage, then 12 poison damage a turn for three turns.',
+      actionCost: 30,
+      damageType: 'physical',
+      powerMultiplier: 0.7,
+      target: 'single-enemy',
+      status: { type: 'poison', duration: 3, potency: 12 },
+    },
+    {
+      id: 'pinning_shot',
+      name: 'Pinning Shot',
+      description: 'Pin any enemy in place, in any lane: it loses its next turn.',
+      actionCost: 45,
+      damageType: 'physical',
+      powerMultiplier: 0.8,
+      target: 'single-enemy-any-lane',
+      crossLane: true,
+      status: { type: 'stun', duration: 1, potency: 0 },
+    },
+    {
+      id: 'arrow_storm',
+      name: 'Arrow Storm',
+      description: 'Darken the sky over every lane: hits every enemy on the field.',
+      actionCost: 55,
+      damageType: 'physical',
+      powerMultiplier: 0.55,
+      target: 'all-enemies',
+      crossLane: true,
+    },
+  ],
 };
 
 export const WITCH_CLASS: UnitClassDefinition = {
@@ -217,6 +320,39 @@ export const WITCH_CLASS: UnitClassDefinition = {
       friendlyFire: true,
     },
   ],
+  advancedAbilities: [
+    {
+      id: 'frost_lance',
+      name: 'Frost Lance',
+      description: 'A shard of ice that numbs: -15 Attack for two turns.',
+      actionCost: 30,
+      damageType: 'magical',
+      powerMultiplier: 1.1,
+      target: 'single-enemy',
+      status: { type: 'attack-down', duration: 2, potency: 15 },
+    },
+    {
+      id: 'hex',
+      name: 'Hex',
+      description: 'Curse any enemy, in any lane: -20 Defense for three turns.',
+      actionCost: 35,
+      damageType: 'magical',
+      powerMultiplier: 0.5,
+      target: 'single-enemy-any-lane',
+      crossLane: true,
+      status: { type: 'defense-down', duration: 3, potency: 20 },
+    },
+    {
+      id: 'thunderstorm',
+      name: 'Thunderstorm',
+      description: 'Lightning that seeks out every enemy, and only enemies.',
+      actionCost: 50,
+      damageType: 'magical',
+      powerMultiplier: 0.8,
+      target: 'all-enemies',
+      crossLane: true,
+    },
+  ],
 };
 
 export const LANCER_CLASS: UnitClassDefinition = {
@@ -266,6 +402,37 @@ export const LANCER_CLASS: UnitClassDefinition = {
       damageType: 'physical',
       powerMultiplier: 0.7,
       target: 'same-lane-enemies',
+    },
+  ],
+  advancedAbilities: [
+    {
+      id: 'impale',
+      name: 'Impale',
+      description: 'Drive the lance home: heavy damage and -10 Defense for two turns.',
+      actionCost: 40,
+      damageType: 'physical',
+      powerMultiplier: 1.6,
+      target: 'single-enemy',
+      status: { type: 'defense-down', duration: 2, potency: 10 },
+    },
+    {
+      id: 'skewer',
+      name: 'Skewer',
+      description: 'A running thrust that passes through every enemy in this lane.',
+      actionCost: 35,
+      damageType: 'physical',
+      powerMultiplier: 0.9,
+      target: 'same-lane-enemies',
+    },
+    {
+      id: 'battle_trance',
+      name: 'Battle Trance',
+      description: 'Focus for the kill: +20 Attack through your next turn.',
+      actionCost: 30,
+      damageType: 'physical',
+      powerMultiplier: 0,
+      target: 'self',
+      status: { type: 'attack-up', duration: 2, potency: 20 },
     },
   ],
 };
@@ -319,6 +486,39 @@ export const GUNNER_CLASS: UnitClassDefinition = {
       powerMultiplier: 0.65,
       target: 'same-lane-enemies',
       friendlyFire: true,
+    },
+  ],
+  advancedAbilities: [
+    {
+      id: 'armor_piercer',
+      name: 'Armor Piercer',
+      description: 'A hardened round for any enemy, in any lane: -20 Defense for two turns.',
+      actionCost: 40,
+      damageType: 'physical',
+      powerMultiplier: 1.1,
+      target: 'single-enemy-any-lane',
+      crossLane: true,
+      status: { type: 'defense-down', duration: 2, potency: 20 },
+    },
+    {
+      id: 'scatter_shot',
+      name: 'Scatter Shot',
+      description: 'Buckshot across the field: hits every enemy for light damage.',
+      actionCost: 40,
+      damageType: 'physical',
+      powerMultiplier: 0.5,
+      target: 'all-enemies',
+      crossLane: true,
+    },
+    {
+      id: 'flashbang',
+      name: 'Flashbang',
+      description: 'A blinding charge down this lane: every enemy in it loses its next turn.',
+      actionCost: 55,
+      damageType: 'physical',
+      powerMultiplier: 0.3,
+      target: 'same-lane-enemies',
+      status: { type: 'stun', duration: 1, potency: 0 },
     },
   ],
 };

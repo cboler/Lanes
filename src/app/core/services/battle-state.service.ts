@@ -19,6 +19,7 @@ import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
 import { BattleReport } from '../models/progression.model';
+import { knownAbilities } from '../models/skills.model';
 import {
   CHAIN_WINDOW,
   ExecutionGrade,
@@ -62,6 +63,7 @@ export interface BattleAction {
     readonly wasDefeated: boolean;
     readonly isFriendlyFire: boolean;
     readonly missed: boolean;
+    readonly isBuff: boolean;
   }[];
 }
 
@@ -95,6 +97,26 @@ const GRADE_LOGS: Record<ExecutionGrade, string> = {
   chain: '🔗 Chained ×1.1.',
   just: '⚡ JUST CANCEL! ×1.3.',
 };
+
+/** How a skill's status reads in floating text and the log, e.g. "STUN" or "DEF -15". */
+export function statusLabel(ability: AbilityDefinition): string {
+  const status = ability.status;
+  if (!status) return '';
+  switch (status.type) {
+    case 'stun':
+      return 'STUN';
+    case 'poison':
+      return `POISON ${status.potency}/turn`;
+    case 'attack-up':
+      return `ATK +${status.potency}`;
+    case 'attack-down':
+      return `ATK -${status.potency}`;
+    case 'defense-up':
+      return `DEF +${status.potency}`;
+    case 'defense-down':
+      return `DEF -${status.potency}`;
+  }
+}
 
 function readTimingPreference(): boolean {
   try {
@@ -218,7 +240,7 @@ export class BattleStateService {
     const unit = this.activeUnit();
     const abilityId = this.selectedAbilityId();
     if (!unit || !abilityId) return null;
-    return unit.classDef.abilities.find((a) => a.id === abilityId) ?? null;
+    return unit.abilities.find((a) => a.id === abilityId) ?? null;
   });
 
   public readonly validTargets = computed<UnitInstance[]>(() => {
@@ -313,6 +335,7 @@ export class BattleStateService {
         100,
         undefined,
         merc ? deriveCombatStats(cls, merc) : undefined,
+        merc ? { abilities: knownAbilities(merc), supports: merc.supports } : undefined,
       );
       if (merc) this.mercenaryOf.set(unit.id, merc.id);
       newUnits.push(unit);
@@ -341,6 +364,7 @@ export class BattleStateService {
         100,
         undefined,
         merc ? deriveCombatStats(cls, merc) : undefined,
+        merc ? { abilities: knownAbilities(merc), supports: merc.supports } : undefined,
       );
       newUnits.push(unit);
       if (activePlan) this.defenseOrders.set(unit.id, activePlan.members[idx].orders);
@@ -569,7 +593,7 @@ export class BattleStateService {
       this.addLog('⚠️ Insufficient action gauge.');
       return false;
     }
-    const sweepMs = aimSweepMs(ability);
+    const sweepMs = aimSweepMs(ability, attacker.supports);
     this.aim.set({
       abilityId: ability.id,
       targetIds: targets.map((t) => t.id),
@@ -602,9 +626,9 @@ export class BattleStateService {
     const attacker = this.activeUnit();
     if (!combo || !attacker || attacker.id !== combo.attackerId || !this.canAct(false))
       return false;
-    const ability = attacker.classDef.abilities.find((a) => a.id === abilityId);
+    const ability = attacker.abilities.find((a) => a.id === abilityId);
     if (!ability || executionKind(attacker, ability) !== 'combo') return false;
-    const grade = chainGrade(performance.now() - combo.openedAt, combo.speed);
+    const grade = chainGrade(performance.now() - combo.openedAt, combo.speed, attacker.supports);
     // A press before the strike lands is swallowed, so a double tap cannot drop the combo.
     if (grade === 'early') return true;
     this.clearExecution();
@@ -627,7 +651,7 @@ export class BattleStateService {
   }
 
   private openCombo(attacker: UnitInstance, ability: AbilityDefinition, count: number): void {
-    const canChain = attacker.classDef.abilities.some(
+    const canChain = attacker.abilities.some(
       (a) => executionKind(attacker, a) === 'combo' && a.actionCost <= attacker.actionGauge.current,
     );
     if (!canChain || this.battleStatus() !== 'active') return;
@@ -695,6 +719,7 @@ export class BattleStateService {
         wasDefeated: effect.wasDefeated,
         isFriendlyFire: effect.isFriendlyFire,
         missed: effect.missed,
+        isBuff: ability.powerMultiplier === 0,
       })),
     });
     this.units.update((list) => [...list]);
@@ -724,13 +749,16 @@ export class BattleStateService {
         this.addLog(`  💨 ${eff.target.name} is untouched.`);
         continue;
       }
-      const amountText = eff.statusApplied
-        ? 'DEF +25'
-        : eff.isHealing
-          ? `+${eff.amount} HP`
-          : eff.guardAbsorbed > 0
-            ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
-            : `-${eff.amount} HP`;
+      const status = eff.statusApplied && statusLabel(ability);
+      const numbers =
+        ability.powerMultiplier === 0
+          ? ''
+          : eff.isHealing
+            ? `+${eff.amount} HP`
+            : eff.guardAbsorbed > 0
+              ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
+              : `-${eff.amount} HP`;
+      const amountText = [numbers, status].filter(Boolean).join(' · ');
       const effectText =
         grade === 'critical'
           ? `CRIT ${amountText}`
@@ -739,7 +767,7 @@ export class BattleStateService {
             : amountText;
 
       // Trigger hit flash animation on damaged target
-      if (!eff.isHealing) {
+      if (!eff.isHealing && ability.powerMultiplier !== 0) {
         this.hitUnitId.set(eff.target.id);
         const version = this.battleVersion;
         setTimeout(() => {
@@ -750,7 +778,7 @@ export class BattleStateService {
       this.triggerFloatingText(
         eff.target.id,
         effectText,
-        eff.isHealing,
+        eff.isHealing || ability.powerMultiplier === 0,
         eff.isFriendlyFire,
         grade === 'critical',
       );
@@ -758,8 +786,8 @@ export class BattleStateService {
       if (eff.guardAbsorbed > 0) {
         this.addLog(`  🛡️ ${eff.target.name}'s Guard absorbed ${eff.guardAbsorbed} damage.`);
       }
-      if (eff.statusApplied) {
-        this.addLog(`  🛡️ ${eff.target.name} raises Bulwark: +25 defense.`);
+      if (ability.powerMultiplier === 0) {
+        this.addLog(`  ✨ ${eff.target.name}: ${status}.`);
       } else if (eff.isHealing) {
         this.addLog(`  💚 Restores ${eff.amount} HP to ${eff.target.name}.`);
       } else if (eff.isFriendlyFire) {
@@ -768,6 +796,10 @@ export class BattleStateService {
         );
       } else {
         this.addLog(`  ⚔️ Strikes ${eff.target.name} for ${eff.amount} damage.`);
+      }
+
+      if (status && ability.powerMultiplier !== 0) {
+        this.addLog(`  ✨ ${eff.target.name}: ${status}.`);
       }
 
       if (eff.wasDefeated) {
@@ -823,8 +855,11 @@ export class BattleStateService {
       if (unit.team === 'enemy' && this.tryDefenseOrder(unit)) return;
       const allies = this.units().filter((u) => u.team === unit.team && u.isAlive);
       const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive);
-      const heal = unit.classDef.abilities.find(
-        (a) => a.damageType === 'healing' && a.actionCost <= unit.actionGauge.current,
+      const heal = unit.abilities.find(
+        (a) =>
+          a.damageType === 'healing' &&
+          a.powerMultiplier > 0 &&
+          a.actionCost <= unit.actionGauge.current,
       );
       const wounded = allies
         .filter((u) => u.currentHp < u.maxHp * 0.75)
@@ -846,7 +881,7 @@ export class BattleStateService {
         if (unit.classDef.archetype === 'melee') {
           this.moveActiveUnit(Math.sign(closest.positionX - unit.positionX) * 0.08, true);
         }
-        const choices = unit.classDef.abilities
+        const choices = unit.abilities
           .filter(
             (a) =>
               a.damageType !== 'healing' &&
@@ -914,7 +949,7 @@ export class BattleStateService {
       this.scheduleTurnAction(() => this.endCurrentTurn(true), 400);
       return true;
     }
-    const ability = unit.classDef.abilities.find((candidate) => candidate.id === order.abilityId);
+    const ability = unit.abilities.find((candidate) => candidate.id === order.abilityId);
     const target =
       ability && chooseDefenseTarget(unit, ability, this.units(), order.targetPriority);
     if (ability && target && unit.actionGauge.current >= ability.actionCost) {

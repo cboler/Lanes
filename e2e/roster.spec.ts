@@ -68,3 +68,23 @@ test('hires recruits with gold, refreshes the board, and dismisses with a confir
   await card.getByRole('button', { name: `Confirm dismissing ${name}` }).click();
   await expect(mercs).toHaveCount(6);
 });
+
+test('equips support skills within SP and shows each skill pattern', async ({ page }) => {
+  await page.goto('/roster');
+  const card = page.locator('.merc-card:not(.recruit)').filter({ hasText: 'Aldric' });
+  await card.locator('.skills-panel summary').click();
+  await expect(card.locator('.skills-panel summary')).toContainText('0/10 SP');
+  // Three core skills known, and two pattern skills still locked behind levels.
+  await expect(card.locator('.skill-chips li')).toHaveCount(5);
+  await expect(card.locator('.skill-chips li.locked')).toHaveCount(2);
+  await card.getByRole('button', { name: /^Vigor for Aldric/ }).click();
+  await expect(card.locator('.skills-panel summary')).toContainText('4/10 SP');
+  await expect(card.getByRole('button', { name: /^Might for Aldric/ })).toBeDisabled();
+  await page.reload();
+  await card.locator('.skills-panel summary').click();
+  await expect(card.getByRole('button', { name: /^Vigor for Aldric/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('.merc-card.recruit .pattern-note').first()).toContainText('Learns');
+});

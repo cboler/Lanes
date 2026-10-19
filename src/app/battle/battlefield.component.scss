@@ -287,12 +287,25 @@
 }
 
 .guard-badge,
+.status-badge,
 .advantage-badge {
   padding: 0 5px;
   border-radius: var(--radius-full);
   font-size: 0.62rem;
   font-weight: 800;
   line-height: 1.5;
+}
+
+.status-badge {
+  border: 1px solid #7dffb2;
+  background: rgba(14, 70, 40, 0.9);
+  color: #dfffe9;
+
+  &.harmful {
+    border-color: #ffb35c;
+    background: rgba(110, 40, 12, 0.9);
+    color: #ffe6cc;
+  }
 }
 
 .guard-badge {
@@ -1304,17 +1317,12 @@
   }
 }
 
-.reward-name {
-  font-weight: 700;
-}
-
-.reward-exp {
-  color: var(--text-secondary);
-}
-
-.reward-level {
-  font-weight: 800;
+.reward-list b {
   color: #7dffb2;
+}
+
+.reward-list i {
+  color: #9dd3ff;
 }
 
 .reward-link {

@@ -292,6 +292,25 @@ export const LOOKS: Record<string, SkillLook> = {
   quick_fire: { delivery: 'bullet', color: 0xffd36a },
   snipe: { delivery: 'snipe', color: 0xffe08a },
   explosive_shot: { delivery: 'shell', color: 0xff9f43, burst: 'explosion' },
+  // Advanced skills, learned by skill pattern.
+  shield_charge: { delivery: 'lunge', color: 0xffd36a },
+  rally: { delivery: 'blessing', color: 0xffb347 },
+  crushing_blow: { delivery: 'melee', color: 0xff7a45 },
+  renew: { delivery: 'pillar', color: 0x7dffb2 },
+  sanctuary: { delivery: 'blessing', color: 0x9fd4ff },
+  judgement: { delivery: 'pillar', color: 0xffe08a },
+  poison_arrow: { delivery: 'arrow', color: 0x9be564 },
+  pinning_shot: { delivery: 'arrow', color: 0xc4b5fd },
+  arrow_storm: { delivery: 'volley', color: 0xfff2c4 },
+  frost_lance: { delivery: 'bolt', color: 0x8fe8ff },
+  hex: { delivery: 'bolt', color: 0xb57bff },
+  thunderstorm: { delivery: 'pillar', color: 0xc8e6ff },
+  impale: { delivery: 'melee', color: 0x8fd3ff },
+  skewer: { delivery: 'lunge', color: 0xbfe6ff },
+  battle_trance: { delivery: 'buff', color: 0xff6a6a },
+  armor_piercer: { delivery: 'snipe', color: 0xffb347 },
+  scatter_shot: { delivery: 'bullet', color: 0xffd36a },
+  flashbang: { delivery: 'shell', color: 0xffffff, burst: 'explosion' },
 };
 
 /** What an unlisted skill gets. */

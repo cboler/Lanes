@@ -18,7 +18,7 @@ import {
   FloatingText,
   IMPACT_DELAY_MS,
 } from '../core/services/battle-state.service';
-import { AIM_ZONES, CHAIN_WINDOW, executionKind } from '../core/engine/execution';
+import { AIM_ZONES, CHAIN_WINDOW, executionKind, justWindow } from '../core/engine/execution';
 import { Team, UnitInstance } from '../core/models/unit-instance.model';
 import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
@@ -26,8 +26,18 @@ import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
 import { BattleRewards } from '../core/models/progression.model';
+import { StatusEffectType } from '../core/models/status-effect.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DamageCalculator } from '../core/engine/damage-calculator';
+
+const STATUS_BADGES: Record<StatusEffectType, (potency: number) => string> = {
+  stun: () => '💫 STUN',
+  poison: () => '☠ POISON',
+  'attack-up': (p) => `▲ ATK+${p}`,
+  'attack-down': (p) => `▼ ATK-${p}`,
+  'defense-up': (p) => `▲ DEF+${p}`,
+  'defense-down': (p) => `▼ DEF-${p}`,
+};
 
 /** One tap of a move key or button, in battlefield widths. */
 const STEP = 0.04;
@@ -71,7 +81,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly aimView = computed(() => {
     const aim = this.battle.aim();
     if (!aim) return [];
-    const ability = untracked(this.battle.activeUnit)?.classDef.abilities.find(
+    const ability = untracked(this.battle.activeUnit)?.abilities.find(
       (a) => a.id === aim.abilityId,
     );
     return [
@@ -95,18 +105,20 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     if (!combo) return [];
     const close = CHAIN_WINDOW.close;
     const elapsed = performance.now() - combo.openedAt;
+    const attacker = untracked(this.battle.units).find((u) => u.id === combo.attackerId);
+    const { justFrom, justTo } = justWindow(attacker?.supports);
     return [
       {
         key: combo.openedAt,
         count: combo.count,
         style: {
           '--chain-open': CHAIN_WINDOW.open / close,
-          '--just-from': CHAIN_WINDOW.justFrom / close,
-          '--just-to': CHAIN_WINDOW.justTo / close,
+          '--just-from': justFrom / close,
+          '--just-to': justTo / close,
           '--sweep-ms': `${close * combo.speed}ms`,
           '--sweep-delay': `${-elapsed}ms`,
-          '--flash-ms': `${(CHAIN_WINDOW.justTo - CHAIN_WINDOW.justFrom) * combo.speed}ms`,
-          '--flash-delay': `${CHAIN_WINDOW.justFrom * combo.speed - elapsed}ms`,
+          '--flash-ms': `${(justTo - justFrom) * combo.speed}ms`,
+          '--flash-delay': `${justFrom * combo.speed - elapsed}ms`,
         },
       },
     ];
@@ -316,20 +328,14 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
         }
         break;
       case '1':
-        if (active.classDef.abilities[0]) {
-          this.onSelectAbility(active.classDef.abilities[0]);
-        }
-        break;
       case '2':
-        if (active.classDef.abilities[1]) {
-          this.onSelectAbility(active.classDef.abilities[1]);
-        }
-        break;
       case '3':
-        if (active.classDef.abilities[2]) {
-          this.onSelectAbility(active.classDef.abilities[2]);
-        }
+      case '4':
+      case '5': {
+        const ability = active.abilities[Number(event.key) - 1];
+        if (ability) this.onSelectAbility(ability);
         break;
+      }
       case ' ':
       case 'enter':
         if (this.battle.selectedAbility()) {
@@ -392,6 +398,17 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Short badges for a unit's active statuses, e.g. "STUN" or "DEF-15". */
+  protected statusBadges(unit: UnitInstance): { key: string; text: string; harmful: boolean }[] {
+    return unit.statusEffects
+      .filter((effect) => !effect.isExpired)
+      .map((effect) => ({
+        key: effect.type,
+        text: STATUS_BADGES[effect.type](effect.potency),
+        harmful: ['stun', 'poison', 'attack-down', 'defense-down'].includes(effect.type),
+      }));
+  }
+
   protected isAimTarget(unit: UnitInstance): boolean {
     return !!this.battle.aim()?.targetIds.includes(unit.id);
   }
@@ -446,7 +463,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   private cycleAbility(direction: number): void {
     const unit = this.battle.activeUnit()!;
-    const choices = unit.classDef.abilities.filter(
+    const choices = unit.abilities.filter(
       (ability) => ability.actionCost <= unit.actionGauge.current,
     );
     if (!choices.length) return;

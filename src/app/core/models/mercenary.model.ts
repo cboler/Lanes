@@ -1,5 +1,13 @@
 import { UnitBaseStats } from './stats.model';
 import { ALL_CLASSES, UnitClassDefinition, getClassDefinition } from './unit-class.model';
+import {
+  PatternStep,
+  applySupports,
+  parsePattern,
+  rollPattern,
+  supportCost,
+  supportSkill,
+} from './skills.model';
 
 export const PRIMARY_STATS = ['str', 'mag', 'tec', 'vit', 'stm', 'spi', 'agi', 'con'] as const;
 export type PrimaryStat = (typeof PRIMARY_STATS)[number];
@@ -40,6 +48,10 @@ export interface Mercenary {
   statPoints: number;
   /** Points invested in each stat so far; aptitude turns them into bonus points. */
   invested: Record<PrimaryStat, number>;
+  /** The advanced skills this mercenary learns, and when; rolled once at creation. */
+  pattern: PatternStep[];
+  /** Equipped support skills, paid for with SP. */
+  supports: string[];
   aptitudes: Aptitudes;
   stats: MercenaryStats;
 }
@@ -138,6 +150,8 @@ export function generateMercenary(
     exp: 0,
     statPoints: 0,
     invested: noInvestment(),
+    pattern: rollPattern(cls.id, random),
+    supports: [],
     aptitudes,
     stats,
   };
@@ -180,7 +194,7 @@ function scaled(base: number, stat: number): number {
 export function deriveCombatStats(cls: UnitClassDefinition, merc: Mercenary): UnitBaseStats {
   const base = cls.baseStats;
   const { stats } = merc;
-  return {
+  const derived: UnitBaseStats = {
     maxHp: scaled(base.maxHp, stats.con),
     attack: base.attack === 0 ? 0 : scaled(base.attack, stats.str),
     defense: scaled(base.defense, stats.stm),
@@ -192,6 +206,7 @@ export function deriveCombatStats(cls: UnitClassDefinition, merc: Mercenary): Un
     magicDefense: scaled(base.magicDefense, stats.spi),
     meleeRange: base.meleeRange,
   };
+  return applySupports(derived, merc.supports);
 }
 
 /** Validate untrusted (saved) input and return a sanitized copy, or null. */
@@ -248,6 +263,12 @@ export function parseMercenary(value: unknown): Mercenary | null {
   const sp = (merc.stats as Partial<MercenaryStats>).sp;
   if (!Number.isInteger(sp) || sp! < 0 || sp! > 9999) return null;
   stats.sp = sp!;
+  const pattern =
+    merc.pattern === undefined
+      ? legacyPattern(merc.id, merc.classId)
+      : parsePattern(merc.classId, merc.pattern);
+  if (!pattern) return null;
+  const supports = fitSupports(merc.supports, merc.level!, stats.sp);
   return {
     id: merc.id,
     name: merc.name,
@@ -256,7 +277,27 @@ export function parseMercenary(value: unknown): Mercenary | null {
     exp,
     statPoints,
     invested,
+    pattern,
+    supports,
     aptitudes,
     stats,
   };
+}
+
+/** A stable stand-in pattern for mercenaries saved before patterns existed. */
+function legacyPattern(id: string, classId: string): PatternStep[] {
+  let hash = 0;
+  for (const char of id) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+  return rollPattern(classId, seededRandom(hash));
+}
+
+/** Keeps the equipped supports that are known, unlocked and affordable, in order. */
+function fitSupports(value: unknown, level: number, sp: number): string[] {
+  const kept: string[] = [];
+  for (const id of Array.isArray(value) ? value : []) {
+    const skill = typeof id === 'string' ? supportSkill(id) : undefined;
+    if (!skill || kept.includes(skill.id) || skill.level > level) continue;
+    if (supportCost([...kept, skill.id]) <= sp) kept.push(skill.id);
+  }
+  return kept;
 }

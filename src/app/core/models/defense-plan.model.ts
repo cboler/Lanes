@@ -1,5 +1,6 @@
 import { Mercenary, parseMercenary } from './mercenary.model';
-import { UnitClassDefinition, getClassDefinition } from './unit-class.model';
+import { AbilityDefinition } from './ability.model';
+import { knownAbilities } from './skills.model';
 
 export const DEFENSE_PRIORITIES = ['lowest-hp', 'closest', 'leader', 'front-lane'] as const;
 export type DefenseTargetPriority = (typeof DEFENSE_PRIORITIES)[number];
@@ -48,7 +49,8 @@ export function createDefaultDefensePlan(roster: readonly Mercenary[]): DefenseP
   };
 }
 
-function parseOrders(cls: UnitClassDefinition, value: unknown): DefenseOrder[] | null {
+/** Orders may use Guard, auto, or any skill the defender knows at its level. */
+function parseOrders(known: readonly AbilityDefinition[], value: unknown): DefenseOrder[] | null {
   if (!Array.isArray(value) || value.length !== 4) return null;
   const orders: DefenseOrder[] = [];
   for (const raw of value as unknown[]) {
@@ -57,7 +59,7 @@ function parseOrders(cls: UnitClassDefinition, value: unknown): DefenseOrder[] |
     if (
       typeof order.abilityId !== 'string' ||
       (!['auto', 'guard'].includes(order.abilityId) &&
-        !cls.abilities.some((ability) => ability.id === order.abilityId)) ||
+        !known.some((ability) => ability.id === order.abilityId)) ||
       !DEFENSE_PRIORITIES.includes(order.targetPriority as DefenseTargetPriority)
     )
       return null;
@@ -102,7 +104,7 @@ export function parseDefensePlan(
       if (current && current.classId === mercenary!.classId) mercenary = structuredClone(current);
     }
     if (!mercenary || members.some((member) => member.mercenary.id === mercenary!.id)) return null;
-    const orders = parseOrders(getClassDefinition(mercenary.classId), raw.orders);
+    const orders = parseOrders(knownAbilities(mercenary), raw.orders);
     if (!orders) return null;
     members.push({ mercenary, orders });
   }

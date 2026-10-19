@@ -184,11 +184,47 @@ Spec 1.2.1 and the MVP table's "Post-Battle EXP Gain & Leveling", "Post-Battle C
   - e2e: the auto-battle test checks the payout and the purse on the Roster page; roster.spec checks hiring, refreshing and dismissing.
 - **Not done:** skill patterns (classes have only three skills each), support skills that spend SP, scrolls or items, and a guild hub screen. Gold has no use besides hiring yet.
 
+## Skill patterns and support skills (2026-10-19)
+
+Spec 1.2.3 and the MVP table's "Mercenary Hiring (with random aptitudes & skill patterns)".
+
+- **Skills:**
+  - UnitClassDefinition.abilities stay the three core skills, known from level 1. advancedAbilities adds three per class (18 in all).
+  - AbilityDefinition gains an optional `status` `{ type, duration, potency }` and the target 'self'.
+  - Bulwark is now just `target: 'self'` with a defense-up status; its special cases in the executor are gone.
+  - A powerMultiplier of 0 is a pure buff: no numbers, and the status lands on every target. It refuses when every target already has that status at least as strong ("X is already active.").
+  - Damaging skills leave their status on every target still standing. A miss lands nothing.
+  - UnitInstance.refreshStatusEffect replaces a status of the same type, so effects refresh rather than stack.
+- **Patterns:** src/app/core/models/skills.model.ts.
+  - rollPattern picks 2 of the 3 advanced skills, learned in levels 2–4 and 5–8.
+  - knownAbilities(merc) = core skills + pattern skills at or below the mercenary's level.
+  - Mercenary.pattern is rolled last in generateMercenary, so earlier rolls are unchanged. Saves without a pattern get a stable one seeded from the mercenary's id hash.
+  - UnitInstance.abilities (constructor option) holds a mercenary's known skills; class troops keep the core three. Everything reads unit.abilities, not classDef.abilities: the executor's ownership check, AI, chains, hotkeys 1–5 and the skill list.
+  - Defense orders validate against the defender's known skills. Swapping a defender resets only the orders the newcomer doesn't know.
+- **Supports:**
+  - SUPPORT_SKILLS: Iron Skin 4 SP, Vigor 4, Precision Fire 5 (from Lv 2), Rhythm 5 (Lv 2), Fleet Foot 5 (Lv 3), Second Wind 5 (Lv 3), Might 8 (Lv 5). Starting SP is 10, plus 1 per level.
+  - Stat supports scale derived stats by +10% (applySupports inside deriveCombatStats).
+  - Precision Fire makes aimSweepMs 25% longer. Rhythm widens justWindow by a quarter of its length on each side.
+  - parseMercenary keeps only the supports that are known, unlocked and affordable.
+  - RosterService.toggleSupport equips and unequips.
+- **UI:**
+  - Roster cards have a "Skills & supports" `<details>` with skill chips (locked ones show their level) and support buttons ("<Support> for <Name>: …", aria-pressed).
+  - Recruit cards show "Learns X (Lv n), Y (Lv m)", and the War Room dossier lists the advanced pool.
+  - Units show status badges (.status-badge, .harmful).
+  - The result screen lists "Learned X"; MercenaryReward.learned holds the names.
+  - Pure buffs glow on the stage instead of flinching (StageAction effect isBuff), and every new skill has a LOOKS entry reusing existing deliveries.
+- **Tests:** skills.model.spec.ts, plus status, pattern, support and defense-order cases: 251 unit tests pass. New e2e tests cover equipping a support and a level-9 Brenna using Pinning Shot (STUN badge).
+- **Not done:**
+  - Grimoires and scrolls, plus Tactics and Charm scrolls (aptitude upgrades and respecs).
+  - Status visuals on the 3D stage beyond badges.
+  - AI use of pure buffs (the AI only picks damaging or healing skills).
+  - With five skills, the desktop command deck grows about 50 px.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
 2. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
-3. Skill patterns and support skills (spec 1.2.3): give each class a larger skill pool, roll a learning pattern per recruit, learn skills by level, and let SP equip passive support skills. This gives gold, levels and the recruit hunt more meaning.
+3. Teach the role AI to use pure buffs (Rally, Sanctuary, Battle Trance) and debuffs sensibly, and show statuses on the 3D stage (stun stars, poison tint, buff auras) beyond the HTML badges.
 
 ## Request, references, and constraints
 

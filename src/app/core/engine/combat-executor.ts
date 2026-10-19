@@ -36,6 +36,8 @@ export class CombatExecutor {
     const allies = living.filter((u) => u.team === attacker.team);
 
     switch (ability.target) {
+      case 'self':
+        return attacker.isAlive ? [attacker] : [];
       case 'single-enemy': {
         const laneEnemies = enemies.filter((e) => e.lane === attacker.lane);
         if (laneEnemies.length === 0) return [];
@@ -51,7 +53,6 @@ export class CombatExecutor {
         return [frontmost];
       }
       case 'single-ally':
-        if (ability.id === 'bulwark') return allies.filter((a) => a === attacker);
         return allies.filter((a) => a.lane === attacker.lane);
       case 'same-lane-enemies':
         return enemies.filter((e) => e.lane === attacker.lane);
@@ -88,7 +89,7 @@ export class CombatExecutor {
       return { success: false, failureReason: 'Attacker is stunned.', effects: [] };
     }
 
-    if (!attacker.classDef.abilities.includes(ability)) {
+    if (!attacker.abilities.includes(ability)) {
       return {
         success: false,
         failureReason: 'Ability does not belong to this unit.',
@@ -108,31 +109,39 @@ export class CombatExecutor {
       return { success: false, failureReason: 'Invalid ability targets.', effects: [] };
     }
 
-    if (ability.id === 'bulwark' && attacker.hasEffect('defense-up')) {
-      return { success: false, failureReason: 'Bulwark is already active.', effects: [] };
+    // A pure buff that every target already has at full strength would waste the AP.
+    const status = ability.status;
+    if (
+      ability.powerMultiplier === 0 &&
+      status &&
+      selectedTargets.every((target) =>
+        target.statusEffects.some(
+          (effect) =>
+            effect.type === status.type && !effect.isExpired && effect.potency >= status.potency,
+        ),
+      )
+    ) {
+      return { success: false, failureReason: `${ability.name} is already active.`, effects: [] };
     }
 
     if (!attacker.actionGauge.trySpend(ability.actionCost)) {
       return { success: false, failureReason: 'Insufficient action gauge.', effects: [] };
     }
 
-    // Bulwark is the only MVP self buff; a general skill-effect system can replace this as classes expand.
-    if (ability.id === 'bulwark') {
-      attacker.applyStatusEffect(new StatusEffectInstance('defense-up', 2, 25));
+    // A pure buff or debuff: no numbers, only the status.
+    if (ability.powerMultiplier === 0) {
       return {
         success: true,
-        effects: [
-          {
-            target: attacker,
-            amount: 0,
-            guardAbsorbed: 0,
-            statusApplied: 'defense-up',
-            isHealing: false,
-            wasDefeated: false,
-            isFriendlyFire: false,
-            missed: false,
-          },
-        ],
+        effects: selectedTargets.map((target) => ({
+          target,
+          amount: 0,
+          guardAbsorbed: 0,
+          statusApplied: this.applyStatus(ability, target),
+          isHealing: false,
+          wasDefeated: false,
+          isFriendlyFire: false,
+          missed: false,
+        })),
       };
     }
 
@@ -187,6 +196,7 @@ export class CombatExecutor {
           target,
           amount,
           guardAbsorbed: 0,
+          statusApplied: this.applyStatus(ability, target),
           isHealing: true,
           wasDefeated: false,
           isFriendlyFire: false,
@@ -203,6 +213,7 @@ export class CombatExecutor {
           target,
           amount,
           guardAbsorbed: guardBefore - target.guardPoints,
+          statusApplied: this.applyStatus(ability, target),
           isHealing: false,
           wasDefeated,
           isFriendlyFire,
@@ -212,5 +223,18 @@ export class CombatExecutor {
     }
 
     return { success: true, effects };
+  }
+
+  /** Leaves the skill's status on a target still standing; returns its type if applied. */
+  private static applyStatus(
+    ability: AbilityDefinition,
+    target: UnitInstance,
+  ): StatusEffectType | undefined {
+    const status = ability.status;
+    if (!status || !target.isAlive) return undefined;
+    target.refreshStatusEffect(
+      new StatusEffectInstance(status.type, status.duration, status.potency),
+    );
+    return status.type;
   }
 }

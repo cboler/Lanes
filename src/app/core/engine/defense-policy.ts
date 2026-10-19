@@ -12,7 +12,9 @@ export function chooseDefenseTarget(
 ): UnitInstance | null {
   const legal = CombatExecutor.getValidTargets(attacker, ability, units);
   const valid =
-    ability.damageType === 'healing' ? legal.filter((unit) => unit.currentHp < unit.maxHp) : legal;
+    ability.damageType === 'healing' && ability.powerMultiplier > 0
+      ? legal.filter((unit) => unit.currentHp < unit.maxHp)
+      : legal;
   if (!valid.length) return null;
   switch (priority) {
     case 'lowest-hp':

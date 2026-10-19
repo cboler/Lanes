@@ -272,6 +272,22 @@
               </div>
             }
           </div>
+          <h3>Advanced Skills</h3>
+          <p class="ab-desc">
+            Each mercenary's skill pattern teaches two of these, at levels rolled when it is
+            created. Check a recruit's pattern before hiring.
+          </p>
+          <div class="dossier-abilities advanced">
+            @for (ability of activeCls.advancedAbilities; track ability.id) {
+              <div class="dossier-ability-item">
+                <div class="ab-header">
+                  <span class="ab-name">{{ ability.name }}</span>
+                  <span class="ab-cost">{{ ability.actionCost }} AP</span>
+                </div>
+                <p class="ab-desc">{{ ability.description }}</p>
+              </div>
+            }
+          </div>
         </div>
 
         <!-- Assignment Controls -->

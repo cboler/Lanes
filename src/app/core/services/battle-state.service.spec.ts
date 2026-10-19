@@ -342,6 +342,18 @@ describe('BattleStateService', () => {
     expect(service.battleReport()).toBeNull();
   });
 
+  it('fields mercenaries with the skills their level has taught, and their supports', () => {
+    const veteran = { ...defender, level: 99, supports: ['vigor'] };
+    service.deployMercenaries([veteran]);
+    const unit = service.playerUnits()[0];
+    expect(unit.abilities).toHaveLength(5);
+    expect(unit.abilities.map((a) => a.id)).toContain(defender.pattern[1].id);
+    expect(unit.supports).toEqual(['vigor']);
+    expect(unit.maxHp).toBe(198);
+    service.deployMercenaries([defender]);
+    expect(service.playerUnits()[0].abilities).toHaveLength(3);
+  });
+
   it('refreshes squad sheets for the next restart', () => {
     service.deployMercenaries([defender]);
     service.refreshMercenaries([{ ...defender, stats: { ...defender.stats, con: 30 } }]);

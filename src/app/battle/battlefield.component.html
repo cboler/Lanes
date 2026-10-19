@@ -142,6 +142,9 @@
                 @if (unit.guardPoints > 0) {
                   <span class="guard-badge">🛡 {{ unit.guardPoints }} Guard</span>
                 }
+                @for (badge of statusBadges(unit); track badge.key) {
+                  <span class="status-badge" [class.harmful]="badge.harmful">{{ badge.text }}</span>
+                }
                 @if (hasAdvantage(unit)) {
                   <span class="advantage-badge">▲ +25%</span>
                 }
@@ -352,7 +355,7 @@
 
         @if (battle.canPlayerAct()) {
           <div class="skill-list" role="group" aria-label="Available Abilities">
-            @for (ability of active.classDef.abilities; track ability.id; let idx = $index) {
+            @for (ability of active.abilities; track ability.id; let idx = $index) {
               <button
                 type="button"
                 class="skill-btn"
@@ -498,7 +501,7 @@
 
   <p class="combat-guide">
     Melee → Ranged → Magic → Melee: +25% damage. Movement spends MG; skills spend AP; unspent AP
-    becomes Guard. Keys: A/D move · W/S lane · 1–3 skills · Enter confirm · E end turn.
+    becomes Guard. Keys: A/D move · W/S lane · 1–5 skills · Enter confirm · E end turn.
   </p>
 
   @if (battle.battleStatus() !== 'active') {
@@ -521,10 +524,13 @@
             <ul class="reward-list">
               @for (merc of paid.mercenaries; track merc.id) {
                 <li>
-                  <span class="reward-name">{{ merc.name }}</span>
-                  <span class="reward-exp">+{{ merc.exp }} EXP</span>
+                  <strong>{{ merc.name }}</strong>
+                  <span>+{{ merc.exp }} EXP</span>
                   @if (merc.levelsGained > 0) {
-                    <span class="reward-level">Level {{ merc.level }}!</span>
+                    <b>Level {{ merc.level }}!</b>
+                  }
+                  @for (skill of merc.learned; track skill) {
+                    <i>Learned {{ skill }}</i>
                   }
                 </li>
               }

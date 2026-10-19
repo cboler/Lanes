@@ -2,6 +2,7 @@ import { ActionGauge } from '../engine/action-gauge';
 import { StatusEffectInstance, StatusEffectType } from './status-effect.model';
 import { UnitClassDefinition } from './unit-class.model';
 import { UnitBaseStats } from './stats.model';
+import { AbilityDefinition } from './ability.model';
 
 export type Team = 'player' | 'enemy';
 
@@ -16,6 +17,10 @@ export class UnitInstance {
   public readonly actionGauge: ActionGauge;
   public readonly moveGauge = new ActionGauge(100);
   public guardPoints = 0;
+  /** The skills this unit can use: its class's, or a mercenary's known skills. */
+  public readonly abilities: readonly AbilityDefinition[];
+  /** Equipped support skill ids; stat bonuses are already in the stats. */
+  public readonly supports: readonly string[];
   private readonly statsOverride?: UnitBaseStats;
   private readonly _statusEffects: StatusEffectInstance[] = [];
 
@@ -28,7 +33,10 @@ export class UnitInstance {
     gaugeMax = 100,
     id?: string,
     statsOverride?: UnitBaseStats,
+    skills: { abilities?: readonly AbilityDefinition[]; supports?: readonly string[] } = {},
   ) {
+    this.abilities = skills.abilities ?? classDef.abilities;
+    this.supports = skills.supports ?? [];
     this.statsOverride = statsOverride;
     this.classDef = classDef;
     this.name = name;
@@ -138,6 +146,14 @@ export class UnitInstance {
   }
 
   public applyStatusEffect(effect: StatusEffectInstance): void {
+    this._statusEffects.push(effect);
+  }
+
+  /** Applies a status, replacing any of the same type, so recasting refreshes instead of stacking. */
+  public refreshStatusEffect(effect: StatusEffectInstance): void {
+    for (let i = this._statusEffects.length - 1; i >= 0; i--) {
+      if (this._statusEffects[i].type === effect.type) this._statusEffects.splice(i, 1);
+    }
     this._statusEffects.push(effect);
   }
 

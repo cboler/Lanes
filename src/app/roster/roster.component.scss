@@ -201,3 +201,82 @@
 .hire-btn {
   min-height: 44px;
 }
+.skills-panel {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+
+  summary {
+    min-height: 32px;
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--color-gold-antique);
+  }
+
+  h3 {
+    margin: var(--space-2) 0 var(--space-1);
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+.skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 2px 8px;
+    border: 1px solid var(--border-gilded);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+
+    &.locked {
+      border-style: dashed;
+      color: var(--text-muted);
+    }
+  }
+}
+.support-list {
+  display: grid;
+  gap: 4px;
+}
+.support-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 2px 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: #121a2b;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  text-align: left;
+  cursor: pointer;
+
+  &.equipped {
+    border-color: #7dffb2;
+    background: #12261c;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  small {
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+}
+.pattern-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: #9dd3ff;
+}

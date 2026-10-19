@@ -8,13 +8,17 @@ const resolve = (time: Time | undefined, speed: number) =>
 
 describe('skill looks', () => {
   it('styles every skill in the game', () => {
-    const skills = ALL_CLASSES.flatMap((unitClass) => unitClass.abilities.map((a) => a.id));
+    const skills = ALL_CLASSES.flatMap((unitClass) =>
+      [...unitClass.abilities, ...unitClass.advancedAbilities].map((a) => a.id),
+    );
     expect(skills.length).toBeGreaterThan(0);
     expect(skills.filter((id) => !(id in LOOKS))).toEqual([]);
   });
 
   it('has no look for a skill that does not exist', () => {
-    const skills = new Set(ALL_CLASSES.flatMap((u) => u.abilities.map((a) => a.id)));
+    const skills = new Set(
+      ALL_CLASSES.flatMap((u) => [...u.abilities, ...u.advancedAbilities].map((a) => a.id)),
+    );
     expect(Object.keys(LOOKS).filter((id) => !skills.has(id))).toEqual([]);
   });
 

@@ -8,6 +8,13 @@ import {
   ROSTER_LIMIT,
   expToNext,
 } from '../core/models/progression.model';
+import {
+  SUPPORT_SKILLS,
+  SupportSkill,
+  canEquipSupport,
+  patternSkill,
+  supportCost,
+} from '../core/models/skills.model';
 import { BattleStateService } from '../core/services/battle-state.service';
 import { RosterService, SQUAD_LIMIT } from '../core/services/roster.service';
 
@@ -31,6 +38,38 @@ export class RosterComponent {
   protected readonly refreshCost = REFRESH_COST;
   /** The mercenary whose Dismiss button is waiting for a second press. */
   protected readonly confirmingDismiss = signal<string | null>(null);
+
+  protected readonly supportSkills = SUPPORT_SKILLS;
+
+  /** Core skills, then the pattern's skills with the level each is learned at. */
+  protected skillList(merc: Mercenary): { name: string; level: number; known: boolean }[] {
+    return [
+      ...this.roster.classOf(merc).abilities.map((a) => ({ name: a.name, level: 1, known: true })),
+      ...merc.pattern.map((step) => ({
+        name: patternSkill(merc.classId, step).name,
+        level: step.level,
+        known: step.level <= merc.level,
+      })),
+    ];
+  }
+
+  protected patternSummary(merc: Mercenary): string {
+    return merc.pattern
+      .map((step) => `${patternSkill(merc.classId, step).name} (Lv ${step.level})`)
+      .join(', ');
+  }
+
+  protected spUsed(merc: Mercenary): number {
+    return supportCost(merc.supports);
+  }
+
+  protected equipped(merc: Mercenary, support: SupportSkill): boolean {
+    return merc.supports.includes(support.id);
+  }
+
+  protected canEquip(merc: Mercenary, support: SupportSkill): boolean {
+    return canEquipSupport(merc, support.id);
+  }
 
   protected inSquad(merc: Mercenary): boolean {
     return this.roster.squadIds().includes(merc.id);

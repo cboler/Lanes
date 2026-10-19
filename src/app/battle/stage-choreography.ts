@@ -92,7 +92,7 @@ export function createChoreography(
       );
       return;
     }
-    if (effect.isHealing) {
+    if (effect.isHealing || effect.isBuff) {
       for (let i = 0; i < 18; i++) {
         particles.spawn(
           scratch.set(at.x + (random() - 0.5) * 1.1, random() * 0.6, at.z + (random() - 0.5) * 0.4),

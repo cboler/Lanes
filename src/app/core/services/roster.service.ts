@@ -21,6 +21,7 @@ import {
   investPoint,
 } from '../models/progression.model';
 import { getClassDefinition } from '../models/unit-class.model';
+import { canEquipSupport, patternSkill } from '../models/skills.model';
 
 // The key predates version 2 saves; the data carries its own version.
 const STORAGE_KEY = 'lanes.roster.v1';
@@ -118,6 +119,21 @@ export class RosterService {
     return true;
   }
 
+  /** Equips a support skill if level and SP allow, or takes it off. */
+  public toggleSupport(id: string, supportId: string): boolean {
+    const merc = this.mercenaries().find((m) => m.id === id);
+    if (!merc) return false;
+    if (merc.supports.includes(supportId)) {
+      this.replace({ ...merc, supports: merc.supports.filter((s) => s !== supportId) });
+    } else if (canEquipSupport(merc, supportId)) {
+      this.replace({ ...merc, supports: [...merc.supports, supportId] });
+    } else {
+      return false;
+    }
+    this.persist();
+    return true;
+  }
+
   public invest(id: string, stat: PrimaryStat): boolean {
     const merc = this.mercenaries().find((m) => m.id === id);
     const next = merc && investPoint(merc, stat);
@@ -140,8 +156,18 @@ export class RosterService {
       const exp = battleExp(report, merc, survived);
       const next = gainExp(merc, exp);
       this.replace(next);
+      const learned = merc.pattern
+        .filter((step) => step.level > merc.level && step.level <= next.level)
+        .map((step) => patternSkill(merc.classId, step).name);
       return [
-        { id, name: merc.name, exp, level: next.level, levelsGained: next.level - merc.level },
+        {
+          id,
+          name: merc.name,
+          exp,
+          level: next.level,
+          levelsGained: next.level - merc.level,
+          learned,
+        },
       ];
     });
     const rewards: BattleRewards = { gold: battleGold(report), mercenaries };

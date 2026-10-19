@@ -71,4 +71,12 @@ describe('execution', () => {
     expect(chainGrade(CHAIN_WINDOW.justFrom * 0.45, 0.45)).toBe('just');
     expect(chainGrade(CHAIN_WINDOW.close * 0.5, 0.45)).toBeNull();
   });
+
+  it('slows the cursor with Precision Fire and widens the flash with Rhythm', () => {
+    const shot = ability(ARCHER_CLASS, 'quick_shot');
+    expect(aimSweepMs(shot, ['precision_fire'])).toBe(Math.round(aimSweepMs(shot) * 1.25));
+    const early = CHAIN_WINDOW.justFrom - 30;
+    expect(chainGrade(early)).toBe('chain');
+    expect(chainGrade(early, 1, ['rhythm'])).toBe('just');
+  });
 });

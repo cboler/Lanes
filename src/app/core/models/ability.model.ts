@@ -1,9 +1,11 @@
 import { DamageType } from './stats.model';
+import { StatusEffectType } from './status-effect.model';
 
 /**
  * Defines valid targeting scopes for an ability.
  */
 export type AbilityTarget =
+  | 'self'
   | 'single-enemy'
   | 'single-ally'
   | 'same-lane-enemies'
@@ -11,6 +13,15 @@ export type AbilityTarget =
   | 'single-ally-any-lane'
   | 'all-enemies'
   | 'all-allies';
+
+/** A status a skill leaves on everyone it hits (or buffs). Recasting refreshes it rather than stacking. */
+export interface AbilityStatus {
+  readonly type: StatusEffectType;
+  /** Turns it lasts, counted at the end of the target's own turns. */
+  readonly duration: number;
+  /** Stat change for buffs and debuffs, or damage per turn for poison. */
+  readonly potency: number;
+}
 
 /**
  * Immutable definition of a single combat ability.
@@ -21,8 +32,10 @@ export interface AbilityDefinition {
   readonly description: string;
   readonly actionCost: number;
   readonly damageType: DamageType;
+  /** 0 for a pure buff or debuff: no damage, only the status. */
   readonly powerMultiplier: number;
   readonly target: AbilityTarget;
   readonly crossLane?: boolean;
   readonly friendlyFire?: boolean;
+  readonly status?: AbilityStatus;
 }

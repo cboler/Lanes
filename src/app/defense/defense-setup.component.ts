@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { getClassDefinition } from '../core/models/unit-class.model';
+import { knownAbilities } from '../core/models/skills.model';
 import {
   DEFENSE_LIMIT,
   DEFENSE_PRIORITIES,
@@ -54,9 +55,8 @@ export class DefenseSetupComponent {
     if (abilityId === 'auto') return 'Auto fallback';
     if (abilityId === 'guard') return 'Guard and end';
     return (
-      getClassDefinition(member.mercenary.classId).abilities.find(
-        (ability) => ability.id === abilityId,
-      )?.name ?? abilityId
+      knownAbilities(member.mercenary).find((ability) => ability.id === abilityId)?.name ??
+      abilityId
     );
   }
 
@@ -70,7 +70,7 @@ export class DefenseSetupComponent {
   }
 
   protected hasTargetChoice(member: DefenseMember, abilityId: string): boolean {
-    return getClassDefinition(member.mercenary.classId).abilities.some(
+    return knownAbilities(member.mercenary).some(
       (ability) => ability.id === abilityId && ability.target.startsWith('single-'),
     );
   }
@@ -93,7 +93,11 @@ export class DefenseSetupComponent {
     this.update((plan) => {
       const member = plan.members[index];
       // Another class has different skills; never leave invalid actions behind.
-      if (next.classId !== member.mercenary.classId) member.orders = autoOrders();
+      // The newcomer may not know every skill the orders name; those fall back to auto.
+      const known = knownAbilities(next).map((ability) => ability.id);
+      member.orders = member.orders.map((order) =>
+        ['auto', 'guard', ...known].includes(order.abilityId) ? order : autoOrders()[0],
+      );
       member.mercenary = structuredClone(next);
     });
   }
@@ -117,7 +121,7 @@ export class DefenseSetupComponent {
       const options = [
         'auto',
         'guard',
-        ...getClassDefinition(member.mercenary.classId).abilities.map((ability) => ability.id),
+        ...knownAbilities(member.mercenary).map((ability) => ability.id),
       ];
       const order = member.orders[turnIndex];
       order.abilityId = options[(options.indexOf(order.abilityId) + 1) % options.length];

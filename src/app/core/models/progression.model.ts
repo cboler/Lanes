@@ -46,6 +46,8 @@ export interface MercenaryReward {
   readonly exp: number;
   readonly level: number;
   readonly levelsGained: number;
+  /** Names of pattern skills learned by the levels gained. */
+  readonly learned: readonly string[];
 }
 
 export interface BattleRewards {
