@@ -220,6 +220,26 @@ Spec 1.2.3 and the MVP table's "Mercenary Hiring (with random aptitudes & skill 
   - AI use of pure buffs (the AI only picks damaging or healing skills).
   - With five skills, the desktop command deck grows about 50 px.
 
+## Battle screen fits the window (2026-10-19)
+
+The user wants the battle page never to scroll: "that doesn't make for a fun game".
+
+- **Shell:**
+  - BattlefieldComponent adds body.battle-screen while it is shown. Rules in src/styles.scss then size the shell to 100dvh: a one-row header whose nav scrolls sideways, no footer, and app-battlefield takes the rest.
+  - Short landscape screens (max-height 500px) hide the site header; the battle toolbar still links to the War Room and Defense.
+  - Menu pages keep the normal scrolling shell.
+- **Battle:**
+  - The container is a flex column; .arena-viewport flexes (min 150px) instead of a fixed clamp height, and the stage camera already fits whatever size it gets.
+  - The toolbar stays one row and scrolls sideways when narrow. Skill buttons are 34px.
+- **Layout file:** the responsive rules now live in src/app/battle/battlefield-layout.scss, the component's second styleUrl. This keeps both files under the 20 kB per-stylesheet budget.
+  - Phone portrait: skills beside the gauges, a compact dossier, and a one-line Guard & End.
+  - Short landscape: a grid with the deck beside the stage, scrolling inside the deck if needed.
+  - The combat guide line hides under 900px.
+- **Tests:**
+  - A new e2e test checks scrollHeight ≤ innerHeight at all four viewports, even with five skills, and that the turn's controls are on screen.
+  - The smoke test checks the full shell (footer, brand) on /status. The controller test starts its D-pad navigation on /status.
+  - Menus (Roster, War Room) may still scroll.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.

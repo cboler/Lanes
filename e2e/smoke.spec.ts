@@ -14,9 +14,8 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
       consoleErrors.push(err.message);
     });
 
-    await page.goto('/');
-
-    // 1. Root shell and brand verification
+    // 1. The full shell shows on menu pages; the battle screen trims it to fit the window.
+    await page.goto('/status');
     await expect(page.locator('.brand-title')).toBeVisible();
     await expect(page.locator('#starter-title')).toHaveText('Lanes');
 
@@ -24,6 +23,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     await expect(page.locator('header[role="banner"]')).toBeVisible();
     await expect(page.locator('main[role="main"]')).toBeVisible();
     await expect(page.locator('footer[role="contentinfo"]')).toBeVisible();
+    await page.goto('/');
 
     // 3. Prevent accidental horizontal overflow
     const hasHorizontalOverflow = await page.evaluate(() => {
@@ -35,8 +35,8 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     const lanes = page.locator('.combat-lane');
     await expect(lanes).toHaveCount(3);
 
-    // 5. Navigate to Squad Builder
-    const squadLink = page.locator('#nav-link-squad');
+    // 5. Navigate to Squad Builder (the battle toolbar's War Room link shows at every size)
+    const squadLink = page.locator('#squad-builder-link');
     await expect(squadLink).toBeVisible();
     await squadLink.click();
 
@@ -53,7 +53,9 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     await expect(page).toHaveURL(/\/?$/);
     await expect(page.locator('.battlefield-container')).toBeVisible();
 
-    // 7. Client-side navigation to status screen
+    // 7. Client-side navigation to status screen, from a menu page where the site nav shows
+    await page.locator('#squad-builder-link').click();
+    await expect(page).toHaveURL(/.*squad/);
     const statusLink = page.locator('#nav-link-status');
     await expect(statusLink).toBeVisible();
     await statusLink.click();
@@ -71,7 +73,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 8. Return to battlefield
     await page.locator('#back-home-link').click();
     await expect(page).toHaveURL(/\/?$/);
-    await expect(page.locator('#starter-title')).toBeVisible();
+    await expect(page.locator('.battlefield-container')).toBeVisible();
 
     // 9. Zero unhandled console errors or exceptions
     expect(consoleErrors).toEqual([]);

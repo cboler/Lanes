@@ -1,5 +1,8 @@
+/* The battle fills the space the shell gives it; only the stage stretches. */
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .battlefield-container {
@@ -10,17 +13,19 @@
   --gild: #b8892a;
   position: relative;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 6px;
+  min-height: 0;
   color: var(--text-primary);
 }
 
 /* ---- Toolbar -------------------------------------------------------------- */
 .top-tactical-bar {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
   background: var(--bg-surface);
@@ -51,8 +56,15 @@
 
 .top-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  .tactical-btn {
+    flex: none;
+    white-space: nowrap;
+  }
 
   a.tactical-btn {
     display: inline-flex;
@@ -78,7 +90,8 @@
   --stage-safe-top: 60px;
   --stage-safe-bottom: 64px;
   position: relative;
-  height: clamp(300px, calc(100dvh - 340px), 660px);
+  flex: 1 1 auto;
+  min-height: 150px;
   overflow: hidden;
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-md);
@@ -843,6 +856,11 @@
 }
 
 /* ---- Command deck ---------------------------------------------------------- */
+.bottom-command-deck {
+  flex: none;
+  min-height: 0;
+}
+
 .active-unit-panel {
   display: grid;
   grid-template-columns: minmax(220px, 1.1fr) minmax(210px, 1fr) minmax(250px, 1.2fr) auto;
@@ -973,7 +991,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  min-height: 40px;
+  min-height: 34px;
   padding: 2px 8px;
   border: 1px solid #2d3b55;
   border-radius: var(--radius-sm);
@@ -1189,6 +1207,7 @@
 }
 
 .combat-guide {
+  flex: none;
   margin: 0;
   font-size: var(--font-size-xs);
   color: var(--text-muted);
@@ -1337,80 +1356,4 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
-}
-
-/* ---- Small screens ------------------------------------------------------------ */
-@media (max-width: 900px) {
-  .active-unit-panel {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .end-turn-btn {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 600px) {
-  .arena-viewport {
-    --stage-safe-top: 46px;
-    --stage-safe-bottom: 56px;
-    height: clamp(260px, 68vw, 420px);
-  }
-
-  .active-unit-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .troop-crest {
-    width: 30px;
-    height: 34px;
-    font-size: 1rem;
-  }
-
-  .troop-name {
-    min-width: 0;
-    font-size: 0.68rem;
-  }
-
-  .turn-token {
-    width: 28px;
-    height: 32px;
-
-    &.enemy {
-      width: 30px;
-      height: 30px;
-    }
-
-    &.active {
-      width: 36px;
-      height: 40px;
-    }
-  }
-
-  .targeting-hint {
-    display: none;
-  }
-
-  /* Crowded small stages show names only where attention is. */
-  .unit-name {
-    display: none;
-
-    .acting-unit &,
-    .selected-target & {
-      display: block;
-    }
-  }
-
-  .hp-track {
-    width: 40px;
-    height: 5px;
-  }
-
-  .leader-tag {
-    font-size: 0.5rem;
-  }
-
-  .top-actions .tactical-btn {
-    padding: 0 10px;
-  }
 }

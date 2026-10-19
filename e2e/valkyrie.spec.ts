@@ -287,10 +287,9 @@ test('standard controller navigates the squad screen, confirms targets, and move
 }) => {
   await timingOff(page);
   await installController(page);
-  await page.goto('/');
+  // Start on a menu page: a short landscape battle screen hides the site navigation.
+  await page.goto('/status');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
-  // Wait for the stage so its start-up cannot stretch a button press into a held repeat.
-  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);
   await page.locator('#nav-link-home').focus();
   await tap(page, { buttons: [15] });
@@ -302,6 +301,9 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await controller(page, { buttons: [0] });
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await controller(page);
+  // Wait for the stage so its start-up cannot stretch a button press into a held repeat.
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
+  await frames(page);
 
   await page.locator('#ability-btn-quick_shot').focus();
   await controller(page, { buttons: [0] });
@@ -546,4 +548,33 @@ test('a veteran uses a skill its pattern taught, leaving a status on the target'
   await page.locator('#confirm-ability-btn').click();
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '55');
   await expect(page.locator('.enemy-unit .status-badge')).toContainText(['STUN']);
+});
+
+test('the battle screen fits the window without scrolling, even with five skills', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const raw = JSON.parse(localStorage.getItem('lanes.roster.v1')!);
+    // Brenna, who acts first, has learned her whole pattern.
+    raw.mercenaries[1].level = 9;
+    localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
+  });
+  await page.goto('/');
+  await expect(page.locator('.skill-btn')).toHaveCount(5);
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
+  const fits = () =>
+    page.evaluate(() => {
+      const root = document.documentElement;
+      return root.scrollHeight <= innerHeight && root.scrollWidth <= innerWidth;
+    });
+  expect(await fits()).toBe(true);
+  // Every control the turn needs is on screen.
+  for (const id of ['#ability-btn-quick_shot', '#move-right-btn', '#end-turn-btn']) {
+    await expect(page.locator(id)).toBeInViewport();
+  }
+  await page.locator('#ability-btn-quick_shot').click();
+  expect(await fits()).toBe(true);
+  // Menus may scroll; leaving the battle releases the page.
+  await page.goto('/roster');
+  expect(await page.evaluate(() => document.body.classList.contains('battle-screen'))).toBe(false);
 });

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DOCUMENT,
   ElementRef,
   HostListener,
   OnInit,
@@ -51,12 +52,13 @@ const WALK_KEYS = ['a', 'd', 'arrowleft', 'arrowright'];
   standalone: true,
   imports: [RouterLink, BattleStageComponent],
   templateUrl: './battlefield.component.html',
-  styleUrl: './battlefield.component.scss',
+  styleUrls: ['./battlefield.component.scss', './battlefield-layout.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly battle = inject(BattleStateService);
   private readonly roster = inject(RosterService);
+  private readonly document = inject(DOCUMENT);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
@@ -181,6 +183,8 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   }
 
   public ngOnInit(): void {
+    // The game screen fills the window instead of scrolling; see styles.scss.
+    this.document.body.classList.add('battle-screen');
     if (this.battle.units().length === 0) {
       // The first battle of a visit fields the roster's squad.
       this.battle.deployMercenaries(this.roster.squad());
@@ -190,6 +194,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   }
 
   public ngOnDestroy(): void {
+    this.document.body.classList.remove('battle-screen');
     this.stopWalk();
     this.battle.suspend();
   }

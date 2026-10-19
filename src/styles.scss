@@ -303,3 +303,70 @@ button,
   outline: 3px solid #ffd700 !important;
   outline-offset: 4px;
 }
+
+/* ---- Battle screen: one window, no page scroll --------------------------------
+ * BattlefieldComponent marks the body while it is shown. The shell then fills the
+ * window exactly: a one-row header, no footer, and the battle takes the rest. */
+body.battle-screen {
+  height: 100dvh;
+  overflow: hidden;
+
+  .app-layout {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .app-footer {
+    display: none;
+  }
+
+  .app-header {
+    padding-block: 4px;
+  }
+
+  .header-inner {
+    flex-wrap: nowrap;
+  }
+
+  /* The nav scrolls sideways on a narrow screen rather than wrapping into rows. */
+  .app-nav {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-link {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .app-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding: 6px;
+  }
+
+  app-battlefield {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* A short landscape phone gives the stage the header's height; the battle toolbar
+     still links to the War Room and Defense Orders. */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .app-header {
+      display: none;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .brand-text,
+    .crystal-label,
+    .controller-guide span:not(.controller-status) {
+      display: none;
+    }
+  }
+}
