@@ -180,3 +180,28 @@
     padding: 4px var(--space-3);
   }
 }
+
+/* A short screen gets a compact verdict, so its buttons stay in reach. */
+@media (max-height: 500px) {
+  .battle-result-overlay {
+    padding: var(--space-2);
+  }
+
+  .result-dialog {
+    padding: var(--space-3);
+  }
+
+  .result-icon,
+  .result-summary {
+    display: none;
+  }
+
+  .result-heading {
+    margin: 0 0 var(--space-2);
+  }
+
+  .result-rewards {
+    margin-bottom: var(--space-2);
+    padding: var(--space-2);
+  }
+}

@@ -27,6 +27,7 @@ import {
   assistGain,
 } from '../engine/assist';
 import { BattleReport } from '../models/progression.model';
+import { Contract } from '../models/contract.model';
 import { knownAbilities } from '../models/skills.model';
 import {
   CHAIN_WINDOW,
@@ -153,6 +154,8 @@ export class BattleStateService {
   public readonly roundNumber = signal<number>(1);
   public readonly isAiThinking = signal<boolean>(false);
   public readonly practicePlan = signal<DefensePlan | null>(null);
+  /** The guild contract being fought, if any. Kept through restarts. */
+  public readonly activeContract = signal<Contract | null>(null);
 
   // Auto-battle and combat animations
   public readonly isAutoBattle = signal<boolean>(false);
@@ -209,6 +212,17 @@ export class BattleStateService {
   public refreshMercenaries(latest: readonly Mercenary[]): void {
     this.playerMercenaries = this.playerMercenaries.map(
       (merc) => latest.find((m) => m.id === merc?.id) ?? merc,
+    );
+  }
+
+  /** Fights a guild contract: the squad against the contract's band of mercenaries. */
+  public deployContract(contract: Contract, squad: readonly Mercenary[]): void {
+    this.initSkirmish(
+      squad.map((merc) => getClassDefinition(merc.classId)),
+      contract.enemies.map((merc) => getClassDefinition(merc.classId)),
+      undefined,
+      squad,
+      contract,
     );
   }
 
@@ -300,6 +314,8 @@ export class BattleStateService {
     defensePlan?: DefensePlan,
     /** Roster members for the player side, aligned by index with the squad. */
     playerMercenaries?: readonly (Mercenary | undefined)[],
+    /** A guild contract: its band fights in place of class troops. */
+    contract?: Contract,
   ): void {
     const playerSquad = customPlayerSquad ?? this.playerSquad;
     const enemySquad = customEnemySquad ?? this.enemySquad;
@@ -310,9 +326,14 @@ export class BattleStateService {
     this.playerSquad = [...playerSquad];
     if (customPlayerSquad || playerMercenaries) this.playerMercenaries = playerMercenaries ?? [];
     this.enemySquad = [...enemySquad];
-    const activePlan =
-      defensePlan ?? (!customPlayerSquad && !customEnemySquad ? this.practicePlan() : null);
+    // A restart (no arguments) keeps whatever was being fought: practice or a contract.
+    const restart = !customPlayerSquad && !customEnemySquad;
+    const activeContract = contract ?? (restart && !defensePlan ? this.activeContract() : null);
+    const activePlan = activeContract
+      ? null
+      : (defensePlan ?? (restart ? this.practicePlan() : null));
     this.practicePlan.set(activePlan);
+    this.activeContract.set(activeContract);
     this.defenseOrders = new Map();
     this.defenseTurns = new Map();
     this.attemptedDefenseTurns = new Map();
@@ -368,7 +389,7 @@ export class BattleStateService {
         posX = isFront ? 0.86 : 0.68;
       }
       // Defenders are the plan's mercenaries. Practice may pit a mercenary against itself.
-      const merc = activePlan?.members[idx]?.mercenary;
+      const merc = activePlan?.members[idx]?.mercenary ?? activeContract?.enemies[idx];
       const name = !merc
         ? `Enemy ${cls.name}`
         : newUnits.some((u) => u.name === merc.name)
@@ -396,7 +417,9 @@ export class BattleStateService {
     this.combatLogs.set([
       activePlan
         ? '⚔️ Local defense practice commenced. First four defender turns use saved orders.'
-        : '⚔️ Battle commenced! Frontline warriors hold the vanguard.',
+        : activeContract
+          ? `📜 Contract: ${activeContract.title}. The ${activeContract.band} take the field.`
+          : '⚔️ Battle commenced! Frontline warriors hold the vanguard.',
       'Control units manually or toggle Auto-Battle to let tactical AI resolve combat.',
       'Move with MG, attack with AP. Guard converts unspent AP into a shield until your next turn.',
     ]);
@@ -1123,6 +1146,8 @@ export class BattleStateService {
     this.battleReport.set({
       id: `${Date.now().toString(36)}-${this.battleVersion}`,
       outcome: playerLiving ? 'victory' : 'defeat',
+      rewardMultiplier: this.activeContract()?.rewardMultiplier ?? 1,
+      contractId: this.activeContract()?.id,
       enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive).length,
       mercenaries: this.units().flatMap((unit) => {
         const id = this.mercenaryOf.get(unit.id);

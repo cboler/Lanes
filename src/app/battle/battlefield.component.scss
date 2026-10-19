@@ -1134,6 +1134,8 @@
   display: grid;
   padding: var(--space-4);
   place-items: center;
+  /* The battle screen never scrolls, so a tall verdict scrolls inside its overlay. */
+  overflow-y: auto;
   background: rgba(3, 5, 10, 0.72);
   /* Let the final blow land before the verdict covers it. */
   animation: fade-in 0.4s ease 1.5s both;

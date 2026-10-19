@@ -8,6 +8,7 @@ import {
   LANCER_CLASS,
 } from '../models/unit-class.model';
 import { CHAIN_WINDOW } from '../engine/execution';
+import { generateContract } from '../models/contract.model';
 import { StatusEffectInstance } from '../models/status-effect.model';
 import {
   generateMercenary,
@@ -391,6 +392,26 @@ describe('BattleStateService', () => {
     vi.advanceTimersByTime(700);
     expect(service.combatLogs().join(' ')).toContain('Assist!');
     expect(service.assistGauge().enemy).toBeLessThan(100);
+  });
+
+  it('fights a contract band with its own names and stats, keeps it through restarts, and reports its reward', () => {
+    const contract = generateContract('hard', 3, seededRandom(21));
+    service.deployContract(contract, [defender]);
+    expect(service.activeContract()).toBe(contract);
+    expect(service.practicePlan()).toBeNull();
+    const enemies = service.enemyUnits();
+    expect(enemies.map((u) => u.classDef.id)).toEqual(contract.enemies.map((e) => e.classId));
+    expect(enemies[0].maxHp).toBeGreaterThan(enemies[0].classDef.baseStats.maxHp);
+    service.initSkirmish();
+    expect(service.activeContract()).toBe(contract);
+    for (const enemy of service.enemyUnits()) enemy.takeDamage(9999);
+    service.endCurrentTurn(true);
+    expect(service.battleReport()).toEqual(
+      expect.objectContaining({ contractId: contract.id, rewardMultiplier: 2.2 }),
+    );
+    // Any other deployment ends the contract.
+    service.deployMercenaries([defender]);
+    expect(service.activeContract()).toBeNull();
   });
 
   it('refreshes squad sheets for the next restart', () => {

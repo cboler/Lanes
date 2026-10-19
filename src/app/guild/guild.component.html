@@ -1,0 +1,91 @@
+<section class="guild-page" aria-labelledby="guild-title">
+  <header class="guild-header">
+    <div>
+      <h1 id="guild-title">Guild Hall</h1>
+      <p>
+        Take a contract against a band of enemy mercenaries. Bands are scaled to your squad's level,
+        and harder contracts pay more gold and EXP. A won contract leaves the board and a new one is
+        posted; a lost one stays up for another try.
+      </p>
+    </div>
+    <dl class="guild-stats">
+      <div>
+        <dt>Gold</dt>
+        <dd id="guild-gold">{{ roster.gold() }}</dd>
+      </div>
+      <div>
+        <dt>Squad level</dt>
+        <dd id="guild-party-level">{{ guild.partyLevel() }}</dd>
+      </div>
+      <div>
+        <dt>Contracts won</dt>
+        <dd id="guild-completed">{{ guild.completed() }}</dd>
+      </div>
+    </dl>
+  </header>
+
+  <section class="guild-squad" aria-labelledby="squad-title">
+    <h2 id="squad-title">Your squad</h2>
+    <ul class="squad-strip">
+      @for (merc of roster.squad(); track merc.id) {
+        <li>
+          <img [src]="portrait(merc)" [alt]="className(merc)" />
+          <span
+            ><strong>{{ merc.name }}</strong> {{ className(merc) }} · Lv {{ merc.level }}</span
+          >
+        </li>
+      }
+    </ul>
+    <nav class="guild-links" aria-label="Guild services">
+      <a routerLink="/squad" class="tactical-btn secondary">🛡️ War Room</a>
+      <a routerLink="/roster" class="tactical-btn secondary">📋 Roster &amp; hiring</a>
+      <a routerLink="/defense" class="tactical-btn secondary">📜 Defense orders</a>
+    </nav>
+  </section>
+
+  <section class="contract-board" aria-labelledby="board-title">
+    <div class="board-header">
+      <h2 id="board-title">Contract board</h2>
+      <button
+        type="button"
+        class="tactical-btn secondary"
+        id="refresh-contracts-btn"
+        (click)="guild.refresh()"
+        title="Post a new board at your squad's current level"
+      >
+        Post new contracts
+      </button>
+    </div>
+    <div class="contract-grid">
+      @for (contract of guild.contracts(); track contract.id) {
+        <article class="contract-card" [attr.data-tier]="contract.tier">
+          <div class="contract-title">
+            <span class="tier-badge">{{ tier(contract).label }}</span>
+            <h3>{{ contract.title }}</h3>
+            <p>
+              The {{ contract.band }} · Level {{ contract.level }} · Rewards ×{{
+                contract.rewardMultiplier
+              }}
+            </p>
+          </div>
+          <ul class="enemy-list">
+            @for (enemy of contract.enemies; track enemy.id) {
+              <li>
+                <img [src]="portrait(enemy)" [alt]="className(enemy)" />
+                <span>{{ enemy.name }} · {{ className(enemy) }} · Lv {{ enemy.level }}</span>
+              </li>
+            }
+          </ul>
+          <button
+            type="button"
+            class="tactical-btn primary take-btn"
+            [id]="'take-contract-' + contract.tier"
+            (click)="take(contract)"
+          >
+            Take contract
+          </button>
+        </article>
+      }
+    </div>
+  </section>
+</section>

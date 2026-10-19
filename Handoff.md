@@ -286,10 +286,35 @@ Spec 1.1.5: "an Assist Gauge fills as a player deals damage and defeats enemy un
 - **Tests:** assist.spec.ts, plus service cases for the free pursuit, the gauge spend and the AI's lethal-only assist: 260 unit tests pass.
   - The e2e test grants an orb through the dev-mode `ng.getComponent(...).battle` handle; filling it through play takes several turns.
 
+## Guild Hall and contracts (2026-10-19)
+
+The spec's MVP "Basic Guild Hub". The user said the backend waits until the game is fun, so the work stays offline. The skirmish was always the same four base-stat troops and got easier as the squad levelled; contracts scale with the squad.
+
+- **Model:** src/app/core/models/contract.model.ts.
+  - veteran(classId, level) levels a generated mercenary and invests every point in CLASS_FOCUS (now exported) in turn.
+  - Tiers (TIERS): Easy is 3 enemies at squad level − 1, rewards ×1.2. Normal is 4 at squad level, ×1.6. Hard is 4 at squad level + 2, ×2.2.
+  - Every band leads with a frontliner (Fighter or Lancer). Enemy names come from their own ENEMY_NAMES pool, so they never clash with the roster.
+  - A board has three different bands (from BANDS, each with a title). parseContract never trusts a saved reward multiplier; the tier sets it.
+- **Rewards:** BattleReport has optional rewardMultiplier and contractId, and battleGold and battleExp scale by the multiplier.
+- **Service:** GuildService (localStorage lanes.guild.v1) keeps the board, a won-contracts count and partyLevel (the squad's average level). complete(id) replaces a won contract with a new one of its tier at the current party level. refresh() posts a new board for free.
+- **Battle:**
+  - BattleStateService.deployContract(contract, squad) passes the contract as initSkirmish's fifth argument. The activeContract signal survives restarts and is cleared by any other deployment.
+  - Contract enemies use their mercenary names, derived stats and known skills.
+  - The battle shows a .contract-note line, and the enemy banner shows the band's name.
+  - BattlefieldComponent completes the contract after a victory (a loss leaves it up). The result dialog then has #modal-guild-btn.
+- **UI:**
+  - The /guild page shows gold, squad level, contracts won, the squad strip, links to the War Room, Roster and Defense, and the contract cards (#take-contract-easy|normal|hard). "Post new contracts" is #refresh-contracts-btn.
+  - The site nav has 🏰 Guild (#nav-link-guild) after Battlefield, and the battle toolbar has #guild-link.
+- **Fix:** on short screens the result dialog was taller than the window, and the battle screen doesn't scroll, so its buttons were unreachable. The overlay now scrolls inside itself, and under 500px tall the dialog hides its icon and summary.
+- **Tests:**
+  - contract.model.spec.ts and guild.service.spec.ts, plus a contract battle case: 268 unit tests pass.
+  - e2e/guild.spec.ts takes the Normal contract, checks the band and the no-scroll layout, restarts, wins (through the dev handle), and sees the board replace it.
+  - The controller test now steps through Guild on its way to Squad Builder.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Knockback/launch states, battlefield objects, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. Knockback/launch states and battlefield objects (barricades, traps). Make the Guild Hall the landing page once it has more to offer (story, quests). The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

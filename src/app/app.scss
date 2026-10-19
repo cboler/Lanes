@@ -114,6 +114,10 @@
     content: '⚔️';
   }
 
+  &.nav-guild::before {
+    content: '🏰';
+  }
+
   &.nav-squad::before {
     content: '🛡️';
   }

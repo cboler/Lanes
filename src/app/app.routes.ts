@@ -4,12 +4,18 @@ import { SquadSelectComponent } from './squad/squad-select.component';
 import { StatusComponent } from './status/status.component';
 import { RosterComponent } from './roster/roster.component';
 import { DefenseSetupComponent } from './defense/defense-setup.component';
+import { GuildComponent } from './guild/guild.component';
 
 export const routes: Routes = [
   {
     path: '',
     component: BattlefieldComponent,
     title: 'Tactical Battlefield • Lanes',
+  },
+  {
+    path: 'guild',
+    component: GuildComponent,
+    title: 'Guild Hall • Lanes',
   },
   {
     path: 'squad',

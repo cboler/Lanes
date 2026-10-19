@@ -27,6 +27,8 @@ import { BattleStageComponent } from './battle-stage.component';
 import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
+import { GuildService } from '../core/services/guild.service';
+import { Contract, TIERS } from '../core/models/contract.model';
 import { BattleRewards } from '../core/models/progression.model';
 import { StatusEffectType } from '../core/models/status-effect.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -64,6 +66,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly battle = inject(BattleStateService);
   private readonly roster = inject(RosterService);
   private readonly document = inject(DOCUMENT);
+  private readonly guild = inject(GuildService);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
@@ -161,6 +164,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     effect(() => {
       const report = this.battle.battleReport();
       this.rewards.set(report ? untracked(() => this.roster.claimRewards(report)) : null);
+      // A won contract leaves the board; a lost one stays up for another try.
+      if (report?.contractId && report.outcome === 'victory') {
+        untracked(() => this.guild.complete(report.contractId!));
+      }
     });
     inject(GamepadService)
       .actions.pipe(takeUntilDestroyed())
@@ -464,6 +471,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected callAssist(allyId: string): void {
     this.assistOpen.set(false);
     this.battle.callAssist(allyId);
+  }
+
+  protected tierLabel(contract: Contract): string {
+    return TIERS[contract.tier].label;
   }
 
   protected isAimTarget(unit: UnitInstance): boolean {

@@ -293,6 +293,8 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await frames(page);
   await page.locator('#nav-link-home').focus();
   await tap(page, { buttons: [15] });
+  await expect(page.locator('#nav-link-guild')).toBeFocused();
+  await tap(page, { buttons: [15] });
   await expect(page.locator('#nav-link-squad')).toBeFocused();
   await controller(page, { buttons: [0] });
   await expect(page).toHaveURL(/\/squad$/);

@@ -38,6 +38,10 @@ export interface BattleReport {
   readonly enemiesDefeated: number;
   /** The player's roster mercenaries in the battle, and whether each was standing at the end. */
   readonly mercenaries: readonly { readonly id: string; readonly survived: boolean }[];
+  /** A contract's reward scale; 1 for a skirmish or practice. */
+  readonly rewardMultiplier?: number;
+  /** The contract fought, if any; a victory completes it. */
+  readonly contractId?: string;
 }
 
 export interface MercenaryReward {
@@ -56,14 +60,16 @@ export interface BattleRewards {
 }
 
 export function battleGold(report: BattleReport): number {
-  return (report.outcome === 'victory' ? 100 : 20) + 20 * report.enemiesDefeated;
+  const base = (report.outcome === 'victory' ? 100 : 20) + 20 * report.enemiesDefeated;
+  return Math.round(base * (report.rewardMultiplier ?? 1));
 }
 
 /** EXP for one mercenary: half if it fell, and TEC raises it (spec 1.2.1), 2% per point from 17. */
 export function battleExp(report: BattleReport, merc: Mercenary, survived: boolean): number {
   const base = (report.outcome === 'victory' ? 50 : 20) + 15 * report.enemiesDefeated;
   const learning = Math.max(0.5, 1 + (merc.stats.tec - 17) * 0.02);
-  return Math.max(1, Math.floor(base * (survived ? 1 : 0.5) * learning));
+  const scale = (survived ? 1 : 0.5) * learning * (report.rewardMultiplier ?? 1);
+  return Math.max(1, Math.floor(base * scale));
 }
 
 /** Adds EXP, levelling up as often as it pays for: each level grants stat points and SP. */

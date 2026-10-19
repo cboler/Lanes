@@ -61,6 +61,7 @@
       >
         ↺ Restart
       </button>
+      <a routerLink="/guild" class="tactical-btn secondary" id="guild-link">🏰 Guild</a>
       <a
         routerLink="/squad"
         class="tactical-btn primary"
@@ -77,6 +78,12 @@
   @if (battle.practicePlan()) {
     <p class="practice-note" role="status">
       Local defense practice · Defender follows saved orders for each member's first four turns.
+    </p>
+  } @else if (battle.activeContract(); as contract) {
+    <p class="practice-note contract-note" role="status">
+      📜 {{ contract.title }} · {{ tierLabel(contract) }} · Level {{ contract.level }} · Rewards ×{{
+        contract.rewardMultiplier
+      }}
     </p>
   }
 
@@ -194,7 +201,9 @@
     <div class="troop-banner enemy" aria-hidden="true">
       <span class="troop-meta">
         <span class="troop-name">{{
-          battle.practicePlan() ? 'Defense Squad' : 'Enemy Forces'
+          battle.practicePlan()
+            ? 'Defense Squad'
+            : (battle.activeContract()?.band ?? 'Enemy Forces')
         }}</span>
         <span class="troop-pips">
           @for (alive of troopPips('enemy'); track $index) {
@@ -596,6 +605,11 @@
           >
             ⚔️ Fight Again
           </button>
+          @if (battle.activeContract()) {
+            <a routerLink="/guild" class="tactical-btn secondary large" id="modal-guild-btn">
+              🏰 Guild
+            </a>
+          }
           <a routerLink="/squad" class="tactical-btn secondary large" id="modal-squad-btn">
             🛡️ War Room
           </a>

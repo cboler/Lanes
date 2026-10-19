@@ -74,7 +74,7 @@ export function seededRandom(seed: number): Random {
 }
 
 /** Stats each class leans on; these roll their aptitude twice and keep the better result. */
-const CLASS_FOCUS: Record<string, readonly PrimaryStat[]> = {
+export const CLASS_FOCUS: Record<string, readonly PrimaryStat[]> = {
   fighter: ['str', 'vit', 'stm', 'con'],
   cleric: ['mag', 'spi', 'vit'],
   archer: ['tec', 'agi', 'str'],

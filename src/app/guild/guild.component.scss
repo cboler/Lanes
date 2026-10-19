@@ -1,0 +1,168 @@
+.guild-page {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.guild-header,
+.guild-squad,
+.contract-card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-gilded);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.guild-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  > div {
+    flex: 1 1 320px;
+  }
+
+  h1 {
+    margin: 0 0 var(--space-2);
+  }
+
+  p {
+    max-width: 70ch;
+    margin: 0;
+    color: var(--text-secondary);
+  }
+}
+
+.guild-stats {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+
+  dt {
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-family: var(--font-heraldic);
+    font-size: var(--font-size-2xl);
+    font-weight: 800;
+    color: #ffd36a;
+  }
+}
+
+h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  color: var(--color-gold-antique);
+}
+
+.squad-strip,
+.enemy-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius-sm);
+    background: #121a2b;
+    font-size: var(--font-size-sm);
+  }
+
+  img {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+  }
+}
+
+.guild-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    text-decoration: none;
+  }
+}
+
+.board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.contract-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--space-4);
+}
+
+.contract-card {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  border-top: 3px solid var(--tier);
+
+  &[data-tier='easy'] {
+    --tier: #7ec8a0;
+  }
+
+  &[data-tier='normal'] {
+    --tier: #6fb1ff;
+  }
+
+  &[data-tier='hard'] {
+    --tier: #ff7a6a;
+  }
+
+  h3 {
+    margin: var(--space-1) 0;
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .enemy-list {
+    flex-direction: column;
+  }
+}
+
+.tier-badge {
+  display: inline-block;
+  padding: 0 8px;
+  border: 1px solid var(--tier);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tier);
+}
+
+.take-btn {
+  min-height: 44px;
+}
