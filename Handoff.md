@@ -254,11 +254,20 @@ The user wants the battle page never to scroll: "that doesn't make for a fun gam
   - Poisoned units shed green particles every 0.35–0.65 s (every 1.2 s under reduced motion). The frame loop stays awake while stars or poison show.
 - **Tests:** ai-tactics.spec.ts; 253 unit tests and 67 e2e tests pass.
 
+## Tall-stage camera (2026-10-19)
+
+- stage-layout.ts stageView(aspect) returns { pitch, figureScale }.
+  - Wide stages (aspect 1.3 or more) keep the 18° side view at scale 1.
+  - A tall, narrow stage (aspect 0.9 or less, e.g. a phone held upright) looks down at 34° and draws figures at 1.5×. Between the two, it blends.
+- placeCamera and fitFrame take a pitch. The camera director computes the view on resize, scales its framing points by figureScale, and exposes figureScale().
+- stage-scene scales each view's group (figure, rings, shield, stars). The overlay places DOM buttons using the scaled head height, and chest() uses it too.
+- stage-units divides the world-space offsets (lunges, knockback, lane hops) by the group scale, so a scaled figure still lands where the choreography aims it.
+- Tests: stageView and a tall-pitch fitFrame case in stage-layout.spec.ts; 255 unit tests and 67 e2e tests pass.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
 2. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
-3. A tighter stage camera on phone portrait, where the tall narrow stage leaves the 3D figures small.
 
 ## Request, references, and constraints
 

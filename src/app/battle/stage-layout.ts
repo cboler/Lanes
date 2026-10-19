@@ -4,8 +4,32 @@ import { CHARACTER_HEIGHT } from './stage-characters';
 export const FIELD_WIDTH = 16;
 export const LANE_GAP = 3.2;
 export const HEAD_HEIGHT = CHARACTER_HEIGHT;
-const PITCH = THREE.MathUtils.degToRad(18);
+/** The classic side view, for a wide stage. */
+export const WIDE_PITCH = THREE.MathUtils.degToRad(18);
+const TALL_PITCH = THREE.MathUtils.degToRad(34);
 export const FOV = 11;
+
+/** How the stage is shot for its shape. */
+export interface StageView {
+  /** Camera tilt below the horizon. */
+  readonly pitch: number;
+  /** How large the figures (and their rings and shields) are drawn. */
+  readonly figureScale: number;
+}
+
+/**
+ * A wide stage keeps the side view. A tall, narrow one (a phone held upright) must fit
+ * the whole field into its width, which leaves the figures small and the sky empty, so
+ * it looks down more steeply to spread the lanes into that height and draws the figures
+ * larger. Between the two, it blends.
+ */
+export function stageView(aspect: number): StageView {
+  const tall = THREE.MathUtils.clamp((1.3 - aspect) / (1.3 - 0.9), 0, 1);
+  return {
+    pitch: THREE.MathUtils.lerp(WIDE_PITCH, TALL_PITCH, tall),
+    figureScale: 1 + 0.5 * tall,
+  };
+}
 
 export const worldX = (positionX: number): number => (positionX - 0.5) * FIELD_WIDTH;
 export const laneZ = (lane: number): number => (lane - 1) * LANE_GAP;
@@ -22,15 +46,16 @@ export interface SafeArea {
   readonly side: number;
 }
 
-const VIEW_DIRECTION = new THREE.Vector3(0, Math.sin(PITCH), Math.cos(PITCH));
-const VIEW_UP = new THREE.Vector3(0, Math.cos(PITCH), -Math.sin(PITCH));
+const viewDirection = (pitch: number) => new THREE.Vector3(0, Math.sin(pitch), Math.cos(pitch));
+const viewUp = (pitch: number) => new THREE.Vector3(0, Math.cos(pitch), -Math.sin(pitch));
 
 export function placeCamera(
   camera: THREE.PerspectiveCamera,
   target: THREE.Vector3,
   distance: number,
+  pitch = WIDE_PITCH,
 ) {
-  camera.position.copy(target).addScaledVector(VIEW_DIRECTION, distance);
+  camera.position.copy(target).addScaledVector(viewDirection(pitch), distance);
   camera.lookAt(target);
   camera.updateMatrixWorld();
 }
@@ -45,6 +70,7 @@ export function fitFrame(
   safe: SafeArea,
   /** Share of any spare height that goes below the points (0.5 = centred). */
   lowerShare = 0.35,
+  pitch = WIDE_PITCH,
 ): Frame {
   const box = new THREE.Box3().setFromPoints([...points]);
   const target = box.getCenter(new THREE.Vector3());
@@ -54,7 +80,7 @@ export function fitFrame(
   const probe = new THREE.Vector3();
   const bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
   const measure = (distance: number) => {
-    placeCamera(camera, target, distance);
+    placeCamera(camera, target, distance, pitch);
     bounds.minX = bounds.minY = Infinity;
     bounds.maxX = bounds.maxY = -Infinity;
     for (const point of points) {
@@ -87,7 +113,10 @@ export function fitFrame(
     target.x += ((bounds.minX + bounds.maxX) / 2 - (limits.left + limits.right) / 2) * halfWidth;
     const slack = Math.max(0, top - bottom - (bounds.maxY - bounds.minY));
     const wantedCentre = bottom + (bounds.maxY - bounds.minY) / 2 + slack * lowerShare;
-    target.addScaledVector(VIEW_UP, ((bounds.minY + bounds.maxY) / 2 - wantedCentre) * halfHeight);
+    target.addScaledVector(
+      viewUp(pitch),
+      ((bounds.minY + bounds.maxY) / 2 - wantedCentre) * halfHeight,
+    );
   }
   return { target, distance };
 }

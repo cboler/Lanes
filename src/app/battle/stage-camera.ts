@@ -5,8 +5,10 @@ import {
   laneZ,
   placeCamera,
   worldX,
+  stageView,
   type Frame,
   type SafeArea,
+  type StageView,
 } from './stage-layout';
 import type { StageState } from './stage-types';
 
@@ -21,6 +23,8 @@ export interface CameraDirector {
   addShake(amount: number): void;
   /** Nudges the camera in for one frame, for impacts. */
   addPunch(amount: number): void;
+  /** How large figures are drawn for the current stage shape. */
+  figureScale(): number;
 }
 
 export function createCameraDirector(
@@ -33,6 +37,7 @@ export function createCameraDirector(
   let width = 1;
   let height = 1;
   let safe: SafeArea = { top: 0.12, bottom: 0.12, side: 0.03 };
+  let view: StageView = stageView(16 / 9);
   let desired: Frame = { target: new THREE.Vector3(0, 0.8, 0), distance: 40 };
   const current = { target: new THREE.Vector3(0, 0.8, 0), distance: 40 };
   let snapCamera = true;
@@ -57,6 +62,7 @@ export function createCameraDirector(
       height = h;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      view = stageView(camera.aspect);
       readSafeArea();
       snapCamera = true;
     },
@@ -71,19 +77,20 @@ export function createCameraDirector(
       if (!force && layout === framedFor) return;
       framedFor = layout;
       const points: THREE.Vector3[] = [];
+      const scale = view.figureScale;
       const reach = (x: number, z: number) => {
         points.push(
-          new THREE.Vector3(x - 1.05, 0, z + 0.35),
-          new THREE.Vector3(x + 1.05, 0, z + 0.35),
+          new THREE.Vector3(x - 1.05 * scale, 0, z + 0.35),
+          new THREE.Vector3(x + 1.05 * scale, 0, z + 0.35),
           // Leave room above heads for the name and HP plates.
-          new THREE.Vector3(x, HEAD_HEIGHT + 0.75, z),
+          new THREE.Vector3(x, HEAD_HEIGHT * scale + 0.75, z),
         );
       };
       // A minimum field keeps the camera from zooming onto a lone survivor.
       reach(-5.5, laneZ(0));
       reach(5.5, laneZ(2));
       for (const unit of state.units) if (unit.alive) reach(worldX(unit.x), laneZ(unit.lane));
-      desired = fitFrame(camera, points, safe);
+      desired = fitFrame(camera, points, safe, undefined, view.pitch);
     },
 
     update: (dt) => {
@@ -98,7 +105,7 @@ export function createCameraDirector(
       let distance = current.distance;
       distance *= 1 - punch;
       punch = 0;
-      placeCamera(camera, target, distance);
+      placeCamera(camera, target, distance, view.pitch);
       fog.near = distance + 4;
       fog.far = distance + 60;
       if (shake > 0.001 && !reducedMotion) {
@@ -112,5 +119,6 @@ export function createCameraDirector(
 
     addShake: (amount) => (shake = Math.max(shake, amount)),
     addPunch: (amount) => (punch = Math.max(punch, amount)),
+    figureScale: () => view.figureScale,
   };
 }

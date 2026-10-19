@@ -137,7 +137,7 @@ export async function createUnits(
   };
 
   const chest: Units['chest'] = (view, out = new THREE.Vector3()) =>
-    out.copy(view.group.position).setY(HEAD_HEIGHT * 0.55);
+    out.copy(view.group.position).setY(HEAD_HEIGHT * 0.55 * view.group.scale.y);
   const hand: Units['hand'] = (view) => view.character.muzzle(new THREE.Vector3());
 
   const update = (dt: number) => {
@@ -165,7 +165,11 @@ export async function createUnits(
       view.knock *= Math.exp(-dt * 9);
       view.flash = Math.max(0, view.flash - dt * 6);
       const body = character.root;
-      body.position.set(view.offset.x + view.knock, view.offset.y + hop, view.offset.z);
+      // Offsets are world distances; the group may be scaled up for a tall stage.
+      const unscale = 1 / group.scale.x;
+      body.position
+        .set(view.offset.x + view.knock, view.offset.y + hop, view.offset.z)
+        .multiplyScalar(unscale);
       character.flash(view.flash);
       character.setBase(walking ? 'walk' : view.guard > 0 ? 'guard' : 'idle');
       character.update(dt);

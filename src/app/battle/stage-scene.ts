@@ -91,6 +91,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
     height = Math.max(1, Math.round(bounds.height));
     applySize();
     director.resize(width, height);
+    for (const view of views.values()) view.group.scale.setScalar(director.figureScale());
     director.reframe(state, true);
   };
   const observer = new ResizeObserver(resize);
@@ -107,6 +108,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       let view = views.get(unit.id);
       if (!view) {
         view = units.create(unit);
+        view.group.scale.setScalar(director.figureScale());
         views.set(unit.id, view);
       }
       const goalX = worldX(unit.x);
@@ -160,7 +162,7 @@ export async function createStage(options: StageOptions): Promise<Stage> {
       probe.set(base.x, 0, base.z).project(camera);
       const feetX = (probe.x * 0.5 + 0.5) * width;
       const feetY = (-probe.y * 0.5 + 0.5) * height;
-      probe.set(base.x, HEAD_HEIGHT, base.z).project(camera);
+      probe.set(base.x, HEAD_HEIGHT * view.group.scale.y, base.z).project(camera);
       const headY = (-probe.y * 0.5 + 0.5) * height;
       const boxHeight = Math.max(24, feetY - headY);
       const boxWidth = Math.max(44, boxHeight * 0.62);
