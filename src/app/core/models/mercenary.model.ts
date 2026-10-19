@@ -34,9 +34,18 @@ export interface Mercenary {
   name: string;
   classId: string;
   level: number;
+  /** EXP toward the next level. */
+  exp: number;
+  /** Points from level-ups, waiting to be invested in stats. */
+  statPoints: number;
+  /** Points invested in each stat so far; aptitude turns them into bonus points. */
+  invested: Record<PrimaryStat, number>;
   aptitudes: Aptitudes;
   stats: MercenaryStats;
 }
+
+const noInvestment = (): Record<PrimaryStat, number> =>
+  Object.fromEntries(PRIMARY_STATS.map((stat) => [stat, 0])) as Record<PrimaryStat, number>;
 
 /** Returns a float in [0, 1). Injectable so generation and tests are deterministic. */
 export type Random = () => number;
@@ -98,7 +107,11 @@ const NAMES = [
   'Talia',
 ];
 
-export function generateMercenary(classId: string, random: Random): Mercenary {
+export function generateMercenary(
+  classId: string,
+  random: Random,
+  takenNames: readonly string[] = [],
+): Mercenary {
   const cls = getClassDefinition(classId);
   const focus = CLASS_FOCUS[cls.id] ?? [];
   const aptitudes = {} as Aptitudes;
@@ -112,17 +125,38 @@ export function generateMercenary(classId: string, random: Random): Mercenary {
     aptitudes[stat] = grade;
     stats[stat] = GRADE_BASE[grade] + Math.floor(random() * 5);
   }
-  const name = NAMES[Math.floor(random() * NAMES.length)];
+  // Prefer a name nobody in `takenNames` has, so a roster rarely has two of the same.
+  const free = NAMES.filter((n) => !takenNames.includes(n));
+  const names = free.length ? free : NAMES;
+  const name = names[Math.floor(random() * names.length)];
   const id = `merc_${Math.floor(random() * 0xffffffff).toString(36)}${Math.floor(random() * 0xffffff).toString(36)}`;
-  return { id, name, classId: cls.id, level: 1, aptitudes, stats };
+  return {
+    id,
+    name,
+    classId: cls.id,
+    level: 1,
+    exp: 0,
+    statPoints: 0,
+    invested: noInvestment(),
+    aptitudes,
+    stats,
+  };
 }
 
 export function generateStarterRoster(random: Random): Mercenary[] {
   const roster: Mercenary[] = [];
   for (const cls of ALL_CLASSES) {
-    let merc = generateMercenary(cls.id, random);
+    let merc = generateMercenary(
+      cls.id,
+      random,
+      roster.map((m) => m.name),
+    );
     while (roster.some((existing) => existing.id === merc.id)) {
-      merc = generateMercenary(cls.id, random);
+      merc = generateMercenary(
+        cls.id,
+        random,
+        roster.map((m) => m.name),
+      );
     }
     roster.push(merc);
   }
@@ -181,15 +215,35 @@ export function parseMercenary(value: unknown): Mercenary | null {
   )
     return null;
 
+  // Progress fields arrived after the first saved rosters; missing means none yet.
+  const count = (value: unknown, max: number) =>
+    value === undefined
+      ? 0
+      : Number.isInteger(value) && (value as number) >= 0 && (value as number) <= max
+        ? (value as number)
+        : null;
+  const exp = count(merc.exp, 99999);
+  const statPoints = count(merc.statPoints, 9999);
+  if (exp === null || statPoints === null) return null;
+  if (merc.invested !== undefined && (!merc.invested || typeof merc.invested !== 'object'))
+    return null;
+
   const aptitudes = {} as Aptitudes;
   const stats = {} as MercenaryStats;
+  const invested = noInvestment();
   for (const stat of PRIMARY_STATS) {
     const grade = (merc.aptitudes as Partial<Aptitudes>)[stat];
     const points = (merc.stats as Partial<MercenaryStats>)[stat];
+    const spent = count(
+      (merc.invested as Partial<Record<PrimaryStat, number>> | undefined)?.[stat],
+      9999,
+    );
     if (!GRADES.includes(grade as Grade)) return null;
     if (!Number.isInteger(points) || points! < 1 || points! > 999) return null;
+    if (spent === null) return null;
     aptitudes[stat] = grade!;
     stats[stat] = points!;
+    invested[stat] = spent;
   }
   const sp = (merc.stats as Partial<MercenaryStats>).sp;
   if (!Number.isInteger(sp) || sp! < 0 || sp! > 9999) return null;
@@ -199,6 +253,9 @@ export function parseMercenary(value: unknown): Mercenary | null {
     name: merc.name,
     classId: merc.classId,
     level: merc.level!,
+    exp,
+    statPoints,
+    invested,
     aptitudes,
     stats,
   };

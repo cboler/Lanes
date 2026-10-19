@@ -26,7 +26,9 @@
 }
 .roster-actions {
   display: flex;
-  align-items: start;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
 }
 .roster-status {
   margin: 0;
@@ -73,6 +75,11 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-1) var(--space-4);
   margin: 0;
+
+  /* Room for the + buttons while points wait to be invested. */
+  &.investing {
+    grid-template-columns: 1fr;
+  }
 }
 .stat-row {
   display: flex;
@@ -113,5 +120,84 @@
   color: #ffd700;
 }
 .squad-toggle {
+  min-height: 44px;
+}
+.purse {
+  margin: 0;
+  font-family: var(--font-heraldic);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: #ffd36a;
+}
+.section-heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-gold-antique);
+}
+.exp-track {
+  overflow: hidden;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: #1b2233;
+}
+.exp-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #a7f3d0);
+}
+.exp-label,
+.points-note {
+  margin: -6px 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+.points-note {
+  font-weight: 700;
+  color: #7dffb2;
+}
+.invest-btn {
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #7dffb2;
+  border-radius: var(--radius-sm);
+  background: #12261c;
+  color: #7dffb2;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  .tactical-btn {
+    flex: 1 1 auto;
+  }
+}
+.dismiss-btn {
+  min-height: 44px;
+}
+.recruit-board {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--border-gilded);
+  border-radius: var(--radius-md);
+
+  p {
+    margin: var(--space-1) 0 0;
+    color: var(--text-secondary);
+  }
+}
+.recruit-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.hire-btn {
   min-height: 44px;
 }

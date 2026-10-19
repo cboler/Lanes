@@ -1,6 +1,6 @@
 # Project Valkyrie handoff
 
-Updated: 2026-10-18. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
+Updated: 2026-10-19. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
 
 ## Current checkpoint
 
@@ -152,11 +152,43 @@ The player's side and defense plans are now built from roster mercenaries, not c
   - Every spec imports `test`/`expect` from ./fixtures. roster.spec.ts sets `test.use({ seedRoster: false })` to test the random starter roster.
   - 222 unit tests pass.
 
+## Progression and hiring (2026-10-19)
+
+Spec 1.2.1 and the MVP table's "Post-Battle EXP Gain & Leveling", "Post-Battle Currency Rewards" and "Mercenary Hiring (random aptitudes)".
+
+- **Rules:** src/app/core/models/progression.model.ts is pure.
+  - **Gold:** victory 100, defeat 20, plus 20 per enemy defeated.
+  - **EXP:** victory 50, defeat 20, plus 15 per enemy defeated. A mercenary who fell gets half. TEC scales EXP by 2% per point from 17 (spec: TEC raises EXP).
+  - **Levels:** the next level costs 60 + 40 × level EXP, and the cap is 50. Each level grants 5 statPoints and 1 SP. gainExp handles several level-ups at once.
+  - **Investing:** investPoint adds 1 to the stat, plus a bonus point each time that stat's invested count reaches a multiple of APTITUDE_RATIO (S 2, A 3, B 4, C 5, D 6, E 7, F 8; spec: S needs 2, F needs 8).
+  - **Hiring:** hireCost is 100 + 5 × the sum of grade indexes (F = 0, S = 6), roughly 200–250 for a typical recruit.
+  - **Economy constants:** a board of 3 recruits, 20 gold to refresh it, a roster limit of 12 and 500 starting gold.
+- **Mercenary:**
+  - New fields: exp, statPoints and invested (points per stat). parseMercenary defaults missing values to 0, so old saves and v2 defense snapshots still load.
+  - generateMercenary(classId, random, takenNames) avoids names already in the roster.
+- **Roster save v2:** `{ version: 2, mercenaries, squadIds, gold, recruits }`, under the same key lanes.roster.v1. A v1 save is upgraded with 500 gold and a fresh board.
+  - RosterService adds hire, refreshRecruits, dismiss (keeps at least one in the roster and the squad), invest and claimRewards(report).
+  - claimRewards pays a report id once and caches the result, so revisiting the result screen shows the payout without paying again.
+  - `random` is a public field so tests can replace it.
+- **Battle:**
+  - BattleStateService.battleReport is set when a battle ends, with the outcome, enemies defeated, and each roster mercenary's id and whether it survived. It is null while fighting.
+  - BattlefieldComponent claims the report in an effect and shows the payout in the result dialog (#reward-gold, .reward-list, plus a Roster link after a level-up).
+  - Restart calls refreshMercenaries(roster) first, so levelled sheets fight in the next battle.
+  - Every battle pays the same way, including defense practice and Auto-Battle.
+- **Roster page:**
+  - A purse (#roster-gold), an EXP bar per mercenary, and "+" invest buttons per stat while points remain. The stat sheet goes to one column then, so it fits phones.
+  - Dismiss asks twice ("Confirm?"), and the confirmation resets on blur.
+  - A recruit board with Hire buttons (aria-label "Hire <name> for <n> gold") and #refresh-recruits-btn.
+- **Tests:**
+  - progression.model.spec.ts, plus roster economy cases, the battle report and the restart refresh: 236 unit tests pass.
+  - e2e: the auto-battle test checks the payout and the purse on the Roster page; roster.spec checks hiring, refreshing and dismissing.
+- **Not done:** skill patterns (classes have only three skills each), support skills that spend SP, scrolls or items, and a guild hub screen. Gold has no use besides hiring yet.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. The progression loop: post-battle EXP and level-ups (Mercenary.level exists but never changes), currency rewards, and hiring new mercenaries with that currency (the roster is fixed at the starter six). Defense snapshots already refresh from the roster, so levelled mercenaries carry into saved defenses.
-3. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+3. Skill patterns and support skills (spec 1.2.3): give each class a larger skill pool, roll a learning pattern per recruit, learn skills by level, and let SP equip passive support skills. This gives gold, levels and the recruit hunt more meaning.
 
 ## Request, references, and constraints
 

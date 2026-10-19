@@ -378,11 +378,18 @@ test('default auto-battle reaches a result and restart creates a fresh manual ba
   await page.locator('#auto-battle-btn').click();
   await expect(page.locator('.battle-result-overlay')).toBeVisible({ timeout: 85_000 });
   await expect(page.locator('.result-heading')).toHaveText(/VICTORY ACHIEVED|VANGUARD DEFEATED/);
+  // Win or lose, the battle pays gold, and EXP to each mercenary who fought.
+  const gold = Number((await page.locator('#reward-gold').textContent())!.match(/\d+/)![0]);
+  expect(gold).toBeGreaterThan(0);
+  await expect(page.locator('.reward-list li')).toHaveCount(4);
+  await expect(page.locator('.reward-list li').first()).toContainText('EXP');
   await page.locator('#modal-restart-btn').click();
   await expect(page.locator('.battle-result-overlay')).toHaveCount(0);
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await expect(page.locator('#auto-battle-btn')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
+  await page.goto('/roster');
+  await expect(page.locator('#roster-gold')).toContainText(`${500 + gold} gold`);
 });
 
 test('ranged skills fire from a sweeping cursor, and a cursor left to run out misses', async ({

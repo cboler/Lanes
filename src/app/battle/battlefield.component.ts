@@ -25,6 +25,7 @@ import { BattleStageComponent } from './battle-stage.component';
 import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
+import { BattleRewards } from '../core/models/progression.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DamageCalculator } from '../core/engine/damage-calculator';
 
@@ -122,9 +123,20 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     ];
   });
 
+  /** Gold and EXP paid for the battle that just ended. */
+  protected readonly rewards = signal<BattleRewards | null>(null);
+  protected readonly leveledUp = computed(
+    () => !!this.rewards()?.mercenaries.some((merc) => merc.levelsGained > 0),
+  );
+
   constructor() {
     // Enter, Space and a controller's A all press the focused control, so give it the fire button.
     effect(() => this.aimFire()?.nativeElement.focus());
+    // The roster pays each report once, so coming back to the result screen shows, not repays.
+    effect(() => {
+      const report = this.battle.battleReport();
+      this.rewards.set(report ? untracked(() => this.roster.claimRewards(report)) : null);
+    });
     inject(GamepadService)
       .actions.pipe(takeUntilDestroyed())
       .subscribe((action) => {
@@ -449,6 +461,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   }
 
   protected restartBattle(): void {
+    this.battle.refreshMercenaries(this.roster.mercenaries());
     this.battle.initSkirmish();
   }
 

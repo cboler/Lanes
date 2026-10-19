@@ -5,11 +5,13 @@
       <h1 id="roster-title">Mercenary Roster</h1>
       <p>
         Each mercenary has eight stats graded F to S for aptitude, plus Skill Points. Stats scale
-        the combat numbers of their class. Choose up to {{ squadLimit }} for your squad. Your roster
-        is saved on this device only.
+        the combat numbers of their class. Battles pay gold and EXP; each level brings stat points
+        to invest, and a better aptitude turns invested points into more bonus points. Choose up to
+        {{ squadLimit }} for your squad. Your roster is saved on this device only.
       </p>
     </div>
     <div class="roster-actions">
+      <p class="purse" id="roster-gold" aria-label="Gold">💰 {{ roster.gold() }} gold</p>
       <button type="button" class="tactical-btn primary" id="deploy-roster-btn" (click)="deploy()">
         Deploy squad ({{ roster.squadIds().length }}/{{ squadLimit }})
       </button>
@@ -20,6 +22,9 @@
     <p class="roster-status" role="status">{{ roster.warning() }}</p>
   }
 
+  <h2 class="section-heading">
+    Your mercenaries ({{ roster.mercenaries().length }}/{{ rosterLimit }})
+  </h2>
   <div class="roster-grid">
     @for (merc of roster.mercenaries(); track merc.id) {
       <article class="merc-card" [class.in-squad]="inSquad(merc)">
@@ -30,7 +35,21 @@
             <p>{{ roster.classOf(merc).name }} · Level {{ merc.level }}</p>
           </div>
         </div>
-        <dl class="stat-sheet">
+        <div
+          class="exp-track"
+          role="progressbar"
+          [attr.aria-label]="merc.name + ' EXP'"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-valuenow]="expPercent(merc)"
+        >
+          <span class="exp-fill" [style.width.%]="expPercent(merc)"></span>
+        </div>
+        <p class="exp-label">{{ expLabel(merc) }}</p>
+        @if (merc.statPoints > 0) {
+          <p class="points-note">{{ merc.statPoints }} stat points to invest</p>
+        }
+        <dl class="stat-sheet" [class.investing]="merc.statPoints > 0">
           @for (stat of primaryStats; track stat) {
             <div class="stat-row">
               <dt>{{ labels[stat] }}</dt>
@@ -41,6 +60,17 @@
                   [attr.aria-label]="'aptitude ' + merc.aptitudes[stat]"
                   >{{ merc.aptitudes[stat] }}</span
                 >
+                @if (merc.statPoints > 0) {
+                  <button
+                    type="button"
+                    class="invest-btn"
+                    [title]="investHint(merc, stat)"
+                    [attr.aria-label]="investHint(merc, stat)"
+                    (click)="invest(merc, stat)"
+                  >
+                    +
+                  </button>
+                }
               </dd>
             </div>
           }
@@ -49,16 +79,93 @@
             <dd>{{ merc.stats.sp }}</dd>
           </div>
         </dl>
-        <button
-          type="button"
-          class="tactical-btn secondary squad-toggle"
-          [attr.aria-pressed]="inSquad(merc)"
-          [attr.aria-label]="(inSquad(merc) ? 'Remove ' : 'Add ') + merc.name + ' squad member'"
-          (click)="roster.toggleSquad(merc.id)"
-        >
-          {{ inSquad(merc) ? 'In squad ✓' : 'Add to squad' }}
-        </button>
+        <div class="card-actions">
+          <button
+            type="button"
+            class="tactical-btn secondary squad-toggle"
+            [attr.aria-pressed]="inSquad(merc)"
+            [attr.aria-label]="(inSquad(merc) ? 'Remove ' : 'Add ') + merc.name + ' squad member'"
+            (click)="roster.toggleSquad(merc.id)"
+          >
+            {{ inSquad(merc) ? 'In squad ✓' : 'Add to squad' }}
+          </button>
+          <button
+            type="button"
+            class="tactical-btn danger dismiss-btn"
+            [disabled]="roster.mercenaries().length <= 1"
+            [attr.aria-label]="
+              (confirmingDismiss() === merc.id ? 'Confirm dismissing ' : 'Dismiss ') + merc.name
+            "
+            (click)="dismiss(merc)"
+            (blur)="confirmingDismiss.set(null)"
+          >
+            {{ confirmingDismiss() === merc.id ? 'Confirm?' : 'Dismiss' }}
+          </button>
+        </div>
       </article>
     }
   </div>
+
+  <section class="recruit-board" aria-labelledby="recruits-title">
+    <div class="recruit-header">
+      <div>
+        <h2 id="recruits-title" class="section-heading">Recruits for hire</h2>
+        <p>
+          Aptitudes are random, so the best recruits are worth hunting for. Better aptitudes cost
+          more.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="tactical-btn secondary"
+        id="refresh-recruits-btn"
+        [disabled]="roster.gold() < refreshCost"
+        (click)="roster.refreshRecruits()"
+      >
+        New recruits ({{ refreshCost }} gold)
+      </button>
+    </div>
+    @if (roster.mercenaries().length >= rosterLimit) {
+      <p class="roster-status">The roster is full. Dismiss someone to make room.</p>
+    }
+    <div class="roster-grid">
+      @for (recruit of roster.recruits(); track recruit.id) {
+        <article class="merc-card recruit">
+          <div class="merc-heading">
+            <img [src]="roster.classOf(recruit).portraitUrl" [alt]="roster.classOf(recruit).name" />
+            <div>
+              <h2>{{ recruit.name }}</h2>
+              <p>{{ roster.classOf(recruit).name }} · Level {{ recruit.level }}</p>
+            </div>
+          </div>
+          <dl class="stat-sheet">
+            @for (stat of primaryStats; track stat) {
+              <div class="stat-row">
+                <dt>{{ labels[stat] }}</dt>
+                <dd>
+                  {{ recruit.stats[stat] }}
+                  <span
+                    class="grade grade-{{ recruit.aptitudes[stat] }}"
+                    [attr.aria-label]="'aptitude ' + recruit.aptitudes[stat]"
+                    >{{ recruit.aptitudes[stat] }}</span
+                  >
+                </dd>
+              </div>
+            }
+          </dl>
+          <button
+            type="button"
+            class="tactical-btn primary hire-btn"
+            [disabled]="!roster.canHire(recruit)"
+            [attr.aria-label]="'Hire ' + recruit.name + ' for ' + roster.cost(recruit) + ' gold'"
+            (click)="roster.hire(recruit.id)"
+          >
+            Hire · {{ roster.cost(recruit) }} gold
+          </button>
+        </article>
+      } @empty {
+        <p class="roster-status">Everyone on this board has been hired. Call new recruits.</p>
+      }
+    </div>
+  </section>
 </section>

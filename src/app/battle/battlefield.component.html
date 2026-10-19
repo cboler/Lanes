@@ -515,6 +515,27 @@
               : 'Your troop has fallen. Reorganize your squad in the War Room.'
           }}
         </p>
+        @if (rewards(); as paid) {
+          <section class="result-rewards" aria-label="Battle rewards">
+            <p class="reward-gold" id="reward-gold">+{{ paid.gold }} gold</p>
+            <ul class="reward-list">
+              @for (merc of paid.mercenaries; track merc.id) {
+                <li>
+                  <span class="reward-name">{{ merc.name }}</span>
+                  <span class="reward-exp">+{{ merc.exp }} EXP</span>
+                  @if (merc.levelsGained > 0) {
+                    <span class="reward-level">Level {{ merc.level }}!</span>
+                  }
+                </li>
+              }
+            </ul>
+            @if (leveledUp()) {
+              <a routerLink="/roster" class="reward-link" id="reward-roster-link"
+                >Spend new stat points on the Roster ▸</a
+              >
+            }
+          </section>
+        }
         <div class="result-actions">
           <button
             type="button"

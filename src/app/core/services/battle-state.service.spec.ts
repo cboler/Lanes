@@ -323,6 +323,32 @@ describe('BattleStateService', () => {
     expect(second.stats).toEqual(FIGHTER_CLASS.baseStats);
   });
 
+  it('reports how a battle ended, once, naming the roster mercenaries who fought', () => {
+    const archer = { ...defender, id: 'merc_archer', classId: 'archer' };
+    service.deployMercenaries([archer], [FIGHTER_CLASS]);
+    expect(service.battleReport()).toBeNull();
+    const enemy = service.enemyUnits()[0];
+    enemy.takeDamage(enemy.maxHp - 1);
+    service.selectAbility('quick_shot');
+    expect(service.executeSelectedAbility(enemy)).toBe(true);
+    expect(service.battleReport()).toEqual(
+      expect.objectContaining({
+        outcome: 'victory',
+        enemiesDefeated: 1,
+        mercenaries: [{ id: 'merc_archer', survived: true }],
+      }),
+    );
+    service.initSkirmish();
+    expect(service.battleReport()).toBeNull();
+  });
+
+  it('refreshes squad sheets for the next restart', () => {
+    service.deployMercenaries([defender]);
+    service.refreshMercenaries([{ ...defender, stats: { ...defender.stats, con: 30 } }]);
+    service.initSkirmish();
+    expect(service.playerUnits()[0].maxHp).toBeGreaterThan(FIGHTER_CLASS.baseStats.maxHp);
+  });
+
   it('rejects corrupt practice plans without altering an active battle', () => {
     service.initSkirmish();
     const before = service.units();

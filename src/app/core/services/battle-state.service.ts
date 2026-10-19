@@ -18,6 +18,7 @@ import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-p
 import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
+import { BattleReport } from '../models/progression.model';
 import {
   CHAIN_WINDOW,
   ExecutionGrade,
@@ -129,6 +130,8 @@ export class BattleStateService {
   public readonly attackingUnitId = signal<string | null>(null);
   public readonly hitUnitId = signal<string | null>(null);
   public readonly lastAction = signal<BattleAction | null>(null);
+  /** Set once when a battle ends, for the rewards; null while it is being fought. */
+  public readonly battleReport = signal<BattleReport | null>(null);
 
   /** Player skills use aim and combo timing; off resolves them at normal power, like the AI. */
   public readonly timingEnabled = signal(readTimingPreference());
@@ -141,6 +144,8 @@ export class BattleStateService {
   private battleVersion = 0;
   private suspended = false;
   private actionSeq = 0;
+  /** Which roster mercenary each player unit is, by unit id. */
+  private mercenaryOf = new Map<string, string>();
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
   private playerMercenaries: readonly (Mercenary | undefined)[] = [];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
@@ -157,6 +162,13 @@ export class BattleStateService {
       plan.members.map((member) => getClassDefinition(member.mercenary.classId)),
       plan,
       squad ?? this.playerMercenaries,
+    );
+  }
+
+  /** Brings the squad's sheets up to date (after a level-up) for the next restart. */
+  public refreshMercenaries(latest: readonly Mercenary[]): void {
+    this.playerMercenaries = this.playerMercenaries.map(
+      (merc) => latest.find((m) => m.id === merc?.id) ?? merc,
     );
   }
 
@@ -272,6 +284,8 @@ export class BattleStateService {
     this.isAiThinking.set(false);
     this.floatingTexts.set([]);
     this.lastAction.set(null);
+    this.battleReport.set(null);
+    this.mercenaryOf = new Map();
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
 
@@ -290,18 +304,18 @@ export class BattleStateService {
         posX = isFront ? 0.14 : 0.32;
       }
       const merc = this.playerMercenaries[idx];
-      newUnits.push(
-        new UnitInstance(
-          cls,
-          merc ? merc.name : `Player ${cls.name}`,
-          'player',
-          lane,
-          posX,
-          100,
-          undefined,
-          merc ? deriveCombatStats(cls, merc) : undefined,
-        ),
+      const unit = new UnitInstance(
+        cls,
+        merc ? merc.name : `Player ${cls.name}`,
+        'player',
+        lane,
+        posX,
+        100,
+        undefined,
+        merc ? deriveCombatStats(cls, merc) : undefined,
       );
+      if (merc) this.mercenaryOf.set(unit.id, merc.id);
+      newUnits.push(unit);
     });
 
     enemySquad.forEach((cls, idx) => {
@@ -970,7 +984,18 @@ export class BattleStateService {
       this.addLog('🏆 VICTORY! All enemy battalions have been broken!');
       this.clearScheduledActions();
       this.isAiThinking.set(false);
+    } else {
+      return;
     }
+    this.battleReport.set({
+      id: `${Date.now().toString(36)}-${this.battleVersion}`,
+      outcome: playerLiving ? 'victory' : 'defeat',
+      enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive).length,
+      mercenaries: this.units().flatMap((unit) => {
+        const id = this.mercenaryOf.get(unit.id);
+        return id ? [{ id, survived: unit.isAlive }] : [];
+      }),
+    });
   }
 
   private triggerFloatingText(

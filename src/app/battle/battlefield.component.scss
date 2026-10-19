@@ -1272,6 +1272,58 @@
   color: #ffe08a;
 }
 
+.result-rewards {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--gild);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.reward-gold {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-heraldic);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: #ffd36a;
+}
+
+.reward-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+}
+
+.reward-name {
+  font-weight: 700;
+}
+
+.reward-exp {
+  color: var(--text-secondary);
+}
+
+.reward-level {
+  font-weight: 800;
+  color: #7dffb2;
+}
+
+.reward-link {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: #ffe08a;
+}
+
 .result-actions {
   display: flex;
   flex-wrap: wrap;

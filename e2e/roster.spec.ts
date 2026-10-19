@@ -1,37 +1,70 @@
 import { expect, test } from './fixtures';
 
-// This file tests the randomly generated starter roster.
-test.use({ seedRoster: false });
+test.describe('starter roster', () => {
+  // These tests cover the randomly generated starter roster.
+  test.use({ seedRoster: false });
 
-test('shows a persistent roster with stat sheets and deploys the chosen squad', async ({
+  test('shows a persistent roster with stat sheets and deploys the chosen squad', async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    await page.goto('/roster');
+    await expect(page.getByRole('heading', { name: 'Mercenary Roster' })).toBeVisible();
+    const cards = page.locator('.merc-card:not(.recruit)');
+    await expect(cards).toHaveCount(6);
+    await expect(cards.first().locator('.stat-row')).toHaveCount(9);
+    await expect(cards.first().locator('.grade')).toHaveCount(8);
+
+    const names = await cards.locator('h2').allTextContents();
+    await page.reload();
+    expect(await page.locator('.merc-card:not(.recruit) h2').allTextContents()).toEqual(names);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(overflow).toBeFalsy();
+
+    await page.locator('.merc-card.in-squad').first().locator('.squad-toggle').click();
+    await expect(page.locator('#deploy-roster-btn')).toContainText('3/4');
+    await page.reload();
+    await expect(page.locator('#deploy-roster-btn')).toContainText('3/4');
+
+    await page.locator('#deploy-roster-btn').click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('.player-unit')).toHaveCount(3);
+    expect(errors).toEqual([]);
+  });
+});
+
+test('hires recruits with gold, refreshes the board, and dismisses with a confirmation', async ({
   page,
 }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(err.message));
-
   await page.goto('/roster');
-  await expect(page.getByRole('heading', { name: 'Mercenary Roster' })).toBeVisible();
-  const cards = page.locator('.merc-card');
-  await expect(cards).toHaveCount(6);
-  await expect(cards.first().locator('.stat-row')).toHaveCount(9);
-  await expect(cards.first().locator('.grade')).toHaveCount(8);
+  await expect(page.locator('#roster-gold')).toContainText('500 gold');
+  const mercs = page.locator('.merc-card:not(.recruit)');
+  await expect(mercs).toHaveCount(6);
+  const recruits = page.locator('.merc-card.recruit');
+  await expect(recruits).toHaveCount(3);
 
-  const names = await cards.locator('h2').allTextContents();
+  const hire = recruits.first().locator('.hire-btn');
+  const price = Number((await hire.textContent())!.match(/\d+/)![0]);
+  const name = (await recruits.first().locator('h2').textContent())!.trim();
+  await hire.click();
+  await expect(mercs).toHaveCount(7);
+  await expect(recruits).toHaveCount(2);
+  await expect(page.locator('#roster-gold')).toContainText(`${500 - price} gold`);
   await page.reload();
-  expect(await page.locator('.merc-card h2').allTextContents()).toEqual(names);
+  await expect(mercs.locator('h2')).toContainText([name]);
 
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > window.innerWidth,
-  );
-  expect(overflow).toBeFalsy();
+  await page.locator('#refresh-recruits-btn').click();
+  await expect(recruits).toHaveCount(3);
+  await expect(page.locator('#roster-gold')).toContainText(`${500 - price - 20} gold`);
 
-  await page.locator('.merc-card.in-squad').first().getByRole('button').click();
-  await expect(page.locator('#deploy-roster-btn')).toContainText('3/4');
-  await page.reload();
-  await expect(page.locator('#deploy-roster-btn')).toContainText('3/4');
-
-  await page.locator('#deploy-roster-btn').click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator('.player-unit')).toHaveCount(3);
-  expect(errors).toEqual([]);
+  const card = mercs.filter({ hasText: name });
+  await card.getByRole('button', { name: `Dismiss ${name}` }).click();
+  await expect(mercs).toHaveCount(7);
+  await card.getByRole('button', { name: `Confirm dismissing ${name}` }).click();
+  await expect(mercs).toHaveCount(6);
 });
