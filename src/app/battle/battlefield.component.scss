@@ -484,6 +484,54 @@
   padding: 0 6px;
 }
 
+/* Assist orbs fill clockwise; a full one glows. */
+.assist-orbs {
+  display: flex;
+  gap: 3px;
+  padding: 2px 6px 0;
+}
+
+.orb {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #ffe08a;
+  border-radius: 50%;
+  background: conic-gradient(#ffd36a calc(var(--fill) * 360deg), rgba(0, 0, 0, 0.55) 0);
+
+  &.ready {
+    box-shadow: 0 0 6px #ffd36a;
+  }
+}
+
+.assist-btn {
+  position: absolute;
+  top: 66px;
+  left: 8px;
+  z-index: 3;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #ffd36a;
+  border-radius: var(--radius-full);
+  background: rgba(60, 40, 6, 0.9);
+  color: #ffe08a;
+  font-weight: 800;
+}
+
+.assist-panel {
+  display: grid;
+  gap: 6px;
+  width: min(560px, calc(100% - 16px));
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  color: #ffe08a;
+}
+
+.assist-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .pip {
   width: 10px;
   height: 10px;
@@ -507,6 +555,7 @@
 .targeting-panel,
 .aim-panel,
 .combo-panel,
+.assist-panel,
 .ai-banner {
   position: absolute;
   top: 8px;
@@ -552,191 +601,6 @@
     font-weight: 700;
     color: #ffb35c;
   }
-}
-
-/* ---- Interactive execution: the aim track and the combo meter ------------------- */
-.aim-panel,
-.combo-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: min(560px, calc(100% - 16px));
-  padding: var(--space-1) var(--space-2) var(--space-2);
-  border-radius: var(--radius-md);
-
-  strong {
-    color: #ffe08a;
-  }
-}
-
-.aim-copy,
-.combo-copy {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-width: 0;
-  font-size: var(--font-size-sm);
-
-  strong {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-}
-
-.aim-hint {
-  overflow: hidden;
-  font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-}
-
-/* The track is the ground ahead of the attacker; the target's zones sit where it stands. */
-.aim-track,
-.combo-meter {
-  position: relative;
-  display: block;
-  overflow: hidden;
-  width: 100%;
-  border: 1px solid var(--gild);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, #1a1408, #2a2110);
-}
-
-.aim-track {
-  height: 44px;
-  padding: 0;
-  cursor: crosshair;
-}
-
-.combo-meter {
-  height: 14px;
-}
-
-.aim-zone,
-.combo-zone {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-}
-
-.aim-zone {
-  --half: var(--aim-graze);
-  left: calc((var(--aim-center) - var(--half)) * 100%);
-  width: calc(var(--half) * 200%);
-
-  &.graze {
-    background: rgba(255, 196, 92, 0.18);
-  }
-
-  &.hit {
-    --half: var(--aim-hit);
-    background: rgba(255, 196, 92, 0.45);
-  }
-
-  &.critical {
-    --half: var(--aim-critical);
-    background: #ffe08a;
-    box-shadow: 0 0 12px #ffd36a;
-  }
-}
-
-.combo-zone {
-  &.chain {
-    left: calc(var(--chain-open) * 100%);
-    right: 0;
-    background: rgba(96, 165, 250, 0.4);
-  }
-
-  &.just {
-    left: calc(var(--just-from) * 100%);
-    width: calc((var(--just-to) - var(--just-from)) * 100%);
-    background: #f8fafc;
-    box-shadow: 0 0 10px #fff;
-  }
-}
-
-/* The rail is as wide as the track, so sliding it 100% carries the cursor end to end. */
-.aim-rail {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: aim-sweep var(--sweep-ms) linear var(--sweep-delay) both;
-}
-
-.aim-cursor {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  left: -2px;
-  width: 4px;
-  border-radius: 2px;
-  background: #fff;
-  box-shadow:
-    0 0 0 1px #5c1206,
-    0 0 10px #fff;
-}
-
-@keyframes aim-sweep {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
-
-/* Grand Kingdom's Just Cancel cue: the screen flashes white while the window is open. */
-.just-flash {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15) 70%);
-  opacity: 0;
-  animation: just-flash var(--flash-ms) ease-out var(--flash-delay) both;
-}
-
-@keyframes just-flash {
-  0% {
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .just-flash {
-    background: none;
-    box-shadow: inset 0 0 0 4px #fff;
-  }
-}
-
-/* A reticle ring marks what the cursor is aimed at. */
-.unit-node.aim-target::before {
-  content: '';
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  width: 64px;
-  height: 64px;
-  border: 2px dashed #ffe08a;
-  border-radius: 50%;
-  box-shadow: 0 0 12px rgba(255, 211, 106, 0.7);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  animation: spin 3s linear infinite;
-}
-
-.skill-btn.chainable {
-  border-color: #93c5fd;
-  box-shadow:
-    0 0 0 1px #93c5fd,
-    0 0 14px rgba(147, 197, 253, 0.45);
 }
 
 .ai-banner {

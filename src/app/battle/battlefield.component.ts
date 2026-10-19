@@ -20,6 +20,7 @@ import {
   IMPACT_DELAY_MS,
 } from '../core/services/battle-state.service';
 import { AIM_ZONES, CHAIN_WINDOW, executionKind, justWindow } from '../core/engine/execution';
+import { ASSIST_COST } from '../core/engine/assist';
 import { Team, UnitInstance } from '../core/models/unit-instance.model';
 import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
@@ -52,7 +53,11 @@ const WALK_KEYS = ['a', 'd', 'arrowleft', 'arrowright'];
   standalone: true,
   imports: [RouterLink, BattleStageComponent],
   templateUrl: './battlefield.component.html',
-  styleUrls: ['./battlefield.component.scss', './battlefield-layout.scss'],
+  styleUrls: [
+    './battlefield.component.scss',
+    './battlefield-execution.scss',
+    './battlefield-layout.scss',
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BattlefieldComponent implements OnInit, OnDestroy {
@@ -136,6 +141,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       ...order.slice(split).map((unit) => ({ key: `${unit.id}-next`, unit })),
     ];
   });
+
+  /** The assist panel: allies who could answer a call, while an orb is ready. */
+  protected readonly assistOpen = signal(false);
+  protected readonly assistShown = computed(
+    () => this.assistOpen() && this.battle.assistOptions().length > 0,
+  );
 
   /** Gold and EXP paid for the battle that just ended. */
   protected readonly rewards = signal<BattleRewards | null>(null);
@@ -305,7 +316,26 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.assistShown()) {
+      const options = this.battle.assistOptions();
+      const pick = Number(event.key);
+      if (pick >= 1 && pick <= options.length) {
+        this.callAssist(options[pick - 1].ally.id);
+        event.preventDefault();
+        return;
+      }
+      if (event.key === 'Escape' || event.key.toLowerCase() === 'q') {
+        this.assistOpen.set(false);
+        event.preventDefault();
+        return;
+      }
+    }
+
     switch (event.key.toLowerCase()) {
+      case 'q':
+        this.toggleAssist();
+        event.preventDefault();
+        break;
       case 'a':
       case 'arrowleft':
         this.battle.moveActiveUnit(-STEP);
@@ -412,6 +442,28 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
         text: STATUS_BADGES[effect.type](effect.potency),
         harmful: ['stun', 'poison', 'attack-down', 'defense-down'].includes(effect.type),
       }));
+  }
+
+  /** How full each of a side's three assist orbs is, 0 to 1. */
+  protected orbs(team: Team): number[] {
+    const gauge = this.battle.assistGauge()[team];
+    return [0, 1, 2].map((i) => Math.min(1, Math.max(0, gauge / ASSIST_COST - i)));
+  }
+
+  protected readyOrbs(): number {
+    return Math.floor(this.battle.assistGauge().player / ASSIST_COST);
+  }
+
+  protected toggleAssist(): void {
+    if (!this.battle.assistOptions().length) return;
+    const open = !this.assistOpen();
+    if (open) this.battle.selectAbility(null);
+    this.assistOpen.set(open);
+  }
+
+  protected callAssist(allyId: string): void {
+    this.assistOpen.set(false);
+    this.battle.callAssist(allyId);
   }
 
   protected isAimTarget(unit: UnitInstance): boolean {

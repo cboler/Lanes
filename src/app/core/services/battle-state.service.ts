@@ -19,6 +19,13 @@ import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
 import { chooseBuff, statusValue } from '../engine/ai-tactics';
+import {
+  ASSIST_COST,
+  ASSIST_MAX,
+  AssistGauges,
+  assistCandidates,
+  assistGain,
+} from '../engine/assist';
 import { BattleReport } from '../models/progression.model';
 import { knownAbilities } from '../models/skills.model';
 import {
@@ -155,6 +162,16 @@ export class BattleStateService {
   public readonly lastAction = signal<BattleAction | null>(null);
   /** Set once when a battle ends, for the rewards; null while it is being fought. */
   public readonly battleReport = signal<BattleReport | null>(null);
+  /** Each side's assist gauge, 0 to ASSIST_MAX; every ASSIST_COST is one orb. */
+  public readonly assistGauge = signal<AssistGauges>({ player: 0, enemy: 0 });
+
+  /** Allies the player could call on now, if an orb is ready. */
+  public readonly assistOptions = computed(() => {
+    const active = this.activeUnit();
+    if (!active || !this.canPlayerAct() || this.aim()) return [];
+    if (this.assistGauge()[active.team] < ASSIST_COST) return [];
+    return assistCandidates(active, this.units(), this.targetedUnitId());
+  });
 
   /** Player skills use aim and combo timing; off resolves them at normal power, like the AI. */
   public readonly timingEnabled = signal(readTimingPreference());
@@ -308,6 +325,7 @@ export class BattleStateService {
     this.floatingTexts.set([]);
     this.lastAction.set(null);
     this.battleReport.set(null);
+    this.assistGauge.set({ player: 0, enemy: 0 });
     this.mercenaryOf = new Map();
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
@@ -699,6 +717,68 @@ export class BattleStateService {
       this.addLog(`⚠️ ${result.failureReason}`);
       return false;
     }
+    this.resolveAction(attacker, ability, result.effects, grade);
+
+    // Reset selection
+    this.selectedAbilityId.set(null);
+    this.targetedUnitId.set(null);
+
+    return true;
+  }
+
+  /**
+   * Spends an orb to have `allyId` make its pursuit attack now, outside its turn and free
+   * of AP. The pursuit itself does not refill the gauge.
+   */
+  public callAssist(allyId: string, automated = false): boolean {
+    const active = this.activeUnit();
+    if (!active || !this.canAct(automated)) return false;
+    if (this.assistGauge()[active.team] < ASSIST_COST) return false;
+    const plan = assistCandidates(active, this.units(), this.targetedUnitId()).find(
+      (candidate) => candidate.ally.id === allyId,
+    );
+    if (!plan) return false;
+    const result = CombatExecutor.execute(
+      plan.ally,
+      plan.ability,
+      plan.targets,
+      this.units(),
+      undefined,
+      false,
+    );
+    if (!result.success) {
+      this.addLog(`⚠️ ${result.failureReason}`);
+      return false;
+    }
+    // A pursuit interrupts a combo.
+    this.clearExecution();
+    this.assistGauge.update((gauge) => ({
+      ...gauge,
+      [active.team]: gauge[active.team] - ASSIST_COST,
+    }));
+    this.addLog(`🤝 Assist! ${plan.ally.name} answers ${active.name}'s call.`);
+    this.triggerFloatingText(plan.ally.id, 'ASSIST', false, false, true);
+    this.resolveAction(plan.ally, plan.ability, result.effects, undefined, false);
+    return true;
+  }
+
+  /** Logs, animates and publishes a resolved skill, then checks whether the battle ended. */
+  private resolveAction(
+    attacker: UnitInstance,
+    ability: AbilityDefinition,
+    effects: readonly TargetEffect[],
+    grade?: ExecutionGrade,
+    fillsAssist = true,
+  ): void {
+    if (fillsAssist) {
+      const gain = assistGain(effects);
+      if (gain > 0) {
+        this.assistGauge.update((gauge) => ({
+          ...gauge,
+          [attacker.team]: Math.min(ASSIST_MAX, gauge[attacker.team] + gain),
+        }));
+      }
+    }
 
     // Trigger attack sprite animation
     this.attackingUnitId.set(attacker.id);
@@ -707,13 +787,13 @@ export class BattleStateService {
       if (version === this.battleVersion) this.attackingUnitId.set(null);
     }, 350 * this.delayMultiplier);
 
-    this.processCombatEffects(attacker, ability, result.effects, grade);
+    this.processCombatEffects(attacker, ability, effects, grade);
     this.lastAction.set({
       seq: ++this.actionSeq,
       attackerId: attacker.id,
       abilityId: ability.id,
       grade,
-      effects: result.effects.map((effect) => ({
+      effects: effects.map((effect) => ({
         targetId: effect.target.id,
         isHealing: effect.isHealing,
         guardAbsorbed: effect.guardAbsorbed,
@@ -727,12 +807,6 @@ export class BattleStateService {
 
     // Check end condition
     this.checkBattleStatus();
-
-    // Reset selection
-    this.selectedAbilityId.set(null);
-    this.targetedUnitId.set(null);
-
-    return true;
   }
 
   private processCombatEffects(
@@ -854,6 +928,11 @@ export class BattleStateService {
       const unit = this.activeUnit();
       if (!unit || !this.canAct(true)) return;
       if (unit.team === 'enemy' && this.tryDefenseOrder(unit)) return;
+      if (this.tryLethalAssist(unit)) {
+        this.isAiThinking.set(false);
+        if (this.battleStatus() === 'active') this.triggerAiTurn();
+        return;
+      }
       const allies = this.units().filter((u) => u.team === unit.team && u.isAlive);
       const enemies = this.units().filter((u) => u.team !== unit.team && u.isAlive);
       const heal = unit.abilities.find(
@@ -942,6 +1021,18 @@ export class BattleStateService {
       if (executed && this.battleStatus() === 'active') this.triggerAiTurn();
       else this.scheduleTurnAction(() => this.endCurrentTurn(true), 600);
     }, 600);
+  }
+
+  /** The AI spends an orb only when an ally's pursuit would defeat its target outright. */
+  private tryLethalAssist(unit: UnitInstance): boolean {
+    if (this.assistGauge()[unit.team] < ASSIST_COST) return false;
+    const lethal = assistCandidates(unit, this.units()).find(
+      ({ ally, ability, targets }) =>
+        ability.target.startsWith('single-') &&
+        DamageCalculator.calculateWithDefense(ally, targets[0], ability) >=
+          targets[0].currentHp + targets[0].guardPoints,
+    );
+    return !!lethal && this.callAssist(lethal.ally.id, true);
   }
 
   private tryDefenseOrder(unit: UnitInstance): boolean {

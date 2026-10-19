@@ -354,6 +354,45 @@ describe('BattleStateService', () => {
     expect(service.playerUnits()[0].abilities).toHaveLength(3);
   });
 
+  it('fills the assist gauge from damage and spends an orb on a free ally pursuit', () => {
+    service.initSkirmish([ARCHER_CLASS, FIGHTER_CLASS], [FIGHTER_CLASS]);
+    const archer = service.activeUnit()!;
+    const fighter = service.playerUnits().find((u) => u !== archer)!;
+    const foe = service.enemyUnits()[0];
+    fighter.lane = archer.lane;
+    foe.lane = archer.lane;
+    expect(service.assistOptions()).toEqual([]);
+    service.selectAbility('quick_shot');
+    service.executeSelectedAbility(foe);
+    expect(service.assistGauge().player).toBeGreaterThan(0);
+
+    service.assistGauge.set({ player: 100, enemy: 0 });
+    expect(service.assistOptions().map((o) => o.ally)).toEqual([fighter]);
+    const hp = foe.currentHp;
+    const ap = fighter.actionGauge.current;
+    expect(service.callAssist(fighter.id)).toBe(true);
+    expect(foe.currentHp).toBeLessThan(hp);
+    expect(fighter.actionGauge.current).toBe(ap);
+    expect(service.lastAction()?.attackerId).toBe(fighter.id);
+    // The pursuit itself does not refill the gauge.
+    expect(service.assistGauge().player).toBe(0);
+    expect(service.callAssist(fighter.id)).toBe(false);
+  });
+
+  it('lets the AI spend an orb only on a pursuit that defeats its target', () => {
+    service.initSkirmish([FIGHTER_CLASS], [ARCHER_CLASS, FIGHTER_CLASS]);
+    const [enemyArcher, enemyFighter] = service.enemyUnits();
+    const target = service.playerUnits()[0];
+    enemyFighter.lane = target.lane;
+    enemyArcher.lane = target.lane;
+    target.takeDamage(target.maxHp - 5);
+    service.assistGauge.set({ player: 0, enemy: 100 });
+    expect(service.activeUnit()).toBe(enemyArcher);
+    vi.advanceTimersByTime(700);
+    expect(service.combatLogs().join(' ')).toContain('Assist!');
+    expect(service.assistGauge().enemy).toBeLessThan(100);
+  });
+
   it('refreshes squad sheets for the next restart', () => {
     service.deployMercenaries([defender]);
     service.refreshMercenaries([{ ...defender, stats: { ...defender.stats, con: 30 } }]);

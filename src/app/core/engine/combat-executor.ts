@@ -80,6 +80,8 @@ export class CombatExecutor {
     selectedTargets: readonly UnitInstance[],
     allBattlefieldUnits: readonly UnitInstance[] = selectedTargets,
     grade?: ExecutionGrade,
+    /** False for an assist: the ally acts outside its turn, free of AP. */
+    spendAp = true,
   ): CombatResult {
     if (!attacker.isAlive) {
       return { success: false, failureReason: 'Attacker is dead.', effects: [] };
@@ -124,7 +126,7 @@ export class CombatExecutor {
       return { success: false, failureReason: `${ability.name} is already active.`, effects: [] };
     }
 
-    if (!attacker.actionGauge.trySpend(ability.actionCost)) {
+    if (spendAp && !attacker.actionGauge.trySpend(ability.actionCost)) {
       return { success: false, failureReason: 'Insufficient action gauge.', effects: [] };
     }
 

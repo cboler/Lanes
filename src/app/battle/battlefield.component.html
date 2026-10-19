@@ -184,6 +184,11 @@
             <span class="pip" [class.fallen]="!alive"></span>
           }
         </span>
+        <span class="assist-orbs" title="Assist gauge">
+          @for (fill of orbs('player'); track $index) {
+            <span class="orb" [class.ready]="fill >= 1" [style.--fill]="fill"></span>
+          }
+        </span>
       </span>
     </div>
     <div class="troop-banner enemy" aria-hidden="true">
@@ -196,9 +201,49 @@
             <span class="pip" [class.fallen]="!alive"></span>
           }
         </span>
+        <span class="assist-orbs" title="Assist gauge">
+          @for (fill of orbs('enemy'); track $index) {
+            <span class="orb" [class.ready]="fill >= 1" [style.--fill]="fill"></span>
+          }
+        </span>
       </span>
       <span class="troop-crest">☠</span>
     </div>
+
+    @if (battle.assistOptions().length) {
+      <button
+        type="button"
+        class="assist-btn"
+        id="assist-btn"
+        [attr.aria-expanded]="assistShown()"
+        (click)="toggleAssist()"
+        title="Spend an orb: an ally attacks now, outside its turn (Q)"
+      >
+        🤝 Assist · {{ readyOrbs() }}
+      </button>
+    }
+
+    @if (assistShown()) {
+      <section class="assist-panel" aria-label="Call an assist">
+        <strong>🤝 Call an ally · 1 orb</strong>
+        <div class="assist-options">
+          @for (option of battle.assistOptions(); track option.ally.id; let idx = $index) {
+            <button
+              type="button"
+              class="tactical-btn secondary"
+              [id]="'assist-' + option.ally.id"
+              (click)="callAssist(option.ally.id)"
+            >
+              {{ idx + 1 }} · {{ option.ally.name }}: {{ option.ability.name }} →
+              {{ option.targets.length > 1 ? 'all in reach' : option.targets[0].name }}
+            </button>
+          }
+          <button type="button" class="tactical-btn secondary" (click)="assistOpen.set(false)">
+            Cancel
+          </button>
+        </div>
+      </section>
+    }
 
     @for (aim of aimView(); track aim.key) {
       <section class="aim-panel" aria-label="Aim" [style]="aim.style">
@@ -237,7 +282,7 @@
       <div class="just-flash" aria-hidden="true"></div>
     }
 
-    @if (!battle.aim() && battle.selectedAbility(); as ability) {
+    @if (!assistShown() && !battle.aim() && battle.selectedAbility(); as ability) {
       @if (battle.canPlayerAct()) {
         <section class="targeting-panel" aria-label="Confirm ability">
           <div class="targeting-copy">
@@ -501,7 +546,7 @@
 
   <p class="combat-guide">
     Melee → Ranged → Magic → Melee: +25% damage. Movement spends MG; skills spend AP; unspent AP
-    becomes Guard. Keys: A/D move · W/S lane · 1–5 skills · Enter confirm · E end turn.
+    becomes Guard. Keys: A/D move · W/S lane · 1–5 skills · Enter confirm · Q assist · E end turn.
   </p>
 
   @if (battle.battleStatus() !== 'active') {

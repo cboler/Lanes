@@ -264,10 +264,32 @@ The user wants the battle page never to scroll: "that doesn't make for a fun gam
 - stage-units divides the world-space offsets (lunges, knockback, lane hops) by the group scale, so a scaled figure still lands where the choreography aims it.
 - Tests: stageView and a tall-pitch fitFrame case in stage-layout.spec.ts; 255 unit tests and 67 e2e tests pass.
 
+## Assist gauge (2026-10-19)
+
+Spec 1.1.5: "an Assist Gauge fills as a player deals damage and defeats enemy units… expending a portion… calls an Assist Attack from an allied unit… outside of their normal turn."
+
+- **Rules:** src/app/core/engine/assist.ts is pure.
+  - Each side's gauge runs 0–300, three orbs of 100.
+  - assistGain adds half the damage dealt to enemies (no friendly fire, heals or misses) plus 25 per defeat.
+  - pursuitFor(ally) uses the ally's first damaging skill, aimed at the preferred (targeted) unit if it can reach it, otherwise at the weakest it can reach; area skills hit everyone in reach. Stunned or dead allies can't answer.
+  - assistCandidates lists every ally of the acting unit who has a pursuit.
+- **Service:**
+  - BattleStateService.assistGauge holds both gauges and is reset on every new battle. assistOptions is computed for the player's turn when an orb is ready (not while aiming).
+  - callAssist(allyId) runs CombatExecutor.execute with spendAp = false, takes 100, logs "🤝 Assist!", floats "ASSIST" and plays the ally's choreography. A pursuit does not refill the gauge, and it ends any combo.
+  - The tail shared by every resolved skill is now resolveAction(), which also fills the gauge.
+- **AI:** tryLethalAssist runs at the start of each AI action and spends an orb only when a single-target pursuit would defeat its target. This covers enemies, Auto-Battle, and defense practice's fallback (not scripted orders).
+- **UI:**
+  - Three conic-filled .orb elements under each troop banner's pips, glowing when full.
+  - #assist-btn ("🤝 Assist · n") under the player banner while an option exists.
+  - Q or the button opens .assist-panel in the targeting slot. It lists "n · Ally: Skill → Target"; 1–4 call that ally, and Escape, Q or Cancel close it. Opening it cancels a skill selection.
+- **Styles:** the aim and combo styles moved to battlefield-execution.scss, the third styleUrl, to stay within the 20 kB per-stylesheet budget.
+- **Tests:** assist.spec.ts, plus service cases for the free pursuit, the gauge spend and the AI's lethal-only assist: 260 unit tests pass.
+  - The e2e test grants an orb through the dev-mode `ng.getComponent(...).battle` handle; filling it through play takes several turns.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Knockback/launch states, battlefield objects, the assist gauge (the troop-flag orbs), and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+2. Knockback/launch states, battlefield objects, and the guild hub. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

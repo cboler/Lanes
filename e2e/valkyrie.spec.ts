@@ -578,3 +578,31 @@ test('the battle screen fits the window without scrolling, even with five skills
   await page.goto('/roster');
   expect(await page.evaluate(() => document.body.classList.contains('battle-screen'))).toBe(false);
 });
+
+test('a full assist orb calls an ally to attack outside its turn, free of AP', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Assist rules are independent of viewport.');
+  await timingOff(page);
+  await page.goto('/');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  await expect(page.locator('#assist-btn')).toHaveCount(0);
+  // Filling the gauge takes several turns of damage, so this test grants one orb directly.
+  await page.evaluate(() => {
+    const host = document.querySelector('app-battlefield');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).ng.getComponent(host).battle.assistGauge.set({ player: 100, enemy: 0 });
+  });
+  await expect(page.locator('.troop-banner.player .orb.ready')).toHaveCount(1);
+  await expect(page.locator('#assist-btn')).toContainText('Assist · 1');
+  await page.keyboard.press('q');
+  await expect(page.locator('.assist-panel')).toBeVisible();
+  await expect(page.locator('.assist-panel')).toContainText('Aldric: Shield Bash');
+  await page.keyboard.press('1');
+  await expect(page.locator('.assist-panel')).toHaveCount(0);
+  await expect(page.locator('#assist-btn')).toHaveCount(0);
+  // Brenna, whose turn it is, spent nothing.
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
+  await page.locator('#toggle-log-btn').click();
+  await expect(page.locator('.combat-log-drawer')).toContainText("Aldric answers Brenna's call");
+});
