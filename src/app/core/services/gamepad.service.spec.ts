@@ -74,6 +74,51 @@ describe('GamepadService browser polling', () => {
     else Reflect.deleteProperty(navigator, 'getGamepads');
   });
 
+  it('maps X, Y, the triggers, View and Menu to battle commands, once per press', () => {
+    tick();
+    tick(16);
+    const pressOnce = (index: number) => {
+      press(index);
+      tick();
+      tick(16);
+      press(index, false);
+      tick(32);
+    };
+    pressOnce(2);
+    pressOnce(3);
+    pressOnce(8);
+    pressOnce(9);
+    expect(actions).toEqual(['end-turn', 'assist', 'toggle-log', 'menu']);
+    actions.length = 0;
+    // Holding a trigger walks; letting go stops.
+    press(7);
+    tick();
+    tick(500);
+    expect(actions).toEqual(['walk-right']);
+    press(7, false);
+    tick(516);
+    expect(actions).toEqual(['walk-right', 'walk-stop']);
+  });
+
+  it('leaves battle commands alone while a dialog is open, but still stops a walk', () => {
+    render('<div role="dialog" aria-modal="true"><button>Fight again</button></div>');
+    tick();
+    tick(16);
+    press(6);
+    tick(32);
+    press(6, false);
+    press(2);
+    tick(48);
+    expect(actions).toEqual(['walk-stop']);
+  });
+
+  it('can be told where to put focus, with the controller highlight', () => {
+    const [button] = render('<button>Fight again</button>');
+    service.focus(button);
+    expect(document.activeElement).toBe(button);
+    expect(button.classList.contains('gamepad-focused')).toBe(true);
+  });
+
   it('recognizes standard controllers and tolerates missing or denied gamepad access', () => {
     tick();
     expect(service.connected()).toBe(true);

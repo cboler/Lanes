@@ -641,3 +641,59 @@ test('melee skills need the enemy within reach; walking closer brings it in', as
   await page.locator('#confirm-ability-btn').click();
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '85');
 });
+
+test('a controller plays a whole turn: walk, log, assist, Guard and End, and the verdict', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Controller input is independent of viewport.');
+  await timingOff(page);
+  await installController(page);
+  await page.goto('/');
+  await expect(page.locator('.controller-status')).toBeVisible();
+  await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
+  await frames(page);
+  // A controller player's turn starts on the first skill.
+  await expect(page.locator('#ability-btn-quick_shot')).toBeFocused();
+  await expect(page.locator('#end-turn-btn .pad-glyph')).toHaveText('X');
+
+  // Holding RT walks on, further than a single step.
+  await controller(page, { buttons: [7] });
+  await frames(page, 40);
+  await controller(page);
+  expect(Number(await page.locator('#move-gauge').getAttribute('aria-valuenow'))).toBeLessThan(96);
+
+  // View opens and closes the combat log.
+  await tap(page, { buttons: [8] });
+  await expect(page.locator('.combat-log-drawer')).toBeVisible();
+  await tap(page, { buttons: [8] });
+  await expect(page.locator('.combat-log-drawer')).toHaveCount(0);
+
+  // Y opens the assist panel on its first ally; B closes it.
+  await page.evaluate(() => {
+    const host = document.querySelector('app-battlefield');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).ng.getComponent(host).battle.assistGauge.set({ player: 100, enemy: 0 });
+  });
+  await tap(page, { buttons: [3] });
+  await expect(page.locator('.assist-panel')).toBeVisible();
+  await expect(page.locator('.assist-options button').first()).toBeFocused();
+  await tap(page, { buttons: [1] });
+  await expect(page.locator('.assist-panel')).toHaveCount(0);
+
+  // X is Guard and End.
+  const acting = await page.locator('.unit-node.acting-unit').getAttribute('id');
+  await tap(page, { buttons: [2] });
+  await expect(page.locator('.unit-node.acting-unit')).not.toHaveAttribute('id', acting!);
+
+  // The verdict takes focus, so A answers it.
+  await page.evaluate(() => {
+    const host = document.querySelector('app-battlefield');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const battle = (window as any).ng.getComponent(host).battle;
+    for (const unit of battle.enemyUnits()) unit.takeDamage(99999);
+    battle.endCurrentTurn(true);
+  });
+  await expect(page.locator('#modal-restart-btn')).toBeFocused();
+  await tap(page, { buttons: [0] });
+  await expect(page.locator('.battle-result-overlay')).toHaveCount(0);
+});

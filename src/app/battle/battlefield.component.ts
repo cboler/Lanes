@@ -68,6 +68,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly battle = inject(BattleStateService);
   private readonly roster = inject(RosterService);
   private readonly document = inject(DOCUMENT);
+  protected readonly pad = inject(GamepadService);
   private readonly guild = inject(GuildService);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
@@ -171,35 +172,62 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
         untracked(() => this.guild.complete(report.contractId!));
       }
     });
-    inject(GamepadService)
-      .actions.pipe(takeUntilDestroyed())
-      .subscribe((action) => {
-        if (!this.battle.canPlayerAct()) return;
-        const unit = this.battle.activeUnit()!;
-        switch (action) {
-          case 'cancel':
-            this.cancelSelection();
-            break;
-          case 'previous-ability':
-            this.cycleAbility(-1);
-            break;
-          case 'next-ability':
-            this.cycleAbility(1);
-            break;
-          case 'move-left':
-            this.battle.moveActiveUnit(-STEP);
-            break;
-          case 'move-right':
-            this.battle.moveActiveUnit(STEP);
-            break;
-          case 'move-up':
-            this.battle.switchActiveUnitLane(unit.lane - 1);
-            break;
-          case 'move-down':
-            this.battle.switchActiveUnitLane(unit.lane + 1);
-            break;
+    // Controller focus: where a controller player needs to be when something opens or a turn starts.
+    effect(() => {
+      if (this.battle.battleStatus() === 'active') return;
+      setTimeout(() => this.focusFor('#modal-restart-btn'));
+    });
+    effect(() => {
+      const active = this.battle.activeUnitId();
+      if (!active || !untracked(this.battle.canPlayerAct) || !untracked(this.pad.connected)) return;
+      setTimeout(() => this.focusFor('.skill-btn:not(:disabled)'));
+    });
+    this.pad.actions.pipe(takeUntilDestroyed()).subscribe((action) => {
+      // Utility buttons work on any turn.
+      if (action === 'toggle-log') return this.toggleLog();
+      if (action === 'menu') return this.focusFor('#auto-battle-btn');
+      if (action === 'walk-stop') return this.stopWalk();
+      if (!this.battle.canPlayerAct()) return;
+      const unit = this.battle.activeUnit()!;
+      switch (action) {
+        case 'cancel':
+          if (this.assistOpen()) this.assistOpen.set(false);
+          else this.cancelSelection();
+          break;
+        case 'end-turn':
+          this.battle.endCurrentTurn();
+          break;
+        case 'assist':
+          this.toggleAssist();
+          break;
+        case 'walk-left':
+        case 'walk-right': {
+          // Like holding A or D: a step now, then a steady walk while the trigger is held.
+          const direction = action === 'walk-left' ? -1 : 1;
+          this.battle.moveActiveUnit(direction * STEP);
+          this.startWalk(direction);
+          break;
         }
-      });
+        case 'previous-ability':
+          this.cycleAbility(-1);
+          break;
+        case 'next-ability':
+          this.cycleAbility(1);
+          break;
+        case 'move-left':
+          this.battle.moveActiveUnit(-STEP);
+          break;
+        case 'move-right':
+          this.battle.moveActiveUnit(STEP);
+          break;
+        case 'move-up':
+          this.battle.switchActiveUnitLane(unit.lane - 1);
+          break;
+        case 'move-down':
+          this.battle.switchActiveUnitLane(unit.lane + 1);
+          break;
+      }
+    });
   }
 
   public ngOnInit(): void {
@@ -468,6 +496,15 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     const open = !this.assistOpen();
     if (open) this.battle.selectAbility(null);
     this.assistOpen.set(open);
+    // Whoever opened it (Q, Y or a tap) can pick an ally straight away.
+    if (open) setTimeout(() => this.focusFor('.assist-options button'));
+  }
+
+  /** Focuses the first match, with the controller highlight when a controller is in use. */
+  private focusFor(selector: string): void {
+    const element = this.document.querySelector<HTMLElement>(selector);
+    if (this.pad.connected()) this.pad.focus(element);
+    else element?.focus();
   }
 
   protected callAssist(allyId: string): void {

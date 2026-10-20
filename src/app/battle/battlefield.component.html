@@ -51,6 +51,9 @@
         aria-label="Toggle Combat Log"
       >
         📜 Log ({{ battle.combatLogs().length }})
+        @if (pad.connected()) {
+          <span class="pad-glyph" aria-hidden="true">View</span>
+        }
       </button>
       <button
         type="button"
@@ -239,6 +242,9 @@
         title="Spend an orb: an ally attacks now, outside its turn (Q)"
       >
         🤝 Assist · {{ readyOrbs() }}
+        @if (pad.connected()) {
+          <span class="pad-glyph" aria-hidden="true">Y</span>
+        }
       </button>
     }
 
@@ -558,7 +564,12 @@
             (click)="battle.endCurrentTurn()"
             title="Convert unspent Action Gauge into Guard until your next turn (E)"
           >
-            <span>🛡️ Guard &amp; End (E)</span>
+            <span
+              >🛡️ Guard &amp; End (E)
+              @if (pad.connected()) {
+                <span class="pad-glyph" aria-hidden="true">X</span>
+              }
+            </span>
             <span class="guard-preview"
               >{{ active.guardPotential }} shield · TEC {{ active.stats.technique }}</span
             >

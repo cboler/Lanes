@@ -1,6 +1,14 @@
 import { DOCUMENT, Injectable, NgZone, OnDestroy, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 
+/*
+ * The standard-mapping layout, shared with the other games' controller support:
+ *   D-pad / left stick  move focus           A  press the focused control
+ *   B                   cancel or close      X  Guard and end the turn
+ *   Y                   call an assist       LB / RB  previous / next skill
+ *   LT / RT (hold)      walk left / right    Right stick  one step, or change lane
+ *   View                combat log           Menu  jump to the battle toolbar
+ */
 export type GamepadAction =
   | 'cancel'
   | 'previous-ability'
@@ -8,7 +16,14 @@ export type GamepadAction =
   | 'move-up'
   | 'move-down'
   | 'move-left'
-  | 'move-right';
+  | 'move-right'
+  | 'end-turn'
+  | 'assist'
+  | 'walk-left'
+  | 'walk-right'
+  | 'walk-stop'
+  | 'toggle-log'
+  | 'menu';
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -114,15 +129,25 @@ export class GamepadService implements OnDestroy {
       this.nextNavigationAt = time + (navigation === this.navigation ? 150 : 400);
     }
 
-    if (edge(0) || edge(1) || edge(4) || edge(5) || (movement && !this.movement)) {
+    const released = (index: number) => !pressed[index] && this.buttons[index];
+    const anyEdge = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].some(edge);
+    if (anyEdge || released(6) || released(7) || (movement && !this.movement)) {
       this.zone.run(() => {
         if (edge(1)) this.cancel();
         else if (edge(0)) this.activate();
         else if (!this.modal()) {
-          if (edge(4)) this.actionSource.next('previous-ability');
+          if (edge(2)) this.actionSource.next('end-turn');
+          else if (edge(3)) this.actionSource.next('assist');
+          else if (edge(4)) this.actionSource.next('previous-ability');
           else if (edge(5)) this.actionSource.next('next-ability');
+          else if (edge(6)) this.actionSource.next('walk-left');
+          else if (edge(7)) this.actionSource.next('walk-right');
+          else if (edge(8)) this.actionSource.next('toggle-log');
+          else if (edge(9)) this.actionSource.next('menu');
           else if (movement && !this.movement) this.actionSource.next(`move-${movement}`);
         }
+        // Letting go of a trigger always stops a walk, even under a dialog.
+        if (released(6) || released(7)) this.actionSource.next('walk-stop');
       });
     }
     this.buttons = pressed;
@@ -189,6 +214,15 @@ export class GamepadService implements OnDestroy {
     next.classList.add('gamepad-focused');
     next.focus({ preventScroll: true });
     next.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }
+
+  /** Moves controller focus to `element`, highlighted as D-pad focus is. */
+  public focus(element: HTMLElement | null | undefined): void {
+    if (!element) return;
+    this.clearFocusHighlight();
+    this.focused = element;
+    element.classList.add('gamepad-focused');
+    element.focus({ preventScroll: true });
   }
 
   private activate(): void {

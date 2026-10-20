@@ -365,6 +365,24 @@ Spec 1.1.5 ("barricades to impede movement, traps to inflict damage or status"; 
 - **Tests:** field-object.model.spec.ts (crossing, springing, barricade blocking, no turns, no knockback, per-tier placement, parsing), plus a service case (barricade and snare from a contract, springing on walking, victory without breaking the barricade): 281 unit tests pass.
   - e2e: a Hard contract shows the barricade (not counted in pips or turns) and two trap markers; the Normal-contract test excludes its barricade from the band.
 
+## Full controller support (2026-10-20)
+
+The user asked for full controller support, with their other repos as examples. tower-defense's GamepadService uses the same layout (A confirm, B cancel, X/Y main actions, LB/RB cycle, View/Menu utility).
+
+- **GamepadService:** new actions end-turn (X, button 2), assist (Y, 3), walk-left and walk-right (LT/RT, 6/7, on press) with walk-stop on release (sent even under a dialog), toggle-log (View, 8) and menu (Menu, 9).
+  - The battle commands are ignored while a modal dialog is open; A and B still work there.
+  - focus(element) moves focus with the .gamepad-focused highlight.
+- **Battle:** the subscription in BattlefieldComponent handles every action.
+  - View and Menu work on any turn; the rest only on the player's turn.
+  - B closes the assist panel before it cancels a selection. X is endCurrentTurn, and Y is toggleAssist.
+  - LT/RT take a step, then startWalk while held, as holding A or D does.
+- **Focus:** focusFor(selector) uses the controller highlight when a controller is connected, plain focus otherwise.
+  - The battle verdict focuses #modal-restart-btn.
+  - With a controller connected, each new player turn focuses the first enabled skill.
+  - Opening the assist panel focuses its first ally.
+- **UI:** .pad-glyph badges (View on Log, Y on Assist, X on Guard & End) show while a controller is connected, and the header's controller guide lists the full map.
+- **Tests:** gamepad.service.spec.ts covers the new buttons, triggers and dialog behaviour and the focus helper (284 unit tests). A new e2e test drives a whole turn with the virtual controller: focus on the first skill, an RT walk, View, Y then B, X, and A on the verdict.
+
 ## Immediate next steps
 
 1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.

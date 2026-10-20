@@ -202,3 +202,19 @@
     clip-path: inset(50%);
   }
 }
+
+/* Controller button glyphs, shown while a controller is connected. */
+.pad-glyph {
+  display: inline-grid;
+  min-width: 1.6em;
+  height: 1.6em;
+  margin-left: 6px;
+  padding: 0 4px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family);
+  font-size: 0.65rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
