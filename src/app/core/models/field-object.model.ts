@@ -1,4 +1,5 @@
-import { AbilityStatus } from './ability.model';
+import { AbilityStatus, PlacedObject } from './ability.model';
+import { COLLISION_BUFFER, FIELD_MAX_X, FIELD_MIN_X } from '../engine/field';
 import { StatusEffectInstance, StatusEffectType } from './status-effect.model';
 import { UnitBaseStats } from './stats.model';
 import { BARRICADE_CLASS } from './unit-class.model';
@@ -91,6 +92,42 @@ export function springTrap(
     );
   }
   return { damage, status: trap.status.type, defeated: !unit.isAlive };
+}
+
+/** How far ahead of its user a skill sets an object down: a barricade close, a trap farther. */
+const PLACE_AHEAD: Record<PlacedObject, number> = { barricade: 0.1, spikes: 0.2, snare: 0.2 };
+/** The closest two traps in one lane may lie. */
+const TRAP_SPACING = 0.04;
+
+/**
+ * Where a skill would set `kind` down ahead of `unit` (toward the enemy, in its lane), or
+ * null when there is no room: past the field's edge, a barricade with anyone in its way
+ * or too close, or a trap on top of another.
+ */
+export function placementSpot(
+  unit: UnitInstance,
+  kind: PlacedObject,
+  units: readonly UnitInstance[],
+  traps: readonly FieldTrap[],
+): number | null {
+  const dir = unit.team === 'player' ? 1 : -1;
+  const x = Math.round((unit.positionX + dir * PLACE_AHEAD[kind]) * 100) / 100;
+  if (x < FIELD_MIN_X || x > FIELD_MAX_X) return null;
+  if (kind === 'barricade') {
+    const blocked = units.some((other) => {
+      if (other === unit || !other.isAlive || other.lane !== unit.lane) return false;
+      const ahead = (other.positionX - unit.positionX) * dir;
+      return (
+        (ahead > 0 && ahead < PLACE_AHEAD.barricade) ||
+        Math.abs(other.positionX - x) < COLLISION_BUFFER
+      );
+    });
+    return blocked ? null : x;
+  }
+  const crowded = traps.some(
+    (trap) => trap.lane === unit.lane && Math.abs(trap.x - x) < TRAP_SPACING,
+  );
+  return crowded ? null : x;
 }
 
 /** Validates a saved object placement, or null. */

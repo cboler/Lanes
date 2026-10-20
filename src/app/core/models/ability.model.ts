@@ -23,6 +23,9 @@ export interface AbilityStatus {
   readonly potency: number;
 }
 
+/** A battlefield object a skill sets down ahead of its user, in the user's lane. */
+export type PlacedObject = 'barricade' | 'spikes' | 'snare';
+
 /**
  * Immutable definition of a single combat ability.
  */
@@ -40,4 +43,6 @@ export interface AbilityDefinition {
   readonly status?: AbilityStatus;
   /** Shoves enemies hit back along their lane by this share of the field's width. */
   readonly knockback?: number;
+  /** Sets down a barricade or trap instead of striking anyone (target 'self', power 0). */
+  readonly place?: PlacedObject;
 }

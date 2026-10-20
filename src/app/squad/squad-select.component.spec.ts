@@ -15,6 +15,8 @@ describe('SquadSelectComponent', () => {
   const element = (): HTMLElement => fixture.nativeElement;
 
   beforeEach(async () => {
+    // Start from a fresh starter roster, whatever an earlier spec left in storage.
+    window.localStorage?.removeItem('lanes.roster.v1');
     await TestBed.configureTestingModule({
       imports: [SquadSelectComponent],
       providers: [provideRouter([]), BattleStateService],

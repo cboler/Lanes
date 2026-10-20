@@ -78,7 +78,7 @@ export interface TrapField {
   dispose(): void;
 }
 
-/** Red rings with spikes (or a coiled rope for a snare) where traps wait; they burst when sprung. */
+/** Rings with spikes (or a coiled rope for a snare) where traps wait; they burst when sprung. */
 export function createTrapField(
   { scene, assets, reducedMotion }: StageContext,
   particles: Particles,
@@ -95,7 +95,8 @@ export function createTrapField(
     const group = new THREE.Group();
     const glow = new THREE.MeshBasicMaterial({
       map: ring,
-      color: 0xff5a3c,
+      // The enemy's traps glow red; the player's own glow blue.
+      color: trap.team === 'player' ? 0x5aa9ff : 0xff5a3c,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,

@@ -403,11 +403,20 @@ The user asked to finish everything that doesn't need a backend: "a solid single
 - **Options:** src/app/options/options.component.ts (inline template). Timing toggle; save backup (createSaveFile/parseSaveFile in save-file.model.ts, keys in SAVE_KEYS), restore from a file (replaces every key, then reloads to home) and "Start a new game" (pressed twice).
 - **Tests:** E2E_PORT lets Playwright serve and test another port (`E2E_PORT=4300 npx playwright test`). New e2e: campaign.spec.ts, options.spec.ts, and a scroll test in roster.spec.ts; e2e that visited `/` for a battle now visit `/battle`. Do not run Prettier while an e2e run uses the dev server: its live reload aborts tests mid-run.
 
+## Player-placed barricades and traps (2026-10-20)
+
+- **Skills:** AbilityDefinition.place ('barricade' | 'spikes' | 'snare') with target 'self' and power 0. Fighter's advanced pool gains Raise Barricade (50 AP), Archer's gains Snare Trap (30 AP); their pools are now four, and patterns still pick two. Saved patterns are unchanged; only new rolls (and pre-pattern legacy saves) see the larger pool.
+- **Rule:** placementSpot(unit, kind, units, traps) in field-object.model.ts: a barricade 0.1 ahead (toward the enemy) if nobody is in the way or within COLLISION_BUFFER of the spot, a trap 0.2 ahead if inside the field and not within 0.04 of another trap in the lane.
+- **Service:** executeSelectedAbility routes place skills to placeObject (not CombatExecutor). It spends the AP, adds a barricade unit (team = the user's, stats barricadeStats(user level)) or a trap (makeTrap with the user's team and level), logs, floats text, and publishes a self-targeted buff lastAction so the stage glows. levelOf holds each mercenary unit's level. One at a time: hasPlaced(unit) is true while the user's last barricade stands or its trap is unsprung (placedBy map). `placement` is the computed spot for the selected skill; the targeting panel shows #placement-warning and disables Confirm when it is null.
+- **AI:** the role AI only considers enemy-targeted skills and chooseBuff needs a status, so the AI never places objects; scripted defense orders can (chooseDefenseTarget returns the user for 'self').
+- **Stage:** new barricade units appear through the normal view sync; traps carry their team, and the player's glow blue (the enemy's red). DOM trap markers say "Your snare in lane N" / "Enemy spike trap in lane N" and have .own for the player's.
+- **Tests:** placementSpot cases, a service test (snare and barricade placement, blocking, one-at-a-time, springing), an e2e test placing a snare through the UI.
+
 ## Immediate next steps
 
 1. Story: write the real campaign (chapter 1 onward) in campaign-story.ts; consider per-mission backdrops, special victory conditions (protect a unit, survive N rounds) and story-only enemy names on the stage.
 2. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-3. Let players set objects too: a Fighter skill to raise a barricade, or an Archer skill to lay a trap, and objects in saved defense plans. Launch and juggle states need new clips. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+3. Objects in saved defense plans (pre-placed, as contracts have), and teaching the AI when to place them. Launch and juggle states need new clips. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

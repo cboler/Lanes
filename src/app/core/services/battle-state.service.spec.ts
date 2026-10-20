@@ -691,4 +691,58 @@ describe('BattleStateService', () => {
       expect(service.combo()).toBeNull();
     });
   });
+
+  it('a Fighter raises a barricade that blocks enemies, and an Archer sets a snare that springs on them', () => {
+    const builder = { ...defender, level: 10, pattern: [{ id: 'raise_barricade', level: 2 }] };
+    const archer = {
+      ...generateMercenary('archer', seededRandom(12)),
+      level: 10,
+      pattern: [{ id: 'snare_trap', level: 2 }],
+    };
+    service.deployMercenaries([builder, archer], [FIGHTER_CLASS]);
+    const [fighter, bowman] = service.playerUnits();
+    const foe = service.enemyUnits()[0];
+    // Line everyone up in one lane, the archer's turn first.
+    for (const unit of [fighter, bowman, foe]) unit.lane = 1;
+    fighter.positionX = 0.3;
+    bowman.positionX = 0.2;
+    foe.positionX = 0.8;
+    service.activeUnitId.set(bowman.id);
+    service.selectAbility('snare_trap');
+    // Traps go farther ahead than barricades, so the snare lies beyond the fighter.
+    expect(service.placement()).toBe(0.4);
+    expect(service.commitSelectedAbility()).toBe(true);
+    expect(service.traps()).toEqual([
+      expect.objectContaining({ team: 'player', kind: 'snare', x: 0.4 }),
+    ]);
+
+    service.activeUnitId.set(fighter.id);
+    service.selectAbility('raise_barricade');
+    expect(service.commitSelectedAbility()).toBe(true);
+    const barricade = service.units().find((u) => u.isObject)!;
+    expect(barricade.team).toBe('player');
+    expect(barricade.positionX).toBe(0.4);
+    expect(service.playerUnits().filter((u) => !u.isObject)).toHaveLength(2);
+    expect(fighter.actionGauge.current).toBe(50);
+    // One at a time, even with room to spare elsewhere.
+    fighter.lane = 2;
+    service.units.update((list) => [...list]);
+    service.selectAbility('raise_barricade');
+    expect(service.hasPlaced(fighter)).toBe(true);
+    expect(service.placement()).toBeNull();
+    expect(service.commitSelectedAbility()).toBe(false);
+    fighter.lane = 1;
+
+    // The barricade stops the foe short of the snare behind it...
+    service.activeUnitId.set(foe.id);
+    expect(service.moveActiveUnit(-0.6, true)).toBe(true);
+    expect(foe.positionX).toBeCloseTo(0.4 + COLLISION_BUFFER);
+    expect(service.traps()).toHaveLength(1);
+    // ...but a snare in its path holds it.
+    foe.positionX = 0.6;
+    service.traps.update((list) => list.map((t) => ({ ...t, x: 0.55 })));
+    service.moveActiveUnit(-0.1, true);
+    expect(foe.isStunned).toBe(true);
+    expect(service.traps()).toHaveLength(0);
+  });
 });

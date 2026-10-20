@@ -131,6 +131,17 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
       target: 'single-enemy',
       status: { type: 'defense-down', duration: 2, potency: 15 },
     },
+    {
+      id: 'raise_barricade',
+      name: 'Raise Barricade',
+      description:
+        'Plant a palisade a short way ahead in this lane. It blocks the lane and takes direct blows meant for those behind it.',
+      actionCost: 50,
+      damageType: 'physical',
+      powerMultiplier: 0,
+      target: 'self',
+      place: 'barricade',
+    },
   ],
 };
 
@@ -300,6 +311,17 @@ export const ARCHER_CLASS: UnitClassDefinition = {
       powerMultiplier: 0.55,
       target: 'all-enemies',
       crossLane: true,
+    },
+    {
+      id: 'snare_trap',
+      name: 'Snare Trap',
+      description:
+        'Hide a snare further down this lane. The first enemy to cross it, or be knocked into it, is held for a turn.',
+      actionCost: 30,
+      damageType: 'physical',
+      powerMultiplier: 0,
+      target: 'self',
+      place: 'snare',
     },
   ],
 };

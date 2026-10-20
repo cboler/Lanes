@@ -41,6 +41,7 @@ import {
   TRAP_NAMES,
   barricadeStats,
   makeTrap,
+  placementSpot,
   springTrap,
   trapsCrossed,
 } from '../models/field-object.model';
@@ -206,6 +207,11 @@ export class BattleStateService {
   private actionSeq = 0;
   /** Which roster mercenary each player unit is, by unit id. */
   private mercenaryOf = new Map<string, string>();
+  /** Each mercenary unit's level, which scales the objects its skills set down. */
+  private levelOf = new Map<string, number>();
+  private placedCount = 0;
+  /** Who set each placed barricade or trap down, by object id. */
+  private placedBy = new Map<string, string>();
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
   private playerMercenaries: readonly (Mercenary | undefined)[] = [];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
@@ -367,6 +373,8 @@ export class BattleStateService {
     this.assistGauge.set({ player: 0, enemy: 0 });
     this.traps.set([]);
     this.mercenaryOf = new Map();
+    this.levelOf = new Map();
+    this.placedBy = new Map();
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
 
@@ -397,6 +405,7 @@ export class BattleStateService {
         merc ? { abilities: knownAbilities(merc), supports: merc.supports } : undefined,
       );
       if (merc) this.mercenaryOf.set(unit.id, merc.id);
+      if (merc) this.levelOf.set(unit.id, merc.level);
       newUnits.push(unit);
     });
 
@@ -426,6 +435,7 @@ export class BattleStateService {
         merc ? { abilities: knownAbilities(merc), supports: merc.supports } : undefined,
       );
       newUnits.push(unit);
+      if (merc) this.levelOf.set(unit.id, merc.level);
       if (activePlan) this.defenseOrders.set(unit.id, activePlan.members[idx].orders);
     });
 
@@ -777,17 +787,103 @@ export class BattleStateService {
     const targets = this.resolveTargets(ability, targetOverride);
     if (!targets) return false;
 
-    const result = CombatExecutor.execute(attacker, ability, targets, this.units(), grade);
-    if (!result.success) {
-      this.addLog(`⚠️ ${result.failureReason}`);
-      return false;
+    if (ability.place) {
+      if (!this.placeObject(attacker, ability)) return false;
+    } else {
+      const result = CombatExecutor.execute(attacker, ability, targets, this.units(), grade);
+      if (!result.success) {
+        this.addLog(`⚠️ ${result.failureReason}`);
+        return false;
+      }
+      this.resolveAction(attacker, ability, result.effects, grade);
     }
-    this.resolveAction(attacker, ability, result.effects, grade);
 
     // Reset selection
     this.selectedAbilityId.set(null);
     this.targetedUnitId.set(null);
 
+    return true;
+  }
+
+  /** Where the selected skill would set its object down, or null if there is no room. */
+  public readonly placement = computed(() => {
+    const unit = this.activeUnit();
+    const ability = this.selectedAbility();
+    if (!unit || !ability?.place || this.hasPlaced(unit)) return null;
+    return placementSpot(unit, ability.place, this.units(), this.traps());
+  });
+
+  /** One at a time: a unit's barricade must be broken, or its trap sprung, before it sets another. */
+  public hasPlaced(unit: UnitInstance): boolean {
+    const standing = [
+      ...this.units()
+        .filter((u) => u.isObject && u.isAlive)
+        .map((u) => u.id),
+      ...this.traps().map((trap) => trap.id),
+    ];
+    return standing.some((id) => this.placedBy.get(id) === unit.id);
+  }
+
+  /**
+   * Sets a barricade or trap down ahead of `unit`, for the skill's AP. A barricade joins
+   * the user's side as an object; a trap springs on the other side.
+   */
+  private placeObject(unit: UnitInstance, ability: AbilityDefinition): boolean {
+    const kind = ability.place!;
+    if (this.hasPlaced(unit)) {
+      this.addLog(`⚠️ ${unit.name}'s last barricade or trap is still on the field.`);
+      return false;
+    }
+    const x = placementSpot(unit, kind, this.units(), this.traps());
+    if (x === null) {
+      this.addLog(`⚠️ No room ahead in this lane for ${ability.name}.`);
+      return false;
+    }
+    if (!unit.actionGauge.trySpend(ability.actionCost)) {
+      this.addLog('⚠️ Insufficient action gauge.');
+      return false;
+    }
+    const level = this.levelOf.get(unit.id) ?? 1;
+    const id = `${unit.team}_placed_${++this.placedCount}`;
+    this.placedBy.set(id, unit.id);
+    if (kind === 'barricade') {
+      const barricade = new UnitInstance(
+        BARRICADE_CLASS,
+        'Barricade',
+        unit.team,
+        unit.lane,
+        x,
+        100,
+        id,
+        barricadeStats(level),
+      );
+      this.units.update((list) => [...list, barricade]);
+      this.addLog(`🧱 ${unit.name} raises a barricade in Lane ${unit.lane + 1}.`);
+    } else {
+      const trap = makeTrap({ kind: 'trap', trap: kind, lane: unit.lane, x }, unit.team, level, id);
+      this.traps.update((list) => [...list, trap]);
+      this.addLog(
+        `🪤 ${unit.name} sets a ${TRAP_NAMES[kind].toLowerCase()} in Lane ${unit.lane + 1}.`,
+      );
+    }
+    this.triggerFloatingText(unit.id, kind === 'barricade' ? 'BARRICADE' : 'TRAP SET', true, false);
+    this.lastAction.set({
+      seq: ++this.actionSeq,
+      attackerId: unit.id,
+      abilityId: ability.id,
+      effects: [
+        {
+          targetId: unit.id,
+          isHealing: false,
+          guardAbsorbed: 0,
+          wasDefeated: false,
+          isFriendlyFire: false,
+          missed: false,
+          isBuff: true,
+        },
+      ],
+    });
+    this.units.update((list) => [...list]);
     return true;
   }
 

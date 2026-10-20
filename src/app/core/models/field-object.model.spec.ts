@@ -3,6 +3,7 @@ import {
   barricadeStats,
   makeTrap,
   parseObjectSpec,
+  placementSpot,
   springTrap,
   trapsCrossed,
 } from './field-object.model';
@@ -78,5 +79,28 @@ describe('contract objects', () => {
     });
     expect(parseObjectSpec({ kind: 'trap', trap: 'pit', lane: 1, x: 0.5 })).toBeNull();
     expect(parseObjectSpec({ kind: 'barricade', lane: 3, x: 0.6 })).toBeNull();
+  });
+
+  it('sets placed objects down ahead of their user, only where there is room', () => {
+    const fighter = new UnitInstance(FIGHTER_CLASS, 'Hero', 'player', 1, 0.3);
+    const foe = new UnitInstance(FIGHTER_CLASS, 'Foe', 'enemy', 1, 0.7);
+    expect(placementSpot(fighter, 'barricade', [fighter, foe], [])).toBe(0.4);
+    expect(placementSpot(fighter, 'snare', [fighter, foe], [])).toBe(0.5);
+    // The enemy places toward the player's side.
+    expect(placementSpot(foe, 'barricade', [fighter, foe], [])).toBe(0.6);
+    // Someone standing where the barricade would go, or in the way, blocks it.
+    foe.positionX = 0.45;
+    expect(placementSpot(fighter, 'barricade', [fighter, foe], [])).toBeNull();
+    foe.positionX = 0.36;
+    expect(placementSpot(fighter, 'barricade', [fighter, foe], [])).toBeNull();
+    // A lane-mate behind does not.
+    const friend = new UnitInstance(FIGHTER_CLASS, 'Friend', 'player', 1, 0.14);
+    foe.positionX = 0.7;
+    expect(placementSpot(fighter, 'barricade', [fighter, foe, friend], [])).toBe(0.4);
+    // Traps may lie under anyone, but not on another trap or past the edge.
+    const laid = makeTrap({ kind: 'trap', trap: 'snare', lane: 1, x: 0.5 }, 'player', 1, 'p1');
+    expect(placementSpot(fighter, 'snare', [fighter], [laid])).toBeNull();
+    fighter.positionX = 0.8;
+    expect(placementSpot(fighter, 'snare', [fighter], [])).toBeNull();
   });
 });

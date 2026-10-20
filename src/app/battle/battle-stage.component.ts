@@ -153,7 +153,7 @@ export class BattleStageComponent {
         guard: unit.guardPoints,
         statuses: unit.statusEffects.filter((e) => !e.isExpired).map((e) => e.type),
       })),
-      traps: battle.traps().map(({ id, kind, lane, x }) => ({ id, kind, lane, x })),
+      traps: battle.traps().map(({ id, kind, team, lane, x }) => ({ id, kind, team, lane, x })),
       activeId: active?.id ?? null,
       moveRange: controllable && !ability ? battle.reachableSpan(active) : null,
       targets: [

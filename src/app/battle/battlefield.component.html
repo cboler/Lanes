@@ -108,9 +108,15 @@
             <span
               class="trap-marker"
               [class.drawn-on-stage]="staged()"
+              [class.own]="trap.team === 'player'"
               [style.left.%]="trap.x * 100"
               role="img"
-              [attr.aria-label]="trapName(trap) + ' in lane ' + (laneIndex + 1)"
+              [attr.aria-label]="
+                (trap.team === 'player' ? 'Your ' : 'Enemy ') +
+                trapName(trap).toLowerCase() +
+                ' in lane ' +
+                (laneIndex + 1)
+              "
               >{{ trap.kind === 'snare' ? '🪢' : '📍' }}</span
             >
           }
@@ -327,12 +333,23 @@
                 ⚔ No enemy in reach: advance (D / ▶) to close in.
               </span>
             }
+            @if (ability.place && battle.placement() === null) {
+              <span class="friendly-fire-warning" id="placement-warning">
+                @if (battle.hasPlaced(battle.activeUnit()!)) {
+                  🧱 One at a time: the last one must be broken or sprung first.
+                } @else {
+                  🧱 No room ahead in this lane: step back or change lane.
+                }
+              </span>
+            }
           </div>
           <button
             type="button"
             class="tactical-btn primary"
             id="confirm-ability-btn"
-            [disabled]="battle.validTargets().length === 0"
+            [disabled]="
+              battle.validTargets().length === 0 || (!!ability.place && battle.placement() === null)
+            "
             (click)="battle.commitSelectedAbility()"
           >
             Confirm

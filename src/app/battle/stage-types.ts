@@ -25,6 +25,7 @@ export interface StageState {
   readonly traps: readonly {
     readonly id: string;
     readonly kind: 'spikes' | 'snare';
+    readonly team: 'player' | 'enemy';
     readonly lane: number;
     readonly x: number;
   }[];

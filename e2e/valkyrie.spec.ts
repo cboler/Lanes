@@ -558,6 +558,45 @@ test('a veteran uses a skill its pattern taught, leaving a status on the target'
   await expect(page.locator('.enemy-unit .status-badge')).toContainText(['STUN']);
 });
 
+test('an archer sets a snare ahead of it, one at a time', async ({ page }) => {
+  await page.addInitScript(() => {
+    const neutral = { str: 17, mag: 17, tec: 17, vit: 17, stm: 17, spi: 17, agi: 17, con: 17 };
+    const grade = 'C';
+    const aptitudes = Object.fromEntries(Object.keys(neutral).map((stat) => [stat, grade]));
+    const brenna = {
+      id: 'merc_brenna',
+      name: 'Brenna',
+      classId: 'archer',
+      level: 5,
+      aptitudes,
+      stats: { ...neutral, sp: 10 },
+      pattern: [
+        { id: 'snare_trap', level: 2 },
+        { id: 'pinning_shot', level: 6 },
+      ],
+    };
+    localStorage.setItem(
+      'lanes.roster.v1',
+      JSON.stringify({ version: 1, mercenaries: [brenna], squadIds: [brenna.id] }),
+    );
+  });
+  await page.goto('/battle');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  await page.locator('#ability-btn-snare_trap').click();
+  await expect(page.locator('.targeting-panel')).toContainText('Snare Trap · 30 AP');
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '70');
+  await expect(page.locator('.trap-marker.own')).toHaveCount(1);
+  await expect(page.locator('.trap-marker.own')).toHaveAttribute(
+    'aria-label',
+    /^Your snare in lane/,
+  );
+  // A second snare waits until the first is sprung.
+  await page.locator('#ability-btn-snare_trap').click();
+  await expect(page.locator('#placement-warning')).toContainText('One at a time');
+  await expect(page.locator('#confirm-ability-btn')).toBeDisabled();
+});
+
 test('the battle screen fits the window without scrolling, even with five skills', async ({
   page,
 }) => {
