@@ -18,7 +18,7 @@ import { DefenseOrder, DefensePlan, parseDefensePlan } from '../models/defense-p
 import { getClassDefinition } from '../models/unit-class.model';
 import { Mercenary, deriveCombatStats } from '../models/mercenary.model';
 import { chooseDefenseTarget } from '../engine/defense-policy';
-import { chooseBuff, statusValue } from '../engine/ai-tactics';
+import { chooseBuff, choosePlacement, statusValue } from '../engine/ai-tactics';
 import {
   COLLISION_BUFFER,
   FIELD_MAX_X,
@@ -1153,6 +1153,14 @@ export class BattleStateService {
       if (heal && wounded) {
         this.selectedAbilityId.set(heal.id);
         executed = this.executeSelectedAbility(wounded, true);
+      }
+      // A barricade or trap where it will matter; the next pass fights on.
+      const place = executed
+        ? null
+        : choosePlacement(unit, this.units(), this.traps(), this.hasPlaced(unit));
+      if (place) {
+        this.selectedAbilityId.set(place.id);
+        executed = this.executeSelectedAbility(undefined, true);
       }
       // A buff first when it helps enough and still leaves AP to attack; the next pass attacks.
       const buff = !executed && enemies.length ? chooseBuff(unit, this.units()) : null;

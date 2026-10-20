@@ -745,4 +745,31 @@ describe('BattleStateService', () => {
     expect(foe.isStunned).toBe(true);
     expect(service.traps()).toHaveLength(0);
   });
+
+  it('an enemy archer sets a snare in front of an advancing lancer, then shoots', () => {
+    const archer = {
+      ...generateMercenary('archer', seededRandom(13)),
+      level: 10,
+      pattern: [{ id: 'snare_trap', level: 2 }],
+    };
+    const contract = {
+      ...generateContract('easy', 10, seededRandom(3)),
+      enemies: [archer],
+      objects: [],
+    };
+    service.deployContract(contract, [{ ...defender, classId: 'lancer' }]);
+    const [lancer] = service.playerUnits();
+    const [foe] = service.enemyUnits();
+    lancer.lane = foe.lane;
+    lancer.positionX = 0.32;
+    foe.positionX = 0.86;
+    service.activeUnitId.set(foe.id);
+    service.resume();
+    vi.advanceTimersByTime(3000);
+    expect(service.traps()).toEqual([
+      expect.objectContaining({ team: 'enemy', kind: 'snare', x: 0.66 }),
+    ]);
+    const log = [...service.combatLogs()].reverse().join(' ');
+    expect(log).toMatch(/sets a snare.*unleashed/);
+  });
 });
