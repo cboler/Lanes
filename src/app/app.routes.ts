@@ -1,42 +1,53 @@
 import { Routes } from '@angular/router';
-import { BattlefieldComponent } from './battle/battlefield.component';
-import { SquadSelectComponent } from './squad/squad-select.component';
-import { StatusComponent } from './status/status.component';
-import { RosterComponent } from './roster/roster.component';
-import { DefenseSetupComponent } from './defense/defense-setup.component';
 import { GuildComponent } from './guild/guild.component';
 
+// The Guild Hall is the home screen; every other page loads when first visited.
 export const routes: Routes = [
   {
     path: '',
-    component: BattlefieldComponent,
-    title: 'Tactical Battlefield • Lanes',
-  },
-  {
-    path: 'guild',
     component: GuildComponent,
     title: 'Guild Hall • Lanes',
   },
   {
+    path: 'battle',
+    loadComponent: () =>
+      import('./battle/battlefield.component').then((m) => m.BattlefieldComponent),
+    title: 'Tactical Battlefield • Lanes',
+  },
+  {
+    path: 'campaign',
+    loadComponent: () => import('./campaign/campaign.component').then((m) => m.CampaignComponent),
+    title: 'Campaign • Lanes',
+  },
+  {
     path: 'squad',
-    component: SquadSelectComponent,
+    loadComponent: () =>
+      import('./squad/squad-select.component').then((m) => m.SquadSelectComponent),
     title: 'Squad Builder • Lanes',
   },
   {
     path: 'roster',
-    component: RosterComponent,
+    loadComponent: () => import('./roster/roster.component').then((m) => m.RosterComponent),
     title: 'Mercenary Roster • Lanes',
   },
   {
     path: 'status',
-    component: StatusComponent,
+    loadComponent: () => import('./status/status.component').then((m) => m.StatusComponent),
     title: 'Diagnostics • Lanes',
   },
   {
     path: 'defense',
-    component: DefenseSetupComponent,
+    loadComponent: () =>
+      import('./defense/defense-setup.component').then((m) => m.DefenseSetupComponent),
     title: 'Defense Orders • Lanes',
   },
+  {
+    path: 'options',
+    loadComponent: () => import('./options/options.component').then((m) => m.OptionsComponent),
+    title: 'Options • Lanes',
+  },
+  // The guild hall was /guild before it became the home screen.
+  { path: 'guild', redirectTo: '' },
   {
     path: '**',
     redirectTo: '',

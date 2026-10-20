@@ -1,7 +1,7 @@
 <section class="roster-page" aria-labelledby="roster-title">
   <header class="roster-header">
     <div>
-      <a routerLink="/" class="tactical-btn secondary">◀ Return to battle</a>
+      <a routerLink="/" class="tactical-btn secondary">◀ Guild Hall</a>
       <h1 id="roster-title">Mercenary Roster</h1>
       <p>
         Each mercenary has eight stats graded F to S for aptitude, plus Skill Points. Stats scale
@@ -124,6 +124,89 @@
               </button>
             }
           </div>
+        </details>
+        <details class="items-panel">
+          <summary>
+            Scrolls &amp; grimoires · {{ roster.count('tactics') }} Tactics ·
+            {{ roster.count('charm') }} Charm
+          </summary>
+          <h3>Tactics Scroll: raise an aptitude</h3>
+          <div class="support-list grades">
+            @for (stat of primaryStats; track stat) {
+              <button
+                type="button"
+                class="support-btn"
+                [disabled]="!roster.count('tactics') || !nextGrade(merc, stat)"
+                [attr.aria-label]="
+                  'Use a Tactics Scroll on ' +
+                  labels[stat] +
+                  ' for ' +
+                  merc.name +
+                  (nextGrade(merc, stat)
+                    ? ': ' + merc.aptitudes[stat] + ' to ' + nextGrade(merc, stat)
+                    : ': already S')
+                "
+                (click)="roster.useTactics(merc.id, stat)"
+              >
+                <span>{{ labels[stat] }}</span>
+                <small>{{ merc.aptitudes[stat] }} → {{ nextGrade(merc, stat) ?? '—' }}</small>
+              </button>
+            }
+          </div>
+          <h3>Charm Scroll: respec</h3>
+          <button
+            type="button"
+            class="support-btn wide"
+            [disabled]="!roster.count('charm') || !investedTotal(merc)"
+            [attr.aria-label]="
+              'Use a Charm Scroll on ' +
+              merc.name +
+              ': refund ' +
+              investedTotal(merc) +
+              ' invested points'
+            "
+            (click)="roster.useCharm(merc.id)"
+          >
+            Refund {{ investedTotal(merc) }} invested points
+          </button>
+          <h3>Grimoires</h3>
+          @for (skill of scribable(merc); track skill.id) {
+            <button
+              type="button"
+              class="support-btn wide"
+              [disabled]="roster.gold() < scribeCost"
+              [attr.aria-label]="
+                'Scribe a grimoire of ' +
+                skill.name +
+                ' from ' +
+                merc.name +
+                ' for ' +
+                scribeCost +
+                ' gold'
+              "
+              (click)="roster.scribe(merc.id, skill.id)"
+            >
+              Scribe {{ skill.name }} · {{ scribeCost }} gold
+            </button>
+          } @empty {
+            <p class="items-note">
+              Once a pattern skill is learned, it can be scribed into a grimoire here.
+            </p>
+          }
+          @for (grimoire of grimoiresFor(merc); track grimoire.item) {
+            @for (old of grimoire.replace; track old.id) {
+              <button
+                type="button"
+                class="support-btn wide teach-btn"
+                [attr.aria-label]="
+                  'Teach ' + merc.name + ' ' + grimoire.name + ' in place of ' + old.name
+                "
+                (click)="roster.useGrimoire(merc.id, grimoire.item, old.id)"
+              >
+                Learn {{ grimoire.name }} in place of {{ old.name }}
+              </button>
+            }
+          }
         </details>
         <div class="card-actions">
           <button

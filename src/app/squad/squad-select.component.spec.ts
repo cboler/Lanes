@@ -107,6 +107,6 @@ describe('SquadSelectComponent', () => {
       roster.squad().map((merc) => merc.name),
     );
     expect(battleService.enemyUnits()).toHaveLength(3);
-    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/']);
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/battle']);
   });
 });

@@ -8,6 +8,7 @@ import {
 import { gainExp, expToNext, investPoint } from './progression.model';
 import { ALL_CLASSES } from './unit-class.model';
 import { FieldObjectSpec, TrapKind, parseObjectSpec } from './field-object.model';
+import { SCROLLS, ScrollId } from './item.model';
 
 /*
  * The guild's contract board: battles against named bands of enemy mercenaries, scaled
@@ -28,6 +29,10 @@ export interface Contract {
   enemies: Mercenary[];
   /** Barricades and traps the band raises before the battle. */
   objects: FieldObjectSpec[];
+  /** Set when this is a campaign mission's battle rather than a board contract. */
+  missionId?: string;
+  /** A scroll paid on top of the gold when the contract is won. */
+  bounty?: ScrollId;
 }
 
 export const TIERS: Record<
@@ -119,7 +124,19 @@ export function generateContract(
   }
   const id = `contract_${Math.floor(random() * 0xffffffff).toString(36)}`;
   const objects = placeObjects(tier, random);
-  return { id, band, title, tier, level, rewardMultiplier: reward, enemies, objects };
+  const contract: Contract = {
+    id,
+    band,
+    title,
+    tier,
+    level,
+    rewardMultiplier: reward,
+    enemies,
+    objects,
+  };
+  // Half of all Hard contracts post a scroll as a bounty.
+  if (tier === 'hard' && random() < 0.5) contract.bounty = random() < 0.5 ? 'tactics' : 'charm';
+  return contract;
 }
 
 /** How many barricades and traps each tier's band raises. */
@@ -197,5 +214,6 @@ export function parseContract(value: unknown): Contract | null {
     rewardMultiplier: TIERS[raw.tier].reward,
     enemies: enemies as Mercenary[],
     objects: objects as FieldObjectSpec[],
+    ...(typeof raw.bounty === 'string' && raw.bounty in SCROLLS ? { bounty: raw.bounty } : {}),
   };
 }

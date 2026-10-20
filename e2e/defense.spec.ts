@@ -17,7 +17,7 @@ test('saves a four-turn defense plan and practices against its first order', asy
     page.getByRole('button', { name: 'Member 1 turn 1 action: Guard and end' }),
   ).toBeVisible();
   await page.locator('#practice-defense-btn').click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/battle$/);
   await expect(page.locator('.battlefield-container > .practice-note')).toBeVisible();
   // Dara is in the player squad too, so the defending copy is marked.
   const defender = page.locator('.enemy-unit').filter({ hasText: 'Dara (Def)' });

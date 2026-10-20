@@ -201,7 +201,8 @@
 .hire-btn {
   min-height: 44px;
 }
-.skills-panel {
+.skills-panel,
+.items-panel {
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--space-2);
 
@@ -279,4 +280,19 @@
   margin: 0;
   font-size: var(--font-size-xs);
   color: #9dd3ff;
+}
+
+.support-list.grades {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.support-btn.wide {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.items-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
 }

@@ -22,6 +22,19 @@ import {
 } from '../models/progression.model';
 import { getClassDefinition } from '../models/unit-class.model';
 import { canEquipSupport, patternSkill } from '../models/skills.model';
+import {
+  Inventory,
+  ItemId,
+  SCRIBE_COST,
+  SCROLLS,
+  ScrollId,
+  addItems,
+  applyCharm,
+  applyGrimoire,
+  applyTactics,
+  canScribe,
+  parseInventory,
+} from '../models/item.model';
 
 // The key predates version 2 saves; the data carries its own version.
 const STORAGE_KEY = 'lanes.roster.v1';
@@ -33,6 +46,8 @@ interface SavedRoster {
   squadIds: string[];
   gold: number;
   recruits: Mercenary[];
+  /** Scrolls and grimoires; saves from before items have none. */
+  items?: Inventory;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +60,7 @@ export class RosterService {
   public readonly squadIds = signal<string[]>([]);
   public readonly gold = signal(0);
   public readonly recruits = signal<Mercenary[]>([]);
+  public readonly items = signal<Inventory>({});
   /** Rewards already paid this session, by battle report id, so a battle pays once. */
   private readonly paid = new Map<string, BattleRewards>();
 
@@ -61,6 +77,7 @@ export class RosterService {
     this.squadIds.set(saved.squadIds);
     this.gold.set(saved.gold);
     this.recruits.set(saved.recruits);
+    this.items.set(saved.items ?? {});
     if (!this.warning()) this.persist();
   }
 
@@ -177,6 +194,61 @@ export class RosterService {
     return rewards;
   }
 
+  /** Pays gold and items from outside battle, such as a story reward or a bounty. */
+  public grant(gold: number, items: readonly ItemId[] = []): void {
+    this.gold.update((purse) => purse + gold);
+    this.items.update((inventory) => addItems(inventory, items));
+    this.persist();
+  }
+
+  public count(item: ItemId): number {
+    return this.items()[item] ?? 0;
+  }
+
+  public buy(scroll: ScrollId): boolean {
+    const { price } = SCROLLS[scroll];
+    if (this.gold() < price) return false;
+    this.gold.update((gold) => gold - price);
+    this.items.update((inventory) => addItems(inventory, [scroll]));
+    this.persist();
+    return true;
+  }
+
+  /** Spends a Tactics Scroll to raise one of a mercenary's aptitudes. */
+  public useTactics(id: string, stat: PrimaryStat): boolean {
+    return this.useItem('tactics', id, (merc) => applyTactics(merc, stat));
+  }
+
+  /** Spends a Charm Scroll to refund a mercenary's invested points. */
+  public useCharm(id: string): boolean {
+    return this.useItem('charm', id, applyCharm);
+  }
+
+  /** Spends a grimoire to teach its skill in place of one of the mercenary's pattern skills. */
+  public useGrimoire(id: string, item: ItemId, replaceId: string): boolean {
+    return this.useItem(item, id, (merc) => applyGrimoire(merc, item, replaceId));
+  }
+
+  /** Copies a skill a mercenary has learned into a grimoire, for gold. */
+  public scribe(id: string, skillId: string): boolean {
+    const merc = this.mercenaries().find((m) => m.id === id);
+    if (!merc || !canScribe(merc, skillId) || this.gold() < SCRIBE_COST) return false;
+    this.gold.update((gold) => gold - SCRIBE_COST);
+    this.items.update((inventory) => addItems(inventory, [`grimoire:${skillId}`]));
+    this.persist();
+    return true;
+  }
+
+  private useItem(item: ItemId, id: string, apply: (merc: Mercenary) => Mercenary | null): boolean {
+    const merc = this.mercenaries().find((m) => m.id === id);
+    const next = merc && this.count(item) > 0 ? apply(merc) : null;
+    if (!next) return false;
+    this.replace(next);
+    this.items.update((inventory) => addItems(inventory, [item], -1));
+    this.persist();
+    return true;
+  }
+
   private replace(merc: Mercenary): void {
     this.mercenaries.update((list) => list.map((m) => (m.id === merc.id ? merc : m)));
   }
@@ -236,7 +308,14 @@ export class RosterService {
       if (!Number.isInteger(gold) || gold! < 0 || gold! > 9_999_999 || !recruits) {
         throw new Error('Invalid purse or recruits.');
       }
-      return { version: 2, mercenaries, squadIds, gold: gold!, recruits };
+      return {
+        version: 2,
+        mercenaries,
+        squadIds,
+        gold: gold!,
+        recruits,
+        items: parseInventory(raw.items),
+      };
     } catch {
       this.warning.set('Saved roster could not be loaded; a new roster was created.');
       return null;
@@ -261,6 +340,7 @@ export class RosterService {
       squadIds: this.squadIds(),
       gold: this.gold(),
       recruits: this.recruits(),
+      items: this.items(),
     };
     try {
       const storage = this.document.defaultView?.localStorage;

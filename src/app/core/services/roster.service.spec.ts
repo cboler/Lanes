@@ -220,4 +220,48 @@ describe('RosterService', () => {
       expect(paid.learned.includes(skill.name)).toBe(paid.level >= step.level);
     });
   });
+
+  it('sells scrolls, spends them on mercenaries, and keeps the inventory after a reload', () => {
+    const service = TestBed.inject(RosterService);
+    const merc = service.mercenaries()[0];
+    expect(service.buy('tactics')).toBe(true);
+    expect(service.gold()).toBe(STARTING_GOLD - 300);
+    expect(service.buy('tactics')).toBe(false);
+    expect(service.count('tactics')).toBe(1);
+    const stat = (['str', 'mag', 'tec'] as const).find((s) => merc.aptitudes[s] !== 'S')!;
+    expect(service.useTactics(merc.id, stat)).toBe(true);
+    expect(service.count('tactics')).toBe(0);
+    expect(service.useTactics(merc.id, stat)).toBe(false);
+    expect(service.mercenaries()[0].aptitudes[stat]).not.toBe(merc.aptitudes[stat]);
+
+    service.grant(0, ['charm']);
+    // Nothing invested yet: the scroll is kept.
+    expect(service.useCharm(merc.id)).toBe(false);
+    expect(service.count('charm')).toBe(1);
+
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(RosterService).items()).toEqual({ charm: 1 });
+  });
+
+  it('scribes a learned skill into a grimoire and teaches it to another of the class', () => {
+    const service = TestBed.inject(RosterService);
+    const teacher = { ...service.mercenaries()[0], level: 10 };
+    const pool = service.classOf(teacher).advancedAbilities.map((a) => a.id);
+    const student = {
+      ...teacher,
+      id: 'student',
+      name: 'Student',
+      pattern: pool
+        .filter((id) => id !== teacher.pattern[0].id)
+        .slice(0, 2)
+        .map((id, i) => ({ id, level: 3 + i })),
+    };
+    service.mercenaries.set([teacher, student]);
+    const skill = teacher.pattern[0].id;
+    expect(service.scribe(teacher.id, skill)).toBe(true);
+    expect(service.gold()).toBe(STARTING_GOLD - 150);
+    expect(service.useGrimoire('student', `grimoire:${skill}`, student.pattern[1].id)).toBe(true);
+    expect(service.mercenaries()[1].pattern[1]).toEqual({ id: skill, level: 4 });
+    expect(service.count(`grimoire:${skill}`)).toBe(0);
+  });
 });

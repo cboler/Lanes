@@ -64,7 +64,7 @@
       >
         ↺ Restart
       </button>
-      <a routerLink="/guild" class="tactical-btn secondary" id="guild-link">🏰 Guild</a>
+      <a routerLink="/" class="tactical-btn secondary" id="guild-link">🏰 Guild</a>
       <a
         routerLink="/squad"
         class="tactical-btn primary"
@@ -84,9 +84,12 @@
     </p>
   } @else if (battle.activeContract(); as contract) {
     <p class="practice-note contract-note" role="status">
-      📜 {{ contract.title }} · {{ tierLabel(contract) }} · Level {{ contract.level }} · Rewards ×{{
-        contract.rewardMultiplier
-      }}
+      @if (contract.missionId) {
+        📖 Story · {{ contract.title }} · Level {{ contract.level }}
+      } @else {
+        📜 {{ contract.title }} · {{ tierLabel(contract) }} · Level {{ contract.level }} · Rewards
+        ×{{ contract.rewardMultiplier }}
+      }
     </p>
   }
 
@@ -601,6 +604,20 @@
         @if (rewards(); as paid) {
           <section class="result-rewards" aria-label="Battle rewards">
             <p class="reward-gold" id="reward-gold">+{{ paid.gold }} gold</p>
+            @if (storyReward(); as story) {
+              <p class="reward-story" id="reward-story">
+                📖 First win bonus: +{{ story.gold }} gold
+                @for (item of story.items; track $index) {
+                  · {{ itemName(item) }}
+                }
+              </p>
+            }
+            @if (
+              battle.battleStatus() === 'victory' && battle.activeContract()?.bounty;
+              as bounty
+            ) {
+              <p class="reward-story" id="reward-bounty">🎁 Bounty: {{ itemName(bounty) }}</p>
+            }
             <ul class="reward-list">
               @for (merc of paid.mercenaries; track merc.id) {
                 <li>
@@ -625,14 +642,31 @@
         <div class="result-actions">
           <button
             type="button"
-            class="tactical-btn primary large"
+            class="tactical-btn large"
+            [class.primary]="!storyWon()"
+            [class.secondary]="storyWon()"
             id="modal-restart-btn"
             (click)="restartBattle()"
           >
             ⚔️ Fight Again
           </button>
-          @if (battle.activeContract()) {
-            <a routerLink="/guild" class="tactical-btn secondary large" id="modal-guild-btn">
+          @if (battle.activeContract()?.missionId; as missionId) {
+            @if (battle.battleStatus() === 'victory') {
+              <a
+                routerLink="/campaign"
+                [queryParams]="{ debrief: missionId }"
+                class="tactical-btn primary large"
+                id="modal-story-btn"
+              >
+                📖 Continue the story
+              </a>
+            } @else {
+              <a routerLink="/campaign" class="tactical-btn secondary large" id="modal-story-btn">
+                📖 Campaign
+              </a>
+            }
+          } @else if (battle.activeContract()) {
+            <a routerLink="/" class="tactical-btn secondary large" id="modal-guild-btn">
               🏰 Guild
             </a>
           }

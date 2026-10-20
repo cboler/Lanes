@@ -1,3 +1,5 @@
+import { CAMPAIGN } from '../models/campaign-story';
+import { missionContract } from '../models/campaign.model';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BattleStateService, COLLISION_BUFFER } from './battle-state.service';
 import {
@@ -416,6 +418,15 @@ describe('BattleStateService', () => {
     // Any other deployment ends the contract.
     service.deployMercenaries([defender]);
     expect(service.activeContract()).toBeNull();
+  });
+
+  it('reports a campaign mission by its mission id, not as a board contract', () => {
+    service.deployContract(missionContract(CAMPAIGN[0].missions[0]), [defender]);
+    for (const enemy of service.enemyUnits()) enemy.takeDamage(9999);
+    service.endCurrentTurn(true);
+    const report = service.battleReport()!;
+    expect(report.missionId).toBe(CAMPAIGN[0].missions[0].id);
+    expect(report.contractId).toBeUndefined();
   });
 
   it('walks enemy melee into reach before it strikes', () => {

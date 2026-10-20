@@ -4,7 +4,7 @@ A lane-based tactical RPG built as a modern **Angular PWA**, inspired by [Grand 
 
 ## About
 
-Lanes is a playable local prototype moving toward the [Project Valkyrie design](docs/project-valkyrie.md). It combines tactical positioning across three lanes with separate movement and action budgets. Players can build squads, script a defending squad's opening turns, and practice against it.
+Lanes is a playable local prototype moving toward the [Project Valkyrie design](docs/project-valkyrie.md). It combines tactical positioning across three lanes with separate movement and action budgets. Players follow a story campaign, take contracts from the Guild Hall, build and train a roster of mercenaries, script a defending squad's opening turns, and practice against it. Everything runs offline in the browser.
 
 ### Key Features
 
@@ -19,14 +19,17 @@ Lanes is a playable local prototype moving toward the [Project Valkyrie design](
   - **Lancer**: Fast melee striker with long polearm reach, Thrust, Piercing Lunge (cross-lane), and Whirlwind.
   - **Gunner**: Explosive ranged powerhouse with Quick Fire, Snipe (cross-lane), and Explosive Shot (lane AoE with friendly-fire risk).
 - **Interactive Execution**: As in Grand Kingdom, attacks reward timing. Ranged and magic skills fire from a cursor sweeping toward the target: dead centre is a critical (×1.3), the gold band a hit, its edge a graze (half damage), and anything else, including letting the cursor run out, misses while still spending the AP. Melee skills chain: after a strike lands, pressing a melee skill (or the target) again links a combo (×1.1), and pressing it on the white flash is a Just Cancel (×1.3). Enemy AI, defense orders and Auto-Battle always resolve at normal power, so they stay deterministic. The 🎯 Timing toggle turns timing off for players who prefer it; it is remembered on this device.
-- **Guild Hall and Contracts**: The Guild page posts three contracts (Easy, Normal, Hard) against named bands of enemy mercenaries scaled to your squad's level, paying ×1.2, ×1.6 and ×2.2 rewards. Win one and a new contract takes its place; lose and it stays up for another try.
+- **Campaign**: A story told in chapters of missions, played in order from the Campaign page. Each mission opens with a briefing scene and closes with an aftermath scene (portraits, speakers and lines; Enter or A reads on, Escape or B closes). Missions field fixed, named enemy bands with their own barricades and traps, pay like a Normal contract, and add a one-time first-win bonus of gold and scrolls. Won missions can be replayed. The prologue, "The Three Roads", doubles as the tutorial. The story is data in [campaign-story.ts](src/app/core/models/campaign-story.ts); adding a mission is adding an entry.
+- **Guild Hall and Contracts**: The Guild Hall is the home screen: it shows the next story mission, resumes an unfinished battle, starts a practice skirmish, sells scrolls, and posts three contracts (Easy, Normal, Hard) against named bands of enemy mercenaries scaled to your squad's level, paying ×1.2, ×1.6 and ×2.2 rewards. Win one and a new contract takes its place; lose and it stays up for another try. Half of all Hard contracts also post a scroll as a bounty.
+- **Scrolls and Grimoires**: The guild store sells Tactics Scrolls (300 gold: raise one stat's aptitude a grade, back-paying the better rate on points already invested) and Charm Scrolls (200 gold: refund every invested stat point to spend again). A mercenary who has learned a pattern skill can scribe it into a Grimoire (150 gold), which teaches that skill to another mercenary of the class in place of one of its pattern skills. Scrolls are used from each mercenary's card on the Roster; story missions and Hard contract bounties also award them.
+- **Save Backup**: The Options page downloads every saved roster, item, contract and mission as one backup file, restores it on this or another device, or starts a new game (pressed twice).
 - **Battlefield Objects**: Contract bands raise barricades and set traps (Easy: a trap; Normal: a barricade and a trap; Hard: a barricade and two traps). A barricade blocks its lane and takes direct attacks meant for the units behind it until it is broken or flanked through another lane; it never acts and does not count toward victory. Traps (spikes that poison, snares that stun) spring on the first enemy to walk over them or be knocked into them.
 - **Assist Gauge**: Each side's three orbs (under its troop banner) fill as it deals damage and defeats enemies. On your turn, spend a full orb (Q or the Assist button) to have another squad member make a free pursuit attack with its basic skill, outside its turn. Enemies spend orbs only to finish a unit off.
 - **Melee Reach and Knockback**: Position decides reach. Melee skills hit only enemies within reach along the lane (a Fighter's shield reaches about a fifth of the field, a Lancer's polearm twice that), so melee units must close in; the AI walks into reach too. Shield Bash, Shield Charge, Whirlwind and Explosive Shot knock enemies back, and one slammed into a lane-mate or the field's edge takes a quarter of the hit again.
 - **Cross-Lane & AoE Mechanics**: Select abilities can reach across lanes or strike full lanes, while careless high-impact spells risk friendly fire.
 - **Squad Formation Builder**: The War Room fields 1–4 of your roster's mercenaries (the rest wait as reserves) against 1–4 class-based opponent troops, and shows class dossiers. Four is the default; two units share one lane. The first battle of a visit uses the same squad.
 - **Defense Orders**: Choose up to four roster mercenaries to defend and set each one's first four own turns with a skill or Guard and a target priority. The plan keeps a copy of each defender's stat sheet, as a defense sent to another player would. Invalid or unavailable orders use local AI fallback; after four turns, fallback takes over. Plans are saved in browser storage on this device. Practice pits your current squad against the plan; a mercenary on both sides is marked "(Def)" when defending. Practice is local; there are no accounts, server battles, matchmaking, or online PvP yet.
-- **Mercenary Roster**: A persistent roster of named mercenaries with a nine-stat sheet (STR, MAG, TEC, VIT, STM, SPI, AGI, CON, SP) and randomized F–S aptitudes. Stats scale the combat numbers of the mercenary's class, and the roster page deploys a chosen squad into battle. Saved in browser storage on this device; there is no guild hub yet.
+- **Mercenary Roster**: A persistent roster of named mercenaries with a nine-stat sheet (STR, MAG, TEC, VIT, STM, SPI, AGI, CON, SP) and randomized F–S aptitudes. Stats scale the combat numbers of the mercenary's class, and the roster page deploys a chosen squad into battle. Saved in browser storage on this device.
 - **Skill Patterns and Support Skills**: Each class has three core skills every mercenary knows, plus three advanced skills that stun, poison, buff, debuff or reach further. A mercenary's skill pattern, rolled when it is created, teaches two of the advanced skills at set levels. Recruits show their pattern, so it pays to hunt for the one you want. Statuses show as badges over units: buffs refresh rather than stack, and a stunned unit loses its turn. Support skills are passives equipped with SP on the Roster page: Iron Skin, Vigor, Fleet Foot, Second Wind and Might raise stats; Precision Fire slows the aim cursor and Rhythm widens the Just Cancel flash.
 - **Progression and Hiring**: Every battle, won or lost, pays gold and EXP (more for a victory and for each enemy defeated; half EXP for a mercenary who fell; TEC raises EXP). Each level grants 5 stat points and 1 SP. You invest the points on the Roster page, and aptitude decides the bonus: an S stat earns an extra point for every 2 invested, an F stat for every 8. Gold hires recruits from a board of three, priced by their aptitudes. Calling a new board costs 20 gold. The roster holds up to 12, and Dismiss (pressed twice) makes room.
 - **Controller Support**: Any standard controller plays the whole game. The D-pad or left stick moves focus, A presses, B cancels or closes, X is Guard and End, Y calls an assist, LB/RB cycle skills (and chain combos), holding LT/RT walks, the right stick steps or changes lane, View opens the combat log and Menu jumps to the battle toolbar. A turn starts with focus on the first skill, and the assist panel and the battle verdict take focus when they open. While a controller is connected, buttons show their controller glyphs.
@@ -86,6 +89,9 @@ npm run build
 
 # Run Playwright responsive multi-viewport smoke tests
 npm run e2e
+
+# The same, against a dev server on another port when 4200 is taken
+E2E_PORT=4300 npm run e2e
 ```
 
 ## Project Structure
@@ -104,11 +110,15 @@ Lanes/
 ├── src/
 │   ├── app/
 │   │   ├── battle/          # Battle HUD, Three.js stage (lazy chunk) and sprite art
+│   │   ├── campaign/        # Campaign page and story scenes
 │   │   ├── defense/         # Local four-turn defense editor
 │   │   ├── core/
 │   │   │   ├── engine/      # CombatExecutor, DamageCalculator, TurnManager, LaneSwitcher, execution timing
-│   │   │   ├── models/      # UnitInstance, UnitClassDefinition, Ability, Stats
+│   │   │   ├── models/      # Units, classes, mercenaries, contracts, campaign and story, items
 │   │   │   └── services/    # BattleStateService (reactive signals)
+│   │   ├── guild/           # Guild Hall (home): story, store, contract board
+│   │   ├── options/         # Settings and save backup, restore and reset
+│   │   ├── roster/          # Roster, stat sheets, scrolls and hiring
 │   │   ├── squad/           # War Room squad builder and class dossier
 │   │   ├── status/          # Runtime diagnostic screen
 │   │   ├── app.routes.ts    # Application routes

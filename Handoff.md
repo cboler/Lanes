@@ -1,6 +1,6 @@
 # Project Valkyrie handoff
 
-Updated: 2026-10-19. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
+Updated: 2026-10-20. Resume here after an implementation step or usage-limit interruption. Continue the current repository state; do not recreate completed milestones.
 
 ## Current checkpoint
 
@@ -383,10 +383,31 @@ The user asked for full controller support, with their other repos as examples. 
 - **UI:** .pad-glyph badges (View on Log, Y on Assist, X on Guard & End) show while a controller is connected, and the header's controller guide lists the full map.
 - **Tests:** gamepad.service.spec.ts covers the new buttons, triggers and dialog behaviour and the focus helper (284 unit tests). A new e2e test drives a whole turn with the virtual controller: focus on the first skill, an RT walk, View, Y then B, X, and A on the verdict.
 
+## Single-player foundation (2026-10-20)
+
+The user asked to finish everything that doesn't need a backend: "a solid single player game that we can add a campaign and story to". Async multiplayer comes later.
+
+- **Routes:** the Guild Hall is home (`/`); the battle moved to `/battle`, and `/guild` redirects home. Every page but the Guild Hall is lazy-loaded (initial bundle ~350 kB, down from ~496 kB, which was at the 500 kB warning). The nav is Guild Hall, Campaign, Battle, War Room, Roster, Defense Orders, Options; Diagnostics moved to the footer and the Options page. Menu pages' back links say "◀ Guild Hall".
+- **Guild Hall:** a campaign card (#guild-campaign-link, "Begin/Continue the story"), a "Battle under way" card with #resume-battle-btn while a battle is unfinished, #skirmish-btn (class troops at base pay), the guild store, and the contract board.
+- **Campaign:** src/app/core/models/campaign.model.ts (types, order and unlock rules, missionContract), campaign-story.ts (the story data; its header explains how to add missions), CampaignService (lanes.campaign.v1, `cleared` ids), src/app/campaign/ (page and scene dialog).
+  - A mission is a Contract with `missionId`, enemies rolled as veterans from a seed of the mission id (same band every time), tier 'normal' pay (×1.6). BattleReport carries `missionId` instead of `contractId` for these.
+  - Missions unlock in order. CampaignService.complete(missionId, reportId) pays the first-win reward (gold and items) once and caches by report id, like claimRewards.
+  - Scenes: briefing before the battle, aftermath after. `{leader}` is the first squad member's name; a line's portrait is a class id or 'leader'. The scene dialog is role=dialog aria-modal, so a controller's B sends Escape (closes). "Skip to battle" deploys.
+  - The result dialog shows #reward-story and #modal-story-btn ("Continue the story" → /campaign?debrief=id, focused by the verdict effect); a story defeat links back to the campaign.
+  - The prologue "The Three Roads" (4 missions, levels 1–4) teaches movement, reach, traps, barricades and assists, and ends on a hook (crated swords under a seal). It is a first draft for the user to rewrite.
+- **Items:** src/app/core/models/item.model.ts. Tactics Scroll (300 g) raises an aptitude one grade and back-pays the better rate on points already invested, which keeps stats = base + invested + floor(invested / ratio) true; Charm Scroll (200 g) refunds invested points by that formula. A Grimoire (`grimoire:<skill id>`) is scribed for 150 g from a mercenary who has learned the pattern skill and teaches it to another of the class in place of a pattern step (same level), so a mercenary still knows at most five skills.
+  - RosterService: `items` (saved in the roster save as `items`; older saves have none), buy, useTactics, useCharm, scribe, useGrimoire, grant(gold, items).
+  - The guild store (#buy-tactics, #buy-charm, #owned-*) and a "Scrolls & grimoires" panel (.items-panel) on each roster card.
+  - Half of Hard contracts carry `bounty` (a scroll), shown on the card and the result (#reward-bounty); GuildService.complete now returns the won contract so the bounty is paid once.
+  - Defense orders for a skill of the defender's class it no longer knows (a grimoire replaced it, or not learned yet) now become auto instead of rejecting the plan.
+- **Options:** src/app/options/options.component.ts (inline template). Timing toggle; save backup (createSaveFile/parseSaveFile in save-file.model.ts, keys in SAVE_KEYS), restore from a file (replaces every key, then reloads to home) and "Start a new game" (pressed twice).
+- **Tests:** E2E_PORT lets Playwright serve and test another port (`E2E_PORT=4300 npx playwright test`). New e2e: campaign.spec.ts, options.spec.ts, and a scroll test in roster.spec.ts; e2e that visited `/` for a battle now visit `/battle`. Do not run Prettier while an e2e run uses the dev server: its live reload aborts tests mid-run.
+
 ## Immediate next steps
 
-1. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
-2. Let players set objects too: a Fighter skill to raise a barricade, or an Archer skill to lay a trap, and objects in saved defense plans. Launch and juggle states need new clips. Make the Guild Hall the landing page once it has more to offer. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
+1. Story: write the real campaign (chapter 1 onward) in campaign-story.ts; consider per-mission backdrops, special victory conditions (protect a unit, survive N rounds) and story-only enemy names on the stage.
+2. Art: more backdrops per battle, visible equipment through hand-bone attachments, and launch, juggle and combo clips for the timing-based combat.
+3. Let players set objects too: a Fighter skill to raise a barricade, or an Archer skill to lay a trap, and objects in saved defense plans. Launch and juggle states need new clips. The online milestone needs real identity, authoritative storage, defense snapshots, matchmaking, deterministic validation, rewards and history; none exists now. Do not label local practice as network PvP.
 
 ## Request, references, and constraints
 

@@ -1268,7 +1268,9 @@ export class BattleStateService {
       id: `${Date.now().toString(36)}-${this.battleVersion}`,
       outcome: playerLiving ? 'victory' : 'defeat',
       rewardMultiplier: this.activeContract()?.rewardMultiplier ?? 1,
-      contractId: this.activeContract()?.id,
+      ...(this.activeContract()?.missionId
+        ? { missionId: this.activeContract()!.missionId }
+        : { contractId: this.activeContract()?.id }),
       enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive && !u.isObject)
         .length,
       mercenaries: this.units().flatMap((unit) => {

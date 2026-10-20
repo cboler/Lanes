@@ -150,6 +150,6 @@ export class DefenseSetupComponent {
     }
     this.dirty.set(false);
     this.battle.initDefensePractice(this.saved.plan(), this.roster.squad());
-    void this.router.navigate(['/']);
+    void this.router.navigate(['/battle']);
   }
 }

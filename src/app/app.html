@@ -18,18 +18,26 @@
           routerLink="/"
           routerLinkActive="active"
           [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-link nav-battlefield"
-          id="nav-link-home"
-        >
-          Battlefield
-        </a>
-        <a
-          routerLink="/guild"
-          routerLinkActive="active"
           class="nav-link nav-guild"
           id="nav-link-guild"
         >
-          Guild
+          Guild Hall
+        </a>
+        <a
+          routerLink="/campaign"
+          routerLinkActive="active"
+          class="nav-link nav-campaign"
+          id="nav-link-campaign"
+        >
+          Campaign
+        </a>
+        <a
+          routerLink="/battle"
+          routerLinkActive="active"
+          class="nav-link nav-battlefield"
+          id="nav-link-home"
+        >
+          Battle
         </a>
         <a
           routerLink="/squad"
@@ -37,7 +45,7 @@
           class="nav-link nav-squad"
           id="nav-link-squad"
         >
-          Squad Builder
+          War Room
         </a>
         <a routerLink="/roster" routerLinkActive="active" class="nav-link" id="nav-link-roster">
           Roster
@@ -46,12 +54,12 @@
           Defense Orders
         </a>
         <a
-          routerLink="/status"
+          routerLink="/options"
           routerLinkActive="active"
-          class="nav-link nav-status"
-          id="nav-link-status"
+          class="nav-link nav-options"
+          id="nav-link-options"
         >
-          Diagnostics
+          Options
         </a>
       </nav>
 
@@ -108,7 +116,7 @@
           War Archives (GitHub)
         </a>
         <span class="separator" aria-hidden="true">•</span>
-        <a routerLink="/status">Order of Battle</a>
+        <a routerLink="/status" id="nav-link-status">Diagnostics</a>
       </div>
     </div>
   </footer>

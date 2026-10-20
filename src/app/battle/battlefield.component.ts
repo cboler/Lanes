@@ -29,7 +29,9 @@ import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
 import { GuildService } from '../core/services/guild.service';
+import { CampaignService, MissionReward } from '../core/services/campaign.service';
 import { Contract, TIERS } from '../core/models/contract.model';
+import { ItemId, itemName } from '../core/models/item.model';
 import { FieldTrap, TRAP_NAMES } from '../core/models/field-object.model';
 import { BattleRewards } from '../core/models/progression.model';
 import { StatusEffectType } from '../core/models/status-effect.model';
@@ -70,6 +72,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   private readonly document = inject(DOCUMENT);
   protected readonly pad = inject(GamepadService);
   private readonly guild = inject(GuildService);
+  private readonly campaign = inject(CampaignService);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
@@ -156,6 +159,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   /** Gold and EXP paid for the battle that just ended. */
   protected readonly rewards = signal<BattleRewards | null>(null);
+  /** A story mission's first-win bonus, when this battle earned it. */
+  protected readonly storyReward = signal<MissionReward | null>(null);
+  /** A story mission won: the verdict leads on to its aftermath. */
+  protected readonly storyWon = computed(
+    () => this.battle.battleStatus() === 'victory' && !!this.battle.activeContract()?.missionId,
+  );
   protected readonly leveledUp = computed(
     () => !!this.rewards()?.mercenaries.some((merc) => merc.levelsGained > 0),
   );
@@ -169,13 +178,22 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       this.rewards.set(report ? untracked(() => this.roster.claimRewards(report)) : null);
       // A won contract leaves the board; a lost one stays up for another try.
       if (report?.contractId && report.outcome === 'victory') {
-        untracked(() => this.guild.complete(report.contractId!));
+        untracked(() => {
+          const won = this.guild.complete(report.contractId!);
+          if (won?.bounty) this.roster.grant(0, [won.bounty]);
+        });
       }
+      this.storyReward.set(
+        report?.missionId && report.outcome === 'victory'
+          ? untracked(() => this.campaign.complete(report.missionId!, report.id))
+          : null,
+      );
     });
     // Controller focus: where a controller player needs to be when something opens or a turn starts.
     effect(() => {
       if (this.battle.battleStatus() === 'active') return;
-      setTimeout(() => this.focusFor('#modal-restart-btn'));
+      const choice = this.storyWon() ? '#modal-story-btn' : '#modal-restart-btn';
+      setTimeout(() => this.focusFor(choice));
     });
     effect(() => {
       const active = this.battle.activeUnitId();
@@ -510,6 +528,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected callAssist(allyId: string): void {
     this.assistOpen.set(false);
     this.battle.callAssist(allyId);
+  }
+
+  protected itemName(item: ItemId): string {
+    return itemName(item);
   }
 
   protected tierLabel(contract: Contract): string {

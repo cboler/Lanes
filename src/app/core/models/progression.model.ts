@@ -40,8 +40,10 @@ export interface BattleReport {
   readonly mercenaries: readonly { readonly id: string; readonly survived: boolean }[];
   /** A contract's reward scale; 1 for a skirmish or practice. */
   readonly rewardMultiplier?: number;
-  /** The contract fought, if any; a victory completes it. */
+  /** The board contract fought, if any; a victory completes it. */
   readonly contractId?: string;
+  /** The campaign mission fought, if any; a victory clears it. */
+  readonly missionId?: string;
 }
 
 export interface MercenaryReward {

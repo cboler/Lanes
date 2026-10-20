@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Mercenary, PRIMARY_STATS, PrimaryStat, STAT_LABELS } from '../core/models/mercenary.model';
+import {
+  GRADES,
+  Mercenary,
+  PRIMARY_STATS,
+  PrimaryStat,
+  STAT_LABELS,
+} from '../core/models/mercenary.model';
+import { ItemId, SCRIBE_COST, grimoireSkill } from '../core/models/item.model';
 import {
   APTITUDE_RATIO,
   LEVEL_CAP,
@@ -40,6 +47,43 @@ export class RosterComponent {
   protected readonly confirmingDismiss = signal<string | null>(null);
 
   protected readonly supportSkills = SUPPORT_SKILLS;
+  protected readonly scribeCost = SCRIBE_COST;
+
+  protected nextGrade(merc: Mercenary, stat: PrimaryStat): string | null {
+    return GRADES[GRADES.indexOf(merc.aptitudes[stat]) + 1] ?? null;
+  }
+
+  protected investedTotal(merc: Mercenary): number {
+    return PRIMARY_STATS.reduce((sum, stat) => sum + merc.invested[stat], 0);
+  }
+
+  /** Pattern skills this mercenary has learned, which it can scribe into grimoires. */
+  protected scribable(merc: Mercenary): { id: string; name: string }[] {
+    return merc.pattern
+      .filter((step) => step.level <= merc.level)
+      .map((step) => ({ id: step.id, name: patternSkill(merc.classId, step).name }));
+  }
+
+  /** Grimoires on hand that could teach this mercenary something its pattern lacks. */
+  protected grimoiresFor(
+    merc: Mercenary,
+  ): { item: ItemId; name: string; replace: { id: string; name: string }[] }[] {
+    return Object.keys(this.roster.items()).flatMap((item) => {
+      const found = grimoireSkill(item);
+      if (!found || found.classId !== merc.classId) return [];
+      if (merc.pattern.some((step) => step.id === found.skill.id)) return [];
+      return [
+        {
+          item: item as ItemId,
+          name: found.skill.name,
+          replace: merc.pattern.map((step) => ({
+            id: step.id,
+            name: patternSkill(merc.classId, step).name,
+          })),
+        },
+      ];
+    });
+  }
 
   /** Core skills, then the pattern's skills with the level each is learned at. */
   protected skillList(merc: Mercenary): { name: string; level: number; known: boolean }[] {
@@ -103,6 +147,6 @@ export class RosterComponent {
 
   protected deploy(): void {
     this.battle.deployMercenaries(this.roster.squad());
-    this.router.navigate(['/']);
+    this.router.navigate(['/battle']);
   }
 }

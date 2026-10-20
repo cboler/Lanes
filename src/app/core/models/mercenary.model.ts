@@ -284,11 +284,16 @@ export function parseMercenary(value: unknown): Mercenary | null {
   };
 }
 
+/** A stable seed from a text, so the same id always rolls the same way. */
+export function hashSeed(text: string): number {
+  let hash = 0;
+  for (const char of text) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+  return hash;
+}
+
 /** A stable stand-in pattern for mercenaries saved before patterns existed. */
 function legacyPattern(id: string, classId: string): PatternStep[] {
-  let hash = 0;
-  for (const char of id) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return rollPattern(classId, seededRandom(hash));
+  return rollPattern(classId, seededRandom(hashSeed(id)));
 }
 
 /** Keeps the equipped supports that are known, unlocked and affordable, in order. */

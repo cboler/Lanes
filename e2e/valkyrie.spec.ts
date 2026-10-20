@@ -82,7 +82,7 @@ async function timingOff(page: Page): Promise<void> {
 
 test('movement, attacks, and Guard use independent turn resources', async ({ page }) => {
   await timingOff(page);
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
   await expect(page.getByRole('progressbar', { name: 'Move Gauge', exact: true })).toHaveAttribute(
@@ -123,7 +123,7 @@ test('holding a move key walks continuously, spending MG, and stops on release',
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Keyboard walking is independent of viewport.');
-  await page.goto('/');
+  await page.goto('/battle');
   const gauge = page.locator('#move-gauge');
   await expect(gauge).toHaveAttribute('aria-valuenow', '100');
   // Let the stage finish its first-frame setup so the walk runs at a steady frame rate.
@@ -144,7 +144,7 @@ test('selecting and cancelling abilities is free, and Enter confirms only once',
   page,
 }) => {
   await timingOff(page);
-  await page.goto('/');
+  await page.goto('/battle');
   await page.locator('#ability-btn-piercing_arrow').click();
   await expect(page.locator('#confirm-ability-btn')).toBeEnabled();
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
@@ -173,7 +173,7 @@ test('the War Room fields one to four roster mercenaries and restart keeps the f
     (await page.locator('.player-unit .unit-name').allTextContents()).map((n) => n.trim()).sort();
 
   // The first battle of a visit already fields the roster's squad.
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.player-unit')).toHaveCount(4);
   expect(await deployed()).toEqual(['Aldric', 'Brenna', 'Cassian', 'Dara']);
 
@@ -228,7 +228,7 @@ test('the battlefield remains playable when WebGL is unavailable', async ({ page
       configurable: true,
     });
   });
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node')).toHaveCount(8);
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', 'fallback');
   await expect(page.locator('app-battle-stage canvas')).toBeHidden();
@@ -249,7 +249,7 @@ test('the WebGL stage draws the battle and falls back to DOM sprites if the GPU 
   await timingOff(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/battle');
   const stage = page.locator('app-battle-stage');
   await expect(stage).toHaveAttribute('data-renderer', /webgl|fallback/);
   test.skip(
@@ -291,10 +291,12 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await page.goto('/status');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
   await frames(page);
-  await page.locator('#nav-link-home').focus();
+  await page.locator('#nav-link-campaign').focus();
   await tap(page, { buttons: [15] });
-  await expect(page.locator('#nav-link-guild')).toBeFocused();
-  await tap(page, { buttons: [15] });
+  await expect(page.locator('#nav-link-home')).toBeFocused();
+  // The nav wraps onto two rows on phones; War Room and Roster share a row at every size.
+  await page.locator('#nav-link-roster').focus();
+  await tap(page, { buttons: [14] });
   await expect(page.locator('#nav-link-squad')).toBeFocused();
   await controller(page, { buttons: [0] });
   await expect(page).toHaveURL(/\/squad$/);
@@ -344,7 +346,7 @@ test('held controller buttons require release after startup, reconnect, and wind
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Lifecycle behavior is independent of viewport.');
   await installController(page, [0]);
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.controller-status')).toBeVisible();
   await page.locator('#ability-btn-quick_shot').focus();
   await frames(page, 12);
@@ -377,7 +379,7 @@ test('default auto-battle reaches a result and restart creates a fresh manual ba
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Run the complete simulation once.');
   test.setTimeout(95_000);
-  await page.goto('/');
+  await page.goto('/battle');
   await page.locator('#speed-toggle-btn').click();
   await page.locator('#auto-battle-btn').click();
   await expect(page.locator('.battle-result-overlay')).toBeVisible({ timeout: 85_000 });
@@ -399,7 +401,7 @@ test('default auto-battle reaches a result and restart creates a fresh manual ba
 test('ranged skills fire from a sweeping cursor, and a cursor left to run out misses', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#ability-btn-quick_shot').click();
   await page.locator('.unit-node.selected-target').click();
@@ -446,7 +448,7 @@ test('melee skills chain into a combo when pressed again in the window', async (
     localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
   });
   await page.clock.install();
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Dara');
   await page.locator('#ability-btn-thrust').click();
   await expect(page.locator('.unit-node.selected-target')).toBeFocused();
@@ -482,7 +484,7 @@ test('melee skills chain into a combo when pressed again in the window', async (
 test('a controller confirms a target, then fires the aim with A', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Controller input is independent of viewport.');
   await installController(page);
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);
@@ -501,7 +503,7 @@ test('a controller confirms a target, then fires the aim with A', async ({ page 
 
 test('turning timing off resolves skills at once and is remembered', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'The preference is independent of viewport.');
-  await page.goto('/');
+  await page.goto('/battle');
   await page.locator('#timing-toggle-btn').click();
   await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'false');
   await page.reload();
@@ -545,7 +547,7 @@ test('a veteran uses a skill its pattern taught, leaving a status on the target'
     );
     localStorage.setItem('lanes.timing.v1', 'off');
   });
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
   await expect(page.locator('.skill-btn')).toHaveCount(5);
   await expect(page.locator('#ability-btn-pinning_shot')).toContainText('Pinning Shot');
@@ -565,7 +567,7 @@ test('the battle screen fits the window without scrolling, even with five skills
     raw.mercenaries[1].level = 9;
     localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
   });
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.skill-btn')).toHaveCount(5);
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   const fits = () =>
@@ -590,7 +592,7 @@ test('a full assist orb calls an ally to attack outside its turn, free of AP', a
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Assist rules are independent of viewport.');
   await timingOff(page);
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
   await expect(page.locator('#assist-btn')).toHaveCount(0);
   // Filling the gauge takes several turns of damage, so this test grants one orb directly.
@@ -625,7 +627,7 @@ test('melee skills need the enemy within reach; walking closer brings it in', as
     raw.squadIds = ['merc_dara'];
     localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
   });
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Dara');
   // Two steps back puts the enemy Lancer just beyond her polearm.
   await page.locator('#move-left-btn').click();
@@ -648,7 +650,7 @@ test('a controller plays a whole turn: walk, log, assist, Guard and End, and the
   test.skip(testInfo.project.name !== 'desktop', 'Controller input is independent of viewport.');
   await timingOff(page);
   await installController(page);
-  await page.goto('/');
+  await page.goto('/battle');
   await expect(page.locator('.controller-status')).toBeVisible();
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);

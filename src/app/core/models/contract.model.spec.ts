@@ -49,4 +49,17 @@ describe('contracts', () => {
     expect(parseContract({ ...contract, tier: 'legendary' })).toBeNull();
     expect(parseContract({ ...contract, enemies: [] })).toBeNull();
   });
+
+  it('posts scroll bounties only on Hard contracts, and keeps a valid one when loaded', () => {
+    const random = seededRandom(5);
+    const hard = Array.from({ length: 20 }, () => generateContract('hard', 3, random));
+    const bounties = hard.filter((contract) => contract.bounty);
+    expect(bounties.length).toBeGreaterThan(0);
+    expect(bounties.length).toBeLessThan(20);
+    expect(Array.from({ length: 10 }, () => generateContract('easy', 3, random).bounty)).toEqual(
+      Array(10).fill(undefined),
+    );
+    expect(parseContract(bounties[0])?.bounty).toBe(bounties[0].bounty);
+    expect(parseContract({ ...bounties[0], bounty: 'crown' })?.bounty).toBeUndefined();
+  });
 });

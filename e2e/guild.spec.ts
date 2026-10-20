@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 test('takes a contract from the guild board, fights its band, and a win replaces it', async ({
   page,
 }) => {
-  await page.goto('/guild');
+  await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
   await expect(page.locator('.contract-card')).toHaveCount(3);
   await expect(page.locator('#guild-party-level')).toHaveText('1');
@@ -16,7 +16,7 @@ test('takes a contract from the guild board, fights its band, and a win replaces
   expect(enemyNames).toHaveLength(4);
 
   await page.locator('#take-contract-normal').click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/battle$/);
   await expect(page.locator('.contract-note')).toContainText(title);
   await expect(page.locator('.troop-banner.enemy .troop-name')).toHaveText(band);
   // The stage lists units lane by lane, so compare the band as a set.
@@ -57,7 +57,7 @@ test('takes a contract from the guild board, fights its band, and a win replaces
 
 test('a hard contract raises a barricade and sets two traps', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Placement is independent of viewport.');
-  await page.goto('/guild');
+  await page.goto('/');
   await page.locator('#take-contract-hard').click();
   await expect(page.locator('.enemy-unit')).toHaveCount(5);
   await expect(page.locator('.enemy-unit').filter({ hasText: 'Barricade' })).toHaveCount(1);

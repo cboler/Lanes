@@ -1,6 +1,7 @@
 import { Mercenary, parseMercenary } from './mercenary.model';
 import { AbilityDefinition } from './ability.model';
 import { knownAbilities } from './skills.model';
+import { getClassDefinition } from './unit-class.model';
 
 export const DEFENSE_PRIORITIES = ['lowest-hp', 'closest', 'leader', 'front-lane'] as const;
 export type DefenseTargetPriority = (typeof DEFENSE_PRIORITIES)[number];
@@ -49,21 +50,28 @@ export function createDefaultDefensePlan(roster: readonly Mercenary[]): DefenseP
   };
 }
 
-/** Orders may use Guard, auto, or any skill the defender knows at its level. */
-function parseOrders(known: readonly AbilityDefinition[], value: unknown): DefenseOrder[] | null {
+/**
+ * Orders may use Guard, auto, or any skill the defender knows at its level. An order for a
+ * skill of the defender's class it no longer knows (a grimoire replaced it) becomes auto.
+ */
+function parseOrders(
+  known: readonly AbilityDefinition[],
+  classSkills: readonly AbilityDefinition[],
+  value: unknown,
+): DefenseOrder[] | null {
   if (!Array.isArray(value) || value.length !== 4) return null;
   const orders: DefenseOrder[] = [];
   for (const raw of value as unknown[]) {
     if (!raw || typeof raw !== 'object') return null;
     const order = raw as Partial<DefenseOrder>;
-    if (
-      typeof order.abilityId !== 'string' ||
-      (!['auto', 'guard'].includes(order.abilityId) &&
-        !known.some((ability) => ability.id === order.abilityId)) ||
-      !DEFENSE_PRIORITIES.includes(order.targetPriority as DefenseTargetPriority)
-    )
+    const id = order.abilityId;
+    const valid =
+      typeof id === 'string' &&
+      (['auto', 'guard'].includes(id) || classSkills.some((ability) => ability.id === id));
+    if (!valid || !DEFENSE_PRIORITIES.includes(order.targetPriority as DefenseTargetPriority))
       return null;
-    orders.push({ abilityId: order.abilityId, targetPriority: order.targetPriority! });
+    const usable = ['auto', 'guard'].includes(id) || known.some((ability) => ability.id === id);
+    orders.push({ abilityId: usable ? id : 'auto', targetPriority: order.targetPriority! });
   }
   return orders;
 }
@@ -104,7 +112,12 @@ export function parseDefensePlan(
       if (current && current.classId === mercenary!.classId) mercenary = structuredClone(current);
     }
     if (!mercenary || members.some((member) => member.mercenary.id === mercenary!.id)) return null;
-    const orders = parseOrders(knownAbilities(mercenary), raw.orders);
+    const cls = getClassDefinition(mercenary.classId);
+    const orders = parseOrders(
+      knownAbilities(mercenary),
+      [...cls.abilities, ...cls.advancedAbilities],
+      raw.orders,
+    );
     if (!orders) return null;
     members.push({ mercenary, orders });
   }

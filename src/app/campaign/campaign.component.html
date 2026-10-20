@@ -1,0 +1,137 @@
+<section class="campaign-page" aria-labelledby="campaign-title">
+  <header class="campaign-header">
+    <div>
+      <a routerLink="/" class="tactical-btn secondary">◀ Guild Hall</a>
+      <h1 id="campaign-title">Campaign</h1>
+      <p>
+        The company's story, one mission at a time. Missions open in order, and the first win of
+        each pays a bonus on top of the battle's gold and EXP. Won missions can be fought again for
+        their usual pay.
+      </p>
+    </div>
+    <dl class="campaign-stats">
+      <div>
+        <dt>Missions won</dt>
+        <dd id="campaign-progress">{{ campaign.cleared().length }} / {{ total }}</dd>
+      </div>
+    </dl>
+  </header>
+
+  @for (chapter of chapters; track chapter.id) {
+    <section class="chapter" [attr.aria-labelledby]="'chapter-' + chapter.id">
+      <h2 [id]="'chapter-' + chapter.id">{{ chapter.title }}</h2>
+      <ol class="mission-list">
+        @for (mission of chapter.missions; track mission.id; let i = $index) {
+          <li
+            class="mission-card"
+            [attr.data-mission]="mission.id"
+            [class.cleared]="campaign.isCleared(mission.id)"
+            [class.next]="campaign.next()?.id === mission.id"
+            [class.locked]="!campaign.isUnlocked(mission.id)"
+          >
+            <div class="mission-heading">
+              <span class="mission-number">{{ i + 1 }}</span>
+              <h3>{{ mission.title }}</h3>
+              @if (campaign.isCleared(mission.id)) {
+                <span class="mission-badge cleared-badge">✓ Won</span>
+              } @else if (campaign.next()?.id === mission.id) {
+                <span class="mission-badge next-badge">Next</span>
+              }
+            </div>
+            <p class="mission-summary">{{ mission.summary }}</p>
+            <p class="mission-meta">
+              The {{ mission.band }} · Level {{ mission.level }}
+              @if (!campaign.isCleared(mission.id)) {
+                · First win: +{{ mission.reward.gold }} gold
+              }
+            </p>
+            @if (campaign.isUnlocked(mission.id)) {
+              <ul class="mission-enemies" aria-label="Enemy band">
+                @for (enemy of mission.enemies; track $index) {
+                  <li>
+                    <img [src]="classPortrait(enemy.classId)" [alt]="className(enemy.classId)" />
+                    <span>{{ enemy.name }} · {{ className(enemy.classId) }}</span>
+                  </li>
+                }
+              </ul>
+              <div class="mission-actions">
+                <button
+                  type="button"
+                  class="tactical-btn primary"
+                  [id]="'begin-' + mission.id"
+                  (click)="begin(mission)"
+                >
+                  {{ campaign.isCleared(mission.id) ? '↺ Replay' : '⚔️ Begin' }}
+                </button>
+                @if (campaign.isCleared(mission.id) && mission.debrief.length) {
+                  <button
+                    type="button"
+                    class="tactical-btn secondary"
+                    [id]="'epilogue-' + mission.id"
+                    (click)="epilogue(mission)"
+                  >
+                    📖 Aftermath
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="mission-locked">🔒 Win the mission before this one to open it.</p>
+            }
+          </li>
+        }
+      </ol>
+    </section>
+  }
+  @if (!campaign.next()) {
+    <p class="campaign-end" role="status">
+      Every mission is won. The story continues in a future chapter.
+    </p>
+  }
+</section>
+
+@if (line(); as current) {
+  <div class="scene-overlay">
+    <div
+      class="scene-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="scene-title"
+      (keydown.escape)="close()"
+    >
+      <p class="scene-title" id="scene-title">
+        {{ scene()!.mission.title }} ·
+        {{ scene()!.kind === 'briefing' ? 'Briefing' : 'Aftermath' }}
+      </p>
+      <div class="scene-line">
+        @if (portrait(current); as url) {
+          <img class="scene-portrait" [src]="url" alt="" />
+        }
+        <div>
+          <p class="scene-speaker" id="scene-speaker">{{ current.speaker }}</p>
+          <p class="scene-text" id="scene-text" aria-live="polite">{{ current.text }}</p>
+        </div>
+      </div>
+      <div class="scene-actions">
+        <span class="scene-count">{{ current.number }} / {{ current.count }}</span>
+        <button type="button" class="tactical-btn secondary" id="scene-skip-btn" (click)="skip()">
+          {{ scene()!.kind === 'briefing' ? 'Skip to battle' : 'Skip' }}
+        </button>
+        <button
+          #sceneNext
+          type="button"
+          class="tactical-btn primary"
+          id="scene-next-btn"
+          (click)="advance()"
+        >
+          @if (!current.last) {
+            Next ▸
+          } @else if (scene()!.kind === 'briefing') {
+            ⚔️ To battle!
+          } @else {
+            Close
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

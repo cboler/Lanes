@@ -40,10 +40,13 @@ export class GuildService {
     return this.contracts().find((contract) => contract.id === id);
   }
 
-  /** A won contract leaves the board; a new one of its tier, at the squad's level, replaces it. */
-  public complete(id: string): void {
+  /**
+   * A won contract leaves the board; a new one of its tier, at the squad's level, replaces
+   * it. Returns the won contract, or undefined if it was not on the board (already won).
+   */
+  public complete(id: string): Contract | undefined {
     const done = this.find(id);
-    if (!done) return;
+    if (!done) return undefined;
     const next = generateContract(
       done.tier,
       this.partyLevel(),
@@ -53,6 +56,7 @@ export class GuildService {
     this.contracts.update((list) => list.map((c) => (c.id === id ? next : c)));
     this.completed.update((n) => n + 1);
     this.persist();
+    return done;
   }
 
   /** A fresh board at the squad's current level, for when the old one no longer fits. */

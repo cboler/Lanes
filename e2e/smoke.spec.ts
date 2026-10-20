@@ -23,7 +23,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     await expect(page.locator('header[role="banner"]')).toBeVisible();
     await expect(page.locator('main[role="main"]')).toBeVisible();
     await expect(page.locator('footer[role="contentinfo"]')).toBeVisible();
-    await page.goto('/');
+    await page.goto('/battle');
 
     // 3. Prevent accidental horizontal overflow
     const hasHorizontalOverflow = await page.evaluate(() => {
@@ -50,10 +50,10 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
 
     // 6. Navigate back to Battlefield via deploy
     await page.locator('#deploy-squad-btn').click();
-    await expect(page).toHaveURL(/\/?$/);
+    await expect(page).toHaveURL(/\/battle$/);
     await expect(page.locator('.battlefield-container')).toBeVisible();
 
-    // 7. Client-side navigation to status screen, from a menu page where the site nav shows
+    // 7. Client-side navigation to the status screen, from a menu page's footer
     await page.locator('#squad-builder-link').click();
     await expect(page).toHaveURL(/.*squad/);
     const statusLink = page.locator('#nav-link-status');
@@ -70,10 +70,10 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     });
     expect(statusOverflow).toBeFalsy();
 
-    // 8. Return to battlefield
+    // 8. Home is the Guild Hall
     await page.locator('#back-home-link').click();
-    await expect(page).toHaveURL(/\/?$/);
-    await expect(page.locator('.battlefield-container')).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
 
     // 9. Zero unhandled console errors or exceptions
     expect(consoleErrors).toEqual([]);
@@ -82,7 +82,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
   test('should engage auto-battle, render the battle stage, and resolve combat maneuvers automatically', async ({
     page,
   }) => {
-    await page.goto('/');
+    await page.goto('/battle');
 
     // 1. Units are drawn by the WebGL stage, or as DOM sprites without WebGL
     await expect(page.locator('.unit-node')).toHaveCount(8);

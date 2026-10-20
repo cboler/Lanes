@@ -32,7 +32,7 @@ test.describe('starter roster', () => {
     await expect(page.locator('#deploy-roster-btn')).toContainText('3/4');
 
     await page.locator('#deploy-roster-btn').click();
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/battle$/);
     await expect(page.locator('.player-unit')).toHaveCount(3);
     expect(errors).toEqual([]);
   });
@@ -87,4 +87,28 @@ test('equips support skills within SP and shows each skill pattern', async ({ pa
     'true',
   );
   await expect(page.locator('.merc-card.recruit .pattern-note').first()).toContainText('Learns');
+});
+
+test('buys a Tactics Scroll at the guild store and raises an aptitude on the roster', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.locator('#buy-tactics').click();
+  await expect(page.locator('#owned-tactics')).toHaveText('Owned: 1');
+  await expect(page.locator('#guild-gold')).toHaveText('200');
+
+  await page.goto('/roster');
+  const aldric = page.locator('.merc-card').filter({ hasText: 'Aldric' });
+  await aldric.locator('.items-panel summary').click();
+  await aldric
+    .getByRole('button', { name: 'Use a Tactics Scroll on STR for Aldric: C to B' })
+    .click();
+  await expect(aldric.locator('.stat-row').first().locator('.grade')).toHaveText('B');
+  await expect(aldric.locator('.items-panel summary')).toContainText('0 Tactics');
+  // With no scroll left, every aptitude button is disabled.
+  await expect(aldric.locator('.grades button:enabled')).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.locator('.merc-card').filter({ hasText: 'Aldric' }).locator('.stat-row .grade').first(),
+  ).toHaveText('B');
 });

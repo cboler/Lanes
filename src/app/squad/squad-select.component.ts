@@ -65,6 +65,6 @@ export class SquadSelectComponent {
 
   protected deployToBattle(): void {
     this.battle.deployMercenaries(this.roster.squad(), this.enemySquad());
-    this.router.navigate(['/']);
+    this.router.navigate(['/battle']);
   }
 }

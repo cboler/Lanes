@@ -6,6 +6,9 @@
 }
 
 .guild-header,
+.guild-resume,
+.guild-story,
+.guild-store,
 .guild-squad,
 .contract-card {
   padding: var(--space-4);
@@ -96,7 +99,8 @@ h2 {
   gap: var(--space-2);
   margin-top: var(--space-3);
 
-  a {
+  a,
+  button {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
@@ -151,6 +155,12 @@ h2 {
   }
 }
 
+.contract-card .bounty {
+  margin-top: var(--space-1);
+  font-weight: 700;
+  color: #ffd36a;
+}
+
 .tier-badge {
   display: inline-block;
   padding: 0 8px;
@@ -165,4 +175,69 @@ h2 {
 
 .take-btn {
   min-height: 44px;
+}
+
+.guild-resume,
+.guild-story {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  border-color: #ffd36a;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  p {
+    flex: 1 1 200px;
+    color: var(--text-secondary);
+  }
+}
+
+.guild-store > p {
+  margin: 0 0 var(--space-3);
+  max-width: 70ch;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-3);
+}
+
+.store-item {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  background: #111827;
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    font-size: var(--font-size-base);
+  }
+
+  p {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+  }
+
+  .owned {
+    color: #ffd36a;
+    font-weight: 700;
+  }
+
+  button {
+    min-height: 44px;
+  }
 }

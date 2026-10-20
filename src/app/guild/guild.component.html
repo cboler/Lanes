@@ -3,9 +3,10 @@
     <div>
       <h1 id="guild-title">Guild Hall</h1>
       <p>
-        Take a contract against a band of enemy mercenaries. Bands are scaled to your squad's level,
-        and harder contracts pay more gold and EXP. A won contract leaves the board and a new one is
-        posted; a lost one stays up for another try.
+        Your company's home. Follow the story in the campaign, or take a contract against a band of
+        enemy mercenaries. Bands are scaled to your squad's level, and harder contracts pay more
+        gold and EXP. A won contract leaves the board and a new one is posted; a lost one stays up
+        for another try.
       </p>
     </div>
     <dl class="guild-stats">
@@ -24,6 +25,33 @@
     </dl>
   </header>
 
+  @if (unfinished(); as label) {
+    <section class="guild-resume" aria-labelledby="resume-title">
+      <h2 id="resume-title">Battle under way</h2>
+      <p>{{ label }} is waiting where you left it.</p>
+      <a routerLink="/battle" class="tactical-btn primary" id="resume-battle-btn"
+        >⚔️ Resume battle</a
+      >
+    </section>
+  }
+
+  <section class="guild-story" aria-labelledby="story-title">
+    <h2 id="story-title">📖 Campaign</h2>
+    @if (campaign.next(); as mission) {
+      <p>
+        <strong>{{ mission.title }}</strong> · Level {{ mission.level }} — {{ mission.summary }}
+      </p>
+      <a routerLink="/campaign" class="tactical-btn primary" id="guild-campaign-link">
+        {{ campaign.cleared().length ? 'Continue the story' : 'Begin the story' }}
+      </a>
+    } @else {
+      <p>Every mission is won. The story continues in a future chapter.</p>
+      <a routerLink="/campaign" class="tactical-btn secondary" id="guild-campaign-link"
+        >Revisit the campaign</a
+      >
+    }
+  </section>
+
   <section class="guild-squad" aria-labelledby="squad-title">
     <h2 id="squad-title">Your squad</h2>
     <ul class="squad-strip">
@@ -40,7 +68,43 @@
       <a routerLink="/squad" class="tactical-btn secondary">🛡️ War Room</a>
       <a routerLink="/roster" class="tactical-btn secondary">📋 Roster &amp; hiring</a>
       <a routerLink="/defense" class="tactical-btn secondary">📜 Defense orders</a>
+      <button
+        type="button"
+        class="tactical-btn secondary"
+        id="skirmish-btn"
+        (click)="skirmish()"
+        title="Practice against class troops at base rewards"
+      >
+        ⚔️ Skirmish
+      </button>
     </nav>
+  </section>
+
+  <section class="guild-store" aria-labelledby="store-title">
+    <h2 id="store-title">Guild store</h2>
+    <p>
+      Scrolls are used from a mercenary's card on the Roster. Grimoires are scribed there too, for
+      {{ scribeCost }} gold, from a mercenary who has learned the skill.
+    </p>
+    <div class="store-grid">
+      @for (scroll of scrolls; track scroll.id) {
+        <article class="store-item">
+          <h3>{{ scroll.name }}</h3>
+          <p>{{ scroll.description }}</p>
+          <p class="owned" [id]="'owned-' + scroll.id">Owned: {{ roster.count(scroll.id) }}</p>
+          <button
+            type="button"
+            class="tactical-btn primary"
+            [id]="'buy-' + scroll.id"
+            [disabled]="roster.gold() < scroll.price"
+            [attr.aria-label]="'Buy a ' + scroll.name + ' for ' + scroll.price + ' gold'"
+            (click)="roster.buy(scroll.id)"
+          >
+            Buy · {{ scroll.price }} gold
+          </button>
+        </article>
+      }
+    </div>
   </section>
 
   <section class="contract-board" aria-labelledby="board-title">
@@ -67,6 +131,11 @@
                 contract.rewardMultiplier
               }}
             </p>
+            @if (contract.bounty) {
+              <p class="bounty" [id]="'bounty-' + contract.tier">
+                🎁 Bounty: {{ scrollName(contract.bounty) }}
+              </p>
+            }
           </div>
           <ul class="enemy-list">
             @for (enemy of contract.enemies; track enemy.id) {

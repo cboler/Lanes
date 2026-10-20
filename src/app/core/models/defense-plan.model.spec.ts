@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultDefensePlan, parseDefensePlan } from './defense-plan.model';
 import { generateMercenary, generateStarterRoster, seededRandom } from './mercenary.model';
+import { getClassDefinition } from './unit-class.model';
 
 const roster = generateStarterRoster(seededRandom(7));
 
@@ -49,6 +50,16 @@ describe('defense plan validation', () => {
     expect(parseDefensePlan(wrongPriority)).toBeNull();
   });
 
+  it('turns an order for a skill the defender no longer knows into auto', () => {
+    const plan = createDefaultDefensePlan(roster);
+    const member = plan.members[0];
+    const [skill] = getClassDefinition(member.mercenary.classId).advancedAbilities.filter(
+      (ability) => !member.mercenary.pattern.some((step) => step.id === ability.id),
+    );
+    member.orders[0].abilityId = skill.id;
+    expect(parseDefensePlan(plan)!.members[0].orders[0].abilityId).toBe('auto');
+  });
+
   it('returns an independent sanitized copy', () => {
     const plan = Object.assign(createDefaultDefensePlan(roster), { privileged: true });
     const parsed = parseDefensePlan(plan)!;
@@ -91,12 +102,12 @@ describe('defense plan validation', () => {
     expect(parseDefensePlan(twoLancers, [...roster, extra])?.members).toHaveLength(2);
   });
 
-  it('accepts orders only for skills the defender has learned', () => {
+  it('keeps orders only for skills the defender has learned; others become auto', () => {
     const plan = createDefaultDefensePlan(roster);
     const member = plan.members[0];
     const step = member.mercenary.pattern[1];
     member.orders[0].abilityId = step.id;
-    expect(parseDefensePlan(plan)).toBeNull();
+    expect(parseDefensePlan(plan)?.members[0].orders[0].abilityId).toBe('auto');
     member.mercenary.level = step.level;
     expect(parseDefensePlan(plan)?.members[0].orders[0].abilityId).toBe(step.id);
   });

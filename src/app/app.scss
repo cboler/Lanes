@@ -118,6 +118,14 @@
     content: '🏰';
   }
 
+  &.nav-campaign::before {
+    content: '📖';
+  }
+
+  &.nav-options::before {
+    content: '⚙️';
+  }
+
   &.nav-squad::before {
     content: '🛡️';
   }
