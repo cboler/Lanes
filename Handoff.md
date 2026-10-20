@@ -411,6 +411,7 @@ The user asked to finish everything that doesn't need a backend: "a solid single
 - **AI:** the role AI only considers enemy-targeted skills and chooseBuff needs a status, so the AI never places objects; scripted defense orders can (chooseDefenseTarget returns the user for 'self').
 - **Stage:** new barricade units appear through the normal view sync; traps carry their team, and the player's glow blue (the enemy's red). DOM trap markers say "Your snare in lane N" / "Enemy spike trap in lane N" and have .own for the player's.
 - **Tests:** placementSpot cases, a service test (snare and barricade placement, blocking, one-at-a-time, springing), an e2e test placing a snare through the UI.
+- **Unit-test storage leaks:** service specs replace `window.localStorage` with a fake Map-backed object, and in CI (fewer workers) that fake and its contents carry into later spec files. A component spec that depends on the roster must clear `lanes.roster.v1` first (squad-select.component.spec.ts does, with `window.localStorage?.removeItem`, since a fresh local worker has no localStorage at all).
 
 ## Immediate next steps
 
