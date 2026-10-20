@@ -3,7 +3,8 @@ import { Mission, findMission, isUnlocked, nextMission } from '../models/campaig
 import { RosterService } from './roster.service';
 import { ItemId } from '../models/item.model';
 
-const STORAGE_KEY = 'lanes.campaign.v1';
+// A localStorage key name, not a secret.
+const STORAGE_KEY = 'lanes.campaign.v1'; // gitleaks:allow
 
 interface SavedCampaign {
   version: 1;
