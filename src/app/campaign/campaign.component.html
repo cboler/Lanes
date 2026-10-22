@@ -1,12 +1,12 @@
 <section class="campaign-page" aria-labelledby="campaign-title">
   <header class="campaign-header">
     <div>
-      <a routerLink="/" class="tactical-btn secondary">◀ Guild Hall</a>
-      <h1 id="campaign-title">Campaign</h1>
+      <a routerLink="/" class="tactical-btn secondary">◀ Return to the journey</a>
+      <h1 id="campaign-title">Campaign journal</h1>
       <p>
-        The company's story, one mission at a time. Missions open in order, and the first win of
-        each pays a bonus on top of the battle's gold and EXP. Won missions can be fought again for
-        their usual pay.
+        A company of mercenaries in a land torn apart by war. Find work along the road, follow each
+        lead, and meet your employers and enemies on the overworld. Completed contracts are recorded
+        here.
       </p>
     </div>
     <dl class="campaign-stats">
@@ -55,23 +55,21 @@
                 }
               </ul>
               <div class="mission-actions">
-                <button
-                  type="button"
+                <a
+                  routerLink="/"
+                  [queryParams]="{ commission: mission.id }"
                   class="tactical-btn primary"
                   [id]="'begin-' + mission.id"
-                  (click)="begin(mission)"
+                  >{{ campaign.isCleared(mission.id) ? 'Read commission' : 'Follow on the map' }}</a
                 >
-                  {{ campaign.isCleared(mission.id) ? '↺ Replay' : '⚔️ Begin' }}
-                </button>
                 @if (campaign.isCleared(mission.id) && mission.debrief.length) {
-                  <button
-                    type="button"
+                  <a
+                    routerLink="/"
+                    [queryParams]="{ debrief: mission.id }"
                     class="tactical-btn secondary"
                     [id]="'epilogue-' + mission.id"
-                    (click)="epilogue(mission)"
+                    >Read aftermath</a
                   >
-                    📖 Aftermath
-                  </button>
                 }
               </div>
             } @else {
@@ -88,50 +86,3 @@
     </p>
   }
 </section>
-
-@if (line(); as current) {
-  <div class="scene-overlay">
-    <div
-      class="scene-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="scene-title"
-      (keydown.escape)="close()"
-    >
-      <p class="scene-title" id="scene-title">
-        {{ scene()!.mission.title }} ·
-        {{ scene()!.kind === 'briefing' ? 'Briefing' : 'Aftermath' }}
-      </p>
-      <div class="scene-line">
-        @if (portrait(current); as url) {
-          <img class="scene-portrait" [src]="url" alt="" />
-        }
-        <div>
-          <p class="scene-speaker" id="scene-speaker">{{ current.speaker }}</p>
-          <p class="scene-text" id="scene-text" aria-live="polite">{{ current.text }}</p>
-        </div>
-      </div>
-      <div class="scene-actions">
-        <span class="scene-count">{{ current.number }} / {{ current.count }}</span>
-        <button type="button" class="tactical-btn secondary" id="scene-skip-btn" (click)="skip()">
-          {{ scene()!.kind === 'briefing' ? 'Skip to battle' : 'Skip' }}
-        </button>
-        <button
-          #sceneNext
-          type="button"
-          class="tactical-btn primary"
-          id="scene-next-btn"
-          (click)="advance()"
-        >
-          @if (!current.last) {
-            Next ▸
-          } @else if (scene()!.kind === 'briefing') {
-            ⚔️ To battle!
-          } @else {
-            Close
-          }
-        </button>
-      </div>
-    </div>
-  </div>
-}

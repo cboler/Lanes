@@ -2,6 +2,14 @@
 
 > Design reference for Lanes. Written as a proposal: the Phaser client and microservice backend it recommends are suggestions; Lanes uses Angular, TypeScript and Three.js. See [Handoff.md](../Handoff.md) for what is built so far.
 
+## Confirmed campaign direction (2026-10-22)
+
+The player leads a mercenary company through war-torn lands in search of work. The overworld is the main campaign: travel, commissions, dialogue, and story progression happen there. A visible enemy piece represents a complete squad; meeting it shifts focus into the battle screen against that squad, then returns the company to its journey. Campaign squads are scripted; other squads have randomized compositions that persist for the journey.
+
+Map movement is simultaneous, one hop per player hop or wait. Enemy routes are predictable, repeating circuits. Turns are unlimited: branching roads, loot detours, and encounters make navigation decisions matter without a deadline.
+
+Roster management, squad formation, defense orders, the Guild Hall, journal, and options are company commands opened from the overworld by a button press (including the controller Menu button). These menus preserve the journey and spend no turns. The game uses contextual screens and a Company menu; a persistent row of webpage navigation tabs is superseded by this direction.
+
 ## Section 1: Deconstruction of Core Gameplay Systems
 
 This section provides a formal deconstruction of the core gameplay mechanics of the tactical RPG Grand Kingdom. The objective is to establish a detailed design specification for a Minimum Viable Product (MVP) that captures the essence of the original's combat and asynchronous player-versus-player (PvP) experience. The analysis focuses on the foundational systems that define the strategic depth and long-term player engagement loops: the battle system, the unit architecture, and the asynchronous conflict model.

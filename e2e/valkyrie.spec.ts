@@ -1,6 +1,49 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 
+test('the expedition controller waits, marches, and selects a road without advancing time', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Controller mapping is independent of viewport.');
+  await installController(page);
+  await page.goto('/');
+  await expect(page.locator('.controller-status')).toBeVisible();
+  await frames(page);
+  await expect(page.locator('#march-btn')).toBeFocused();
+  await tap(page, { buttons: [9] });
+  await expect(page.locator('#company-menu')).toBeVisible();
+  await expect(page.locator('#nav-link-overworld')).toBeFocused();
+  await tap(page, { buttons: [2] });
+  await expect(page.locator('#expedition-turn')).toHaveText('001');
+  await tap(page, { buttons: [1] });
+  await expect(page.locator('#company-menu')).toBeHidden();
+  await expect(page.locator('#march-btn')).toBeFocused();
+  await tap(page, { buttons: [2] });
+  await expect(page.locator('#expedition-turn')).toHaveText('002');
+  await expect(page.locator('#march-btn')).toBeFocused();
+  await tap(page, { buttons: [0] });
+  await expect(page.locator('#expedition-turn')).toHaveText('003');
+  await expect(page.locator('#company-piece')).toHaveAttribute('aria-label', /Old Cart Track/);
+  await expect(page.locator('#march-btn')).toBeFocused();
+  await tap(page, { axes: [0, 0, 0.8, 0] });
+  await expect(page.locator('.route-choice.chosen')).toContainText('Old Mill');
+  await expect(page.locator('#expedition-turn')).toHaveText('003');
+  await tap(page, { buttons: [3] });
+  await expect(page.locator('#scout-btn')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-patrol="wolves"]').focus();
+  await tap(page, { buttons: [0] });
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('#field-return-btn')).toBeFocused();
+  await controller(page, { connected: false });
+  await controller(page);
+  await expect(page.locator('#field-return-btn')).toBeFocused();
+  await tap(page, { buttons: [2] });
+  await expect(page.locator('#expedition-turn')).toHaveText('003');
+  await tap(page, { buttons: [1] });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('[data-patrol="wolves"]')).toBeFocused();
+});
+
 interface ControllerState {
   connected: boolean;
   buttons: number[];
@@ -291,13 +334,10 @@ test('standard controller navigates the squad screen, confirms targets, and move
   await page.goto('/status');
   await expect(page.locator('.controller-status')).toContainText('Controller connected');
   await frames(page);
-  await page.locator('#nav-link-campaign').focus();
-  await tap(page, { buttons: [15] });
-  await expect(page.locator('#nav-link-home')).toBeFocused();
-  // The nav wraps onto two rows on phones; War Room and Roster share a row at every size.
-  await page.locator('#nav-link-roster').focus();
-  await tap(page, { buttons: [14] });
-  await expect(page.locator('#nav-link-squad')).toBeFocused();
+  await tap(page, { buttons: [9] });
+  await expect(page.locator('#company-menu')).toBeVisible();
+  await expect(page.locator('#nav-link-overworld')).toBeFocused();
+  await page.locator('#nav-link-squad').focus();
   await controller(page, { buttons: [0] });
   await expect(page).toHaveURL(/\/squad$/);
   await controller(page);

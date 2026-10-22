@@ -34,10 +34,23 @@ export const ROSTER = [
   merc('merc_fiora', 'Fiora', 'gunner'),
 ];
 
-export const test = base.extend<{ seedRoster: boolean }>({
+export const test = base.extend<{ seedRoster: boolean; seedCampaign: boolean }>({
   /** Off for tests of the randomly generated starter roster. */
   seedRoster: [true, { option: true }],
-  page: async ({ page, seedRoster }, use) => {
+  // Non-story checks exercise free exploration without story encounters interrupting their route.
+  seedCampaign: [true, { option: true }],
+  page: async ({ page, seedRoster, seedCampaign }, use) => {
+    if (seedCampaign)
+      await page.addInitScript(() => {
+        if (!localStorage.getItem('lanes.campaign.v1'))
+          localStorage.setItem(
+            'lanes.campaign.v1',
+            JSON.stringify({
+              version: 1,
+              cleared: ['north-road', 'the-ford', 'thorn-keep', 'vargr'],
+            }),
+          );
+      });
     if (seedRoster) {
       // Only when empty, so a test's own roster changes survive reloads.
       await page.addInitScript((roster) => {

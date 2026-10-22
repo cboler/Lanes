@@ -92,7 +92,7 @@ test('equips support skills within SP and shows each skill pattern', async ({ pa
 test('buys a Tactics Scroll at the guild store and raises an aptitude on the roster', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/guild');
   await page.locator('#buy-tactics').click();
   await expect(page.locator('#owned-tactics')).toHaveText('Owned: 1');
   await expect(page.locator('#guild-gold')).toHaveText('200');

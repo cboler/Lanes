@@ -1,10 +1,16 @@
 import { Routes } from '@angular/router';
 import { GuildComponent } from './guild/guild.component';
 
-// The Guild Hall is the home screen; every other page loads when first visited.
+// The expedition board is home; the guild and existing game screens remain available.
 export const routes: Routes = [
   {
     path: '',
+    loadComponent: () =>
+      import('./overworld/overworld.component').then((m) => m.OverworldComponent),
+    title: 'Thornwatch Expedition • Lanes',
+  },
+  {
+    path: 'guild',
     component: GuildComponent,
     title: 'Guild Hall • Lanes',
   },
@@ -46,8 +52,7 @@ export const routes: Routes = [
     loadComponent: () => import('./options/options.component').then((m) => m.OptionsComponent),
     title: 'Options • Lanes',
   },
-  // The guild hall was /guild before it became the home screen.
-  { path: 'guild', redirectTo: '' },
+  { path: 'overworld', redirectTo: '', pathMatch: 'full' },
   {
     path: '**',
     redirectTo: '',

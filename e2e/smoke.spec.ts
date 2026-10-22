@@ -22,7 +22,8 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 2. Primary layout elements are visible
     await expect(page.locator('header[role="banner"]')).toBeVisible();
     await expect(page.locator('main[role="main"]')).toBeVisible();
-    await expect(page.locator('footer[role="contentinfo"]')).toBeVisible();
+    await expect(page.locator('#company-menu-btn')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Company commands"]')).toBeHidden();
     await page.goto('/battle');
 
     // 3. Prevent accidental horizontal overflow
@@ -56,6 +57,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 7. Client-side navigation to the status screen, from a menu page's footer
     await page.locator('#squad-builder-link').click();
     await expect(page).toHaveURL(/.*squad/);
+    await page.locator('#company-menu-btn').click();
     const statusLink = page.locator('#nav-link-status');
     await expect(statusLink).toBeVisible();
     await statusLink.click();
@@ -70,10 +72,10 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     });
     expect(statusOverflow).toBeFalsy();
 
-    // 8. Home is the Guild Hall
+    // 8. Home is the expedition board
     await page.locator('#back-home-link').click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'The Thornwatch March' })).toBeVisible();
 
     // 9. Zero unhandled console errors or exceptions
     expect(consoleErrors).toEqual([]);

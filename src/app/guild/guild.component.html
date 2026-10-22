@@ -3,10 +3,10 @@
     <div>
       <h1 id="guild-title">Guild Hall</h1>
       <p>
-        Your company's home. Follow the story in the campaign, or take a contract against a band of
-        enemy mercenaries. Bands are scaled to your squad's level, and harder contracts pay more
-        gold and EXP. A won contract leaves the board and a new one is posted; a lost one stays up
-        for another try.
+        A place to find work and resupply between journeys. Follow the story on the overworld, or
+        take a contract against a band of enemy mercenaries. Bands are scaled to your squad's level,
+        and harder contracts pay more gold and EXP. A won contract leaves the board and a new one is
+        posted; a lost one stays up for another try.
       </p>
     </div>
     <dl class="guild-stats">
@@ -41,7 +41,12 @@
       <p>
         <strong>{{ mission.title }}</strong> · Level {{ mission.level }} — {{ mission.summary }}
       </p>
-      <a routerLink="/campaign" class="tactical-btn primary" id="guild-campaign-link">
+      <a
+        routerLink="/"
+        [queryParams]="{ commission: mission.id }"
+        class="tactical-btn primary"
+        id="guild-campaign-link"
+      >
         {{ campaign.cleared().length ? 'Continue the story' : 'Begin the story' }}
       </a>
     } @else {

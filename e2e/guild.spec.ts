@@ -3,7 +3,7 @@ import { expect, test } from './fixtures';
 test('takes a contract from the guild board, fights its band, and a win replaces it', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/guild');
   await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
   await expect(page.locator('.contract-card')).toHaveCount(3);
   await expect(page.locator('#guild-party-level')).toHaveText('1');
@@ -57,7 +57,7 @@ test('takes a contract from the guild board, fights its band, and a win replaces
 
 test('a hard contract raises a barricade and sets two traps', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Placement is independent of viewport.');
-  await page.goto('/');
+  await page.goto('/guild');
   await page.locator('#take-contract-hard').click();
   await expect(page.locator('.enemy-unit')).toHaveCount(5);
   await expect(page.locator('.enemy-unit').filter({ hasText: 'Barricade' })).toHaveCount(1);

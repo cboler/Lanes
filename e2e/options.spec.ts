@@ -6,10 +6,11 @@ test('downloads a backup, restores it after starting over, and the progress retu
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Save data is independent of viewport.');
   // Spend some gold so the backup holds something a new game would not.
-  await page.goto('/');
+  await page.goto('/guild');
   await page.locator('#buy-charm').click();
   await expect(page.locator('#guild-gold')).toHaveText('300');
 
+  await page.locator('#company-menu-btn').click();
   await page.locator('#nav-link-options').click();
   await expect(page.getByRole('heading', { name: 'Options' })).toBeVisible();
   const download = page.waitForEvent('download');
@@ -21,7 +22,8 @@ test('downloads a backup, restores it after starting over, and the progress retu
   await page.locator('#reset-save-btn').click();
   await expect(page.locator('#reset-save-btn')).toHaveText(/Press again/);
   await page.locator('#reset-save-btn').click();
-  await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The Thornwatch March' })).toBeVisible();
+  await page.goto('/guild');
   await expect(page.locator('#guild-gold')).toHaveText('500');
   await expect(page.locator('#owned-charm')).toHaveText('Owned: 0');
 
@@ -35,7 +37,8 @@ test('downloads a backup, restores it after starting over, and the progress retu
   await expect(page.locator('#save-message')).toContainText('not a Lanes backup');
 
   await page.locator('#import-save-input').setInputFiles(file);
-  await expect(page.getByRole('heading', { name: 'Guild Hall' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The Thornwatch March' })).toBeVisible();
+  await page.goto('/guild');
   await expect(page.locator('#guild-gold')).toHaveText('300');
   await expect(page.locator('#owned-charm')).toHaveText('Owned: 1');
 });

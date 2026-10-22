@@ -23,6 +23,21 @@ describe('CampaignService', () => {
     TestBed.resetTestingModule();
   });
 
+  it('remembers accepted commissions without unlocking later missions or paying rewards', () => {
+    let campaign = TestBed.inject(CampaignService);
+    const gold = TestBed.inject(RosterService).gold();
+    campaign.accept(second.id);
+    expect(campaign.accepted()).toEqual([]);
+    campaign.accept(first.id);
+    campaign.accept(first.id);
+    expect(campaign.accepted()).toEqual([first.id]);
+    expect(campaign.cleared()).toEqual([]);
+    expect(TestBed.inject(RosterService).gold()).toBe(gold);
+    TestBed.resetTestingModule();
+    campaign = TestBed.inject(CampaignService);
+    expect(campaign.accepted()).toEqual([first.id]);
+  });
+
   it('pays a first win once, opens the next mission, and remembers it after a reload', () => {
     const roster = TestBed.inject(RosterService);
     const campaign = TestBed.inject(CampaignService);

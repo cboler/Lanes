@@ -27,13 +27,13 @@ describe('Lanes Application Shell Tests', () => {
       expect(compiled.querySelector('.brand-title')?.textContent).toContain('Lanes');
     });
 
-    it('should render navigation links for the Guild Hall, Battle and War Room', async () => {
+    it('keeps management in the company menu and exposes battle only when a squad is engaged', async () => {
       const fixture = TestBed.createComponent(App);
       await fixture.whenStable();
       const compiled = fixture.nativeElement as HTMLElement;
-      expect(compiled.querySelector('#nav-link-guild')?.textContent?.trim()).toBe('Guild Hall');
-      expect(compiled.querySelector('#nav-link-home')?.textContent?.trim()).toBe('Battle');
-      expect(compiled.querySelector('#nav-link-squad')?.textContent?.trim()).toBe('War Room');
+      expect(compiled.querySelector('#nav-link-guild')?.getAttribute('href')).toBe('/guild');
+      expect(compiled.querySelector('#nav-link-home')).toBeNull();
+      expect(compiled.querySelector('#nav-link-squad')?.getAttribute('href')).toBe('/squad');
       expect(compiled.querySelector('#nav-link-status')?.textContent?.trim()).toBe('Diagnostics');
     });
 

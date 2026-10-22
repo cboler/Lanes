@@ -17,6 +17,7 @@ const mission = (id: string) => ({
   summary: '',
   band: 'Band',
   level: 2,
+  route: ['fork', 'ford'],
   enemies: [{ classId: 'fighter', name: 'Brask' }],
   briefing: [],
   debrief: [],

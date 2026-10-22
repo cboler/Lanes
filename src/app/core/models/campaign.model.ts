@@ -34,6 +34,8 @@ export interface Mission {
   readonly band: string;
   /** The enemy's level; also the squad level the mission is meant for. */
   readonly level: number;
+  /** A repeating circuit on the overworld. One enemy piece carries this mission's squad. */
+  readonly route: readonly string[];
   /** One to four enemies; the first is the band's leader. */
   readonly enemies: readonly MissionEnemy[];
   readonly objects?: readonly FieldObjectSpec[];

@@ -1,0 +1,499 @@
+/* Patrol forecasts share the board coordinates and never advance the turn. */
+.patrol-intent {
+  stroke: #ffb29a;
+  stroke-width: 3px;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 1px 2px #37170d);
+}
+.patrol-destination {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 29px;
+  height: 25px;
+  border: 2px dashed #ffb29a;
+  border-radius: 50%;
+  background: #803b2caf;
+  color: #ffe0bf;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 21px;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: 0 0 12px #ff6f3d35;
+}
+.enemy-marker {
+  pointer-events: auto;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+.enemy-marker:hover .pawn,
+.enemy-marker:focus-visible .pawn {
+  filter: drop-shadow(0 0 5px #ffcc99);
+}
+.enemy-marker:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.map-tools {
+  position: absolute;
+  bottom: 12px;
+  right: 18px;
+  display: flex;
+  gap: 6px;
+}
+.field-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 12px;
+  border: 1px solid #9b8b5d;
+  background: #19291fee;
+  color: #e5d7b6;
+  font: 0.72rem var(--font-family);
+  cursor: pointer;
+}
+.field-tool.active {
+  color: #ffe1bc;
+  border-color: #e8ad8d;
+  background: #613a2ce8;
+}
+.field-tool:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.route-choice.risky,
+.wait-btn.risky {
+  border-color: #c88369;
+  color: #ffd5ba;
+}
+.route-choice .contact-mark {
+  color: #ffc0a0;
+}
+.route-panel .step-preview {
+  color: #bbc7b0;
+  font-size: 0.67rem;
+  line-height: 1.4;
+  margin: -3px 0 8px;
+}
+.route-panel .step-preview.danger {
+  color: #ffb99d;
+}
+.route-panel .step-preview.unreachable {
+  color: #e4c689;
+}
+.field-dialog {
+  width: min(520px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 28px;
+  overflow-y: auto;
+  color: #e9e0c5;
+  border: 1px solid #c6ac70;
+  background: radial-gradient(ellipse at top, #344b35, #16251f 65%);
+  box-shadow:
+    inset 0 0 0 4px #14201d,
+    0 15px 70px #000a;
+  text-align: center;
+}
+.field-dialog::backdrop {
+  background: #07130cd9;
+  backdrop-filter: blur(4px);
+}
+.dialog-crest {
+  display: block;
+  margin: 0 auto 9px;
+  color: #e8cc83;
+  font-size: 3rem;
+  line-height: 1;
+  text-shadow: 0 3px 9px #0007;
+}
+.enemy-crest {
+  color: #e6ab8b;
+}
+.field-dialog h2 {
+  font-size: 1.55rem;
+  margin: 8px 0 10px;
+}
+.field-dialog p {
+  color: #ccd2bc;
+  font-size: 0.83rem;
+  line-height: 1.6;
+  margin: 10px 0;
+}
+.patrol-intel {
+  margin: 20px 0;
+  border: 1px solid #84957055;
+  padding: 4px 14px;
+}
+.patrol-intel > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  text-align: left;
+}
+.patrol-intel > div + div {
+  border-top: 1px solid #84957040;
+}
+.patrol-intel dt {
+  font-size: 0.72rem;
+  color: #b2bea4;
+}
+.patrol-intel dd {
+  margin: 0;
+  color: #ead5a2;
+  font-size: 0.82rem;
+  text-align: right;
+}
+.field-dialog .dialog-hint {
+  font-size: 0.72rem;
+  color: #aebda2;
+}
+.field-dialog .commission-pay {
+  font:
+    2.5rem Georgia,
+    serif;
+  color: #f1d08b;
+  margin: 16px 0;
+}
+.commission-pay small {
+  font: 0.8rem var(--font-family);
+  color: #dac797;
+}
+.expedition-record {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-block: 1px solid #b19b624d;
+  margin: 18px 0;
+  padding: 14px 0;
+}
+.expedition-record dt {
+  font-size: 0.63rem;
+  color: #b1bea5;
+}
+.expedition-record dd {
+  margin: 5px 0 0;
+  font:
+    1.3rem Georgia,
+    serif;
+  color: #efdfb2;
+}
+.recovered-loot p {
+  font-size: 0.76rem;
+}
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.dialog-actions .march-btn {
+  justify-content: center;
+}
+.dialog-actions .wait-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+@media (max-width: 600px) {
+  .map-tools {
+    right: 10px;
+    bottom: 5px;
+  }
+  .field-tool {
+    padding-inline: 8px;
+    font-size: 0.64rem;
+  }
+  .tool-label {
+    display: none;
+  }
+  .field-dialog {
+    padding: 22px 18px;
+  }
+  .field-dialog h2 {
+    font-size: 1.25rem;
+  }
+  .route-choice {
+    font-size: 0.64rem;
+  }
+  .route-panel .step-preview {
+    font-size: 0.6rem;
+    margin: 0 0 6px;
+  }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .field {
+    min-height: 110px;
+  }
+  .route-choices {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .route-choice {
+    flex: none;
+  }
+  .route-panel .step-preview {
+    font-size: 0.6rem;
+    margin: 0 0 4px;
+  }
+  .step-preview:not(.danger):not(.unreachable) {
+    display: none;
+  }
+  .field-dialog {
+    width: min(640px, calc(100% - 24px));
+    padding: 16px 22px;
+  }
+  .dialog-crest {
+    display: none;
+  }
+  .field-dialog h2 {
+    font-size: 1.2rem;
+    margin: 4px 0;
+  }
+  .field-dialog p {
+    margin: 6px 0;
+    font-size: 0.73rem;
+  }
+  .field-dialog .dialog-hint {
+    display: none;
+  }
+  .field-dialog .commission-pay {
+    font-size: 1.8rem;
+    margin: 9px 0;
+  }
+  .expedition-record {
+    margin: 10px 0;
+    padding: 8px 0;
+  }
+  .patrol-intel {
+    margin: 12px 0;
+  }
+  .patrol-intel > div {
+    padding: 8px 0;
+  }
+  .dialog-actions {
+    margin-top: 12px;
+  }
+}
+/* A deeper board gives the interlocking circuits room; the camera follows one hop at a time. */
+.board {
+  min-height: 520px;
+}
+.objective-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+}
+.objective-panel > .eyebrow,
+.objective-reward > span {
+  display: none;
+}
+.objective-panel h2 {
+  font-size: 0.72rem;
+  margin: 0;
+}
+.objective-reward {
+  border: 0;
+  padding: 0;
+}
+.scouted-squad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.scouted-squad > div {
+  position: relative;
+  min-width: 0;
+  padding-bottom: 7px;
+  background: #111d18;
+  border: 1px solid #9e7d585f;
+}
+.scouted-squad img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  object-position: center 25%;
+}
+.scouted-squad strong,
+.scouted-class {
+  display: block;
+  font-size: 0.7rem;
+  padding-inline: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scouted-class {
+  color: #c5b793;
+  font-size: 0.6rem;
+  text-transform: capitalize;
+}
+.scouted-squad small {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-size: 0.55rem;
+  color: #f0ddad;
+  background: #122018e6;
+  padding: 1px 4px;
+}
+.field-dialog .patrol-cycle {
+  color: #e7ca92;
+  font-size: 0.72rem;
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .scouted-squad {
+    margin: 8px 0;
+    gap: 8px;
+  }
+  .scouted-squad > div {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    grid-template-rows: 1fr 1fr;
+    padding: 0;
+    align-items: center;
+  }
+  .scouted-squad img {
+    width: 40px;
+    height: 48px;
+    grid-row: 1 / 3;
+  }
+  .scouted-squad small {
+    display: none;
+  }
+  .scouted-squad strong,
+  .scouted-class {
+    font-size: 0.6rem;
+  }
+  .patrol-intel {
+    margin: 6px 0;
+  }
+  .patrol-intel > div {
+    padding: 6px 0;
+  }
+}
+
+/* Story scenes keep the road visible behind the conversation. */
+.objective-panel:has(.commission-btn) {
+  display: block;
+  pointer-events: auto;
+  width: 270px;
+  z-index: 6;
+  padding: 5px;
+}
+.field-dialog:has(.story-line)::backdrop {
+  background: #07130c80;
+  backdrop-filter: blur(1px);
+}
+.field-dialog:has(.story-line) {
+  width: min(720px, calc(100% - 24px));
+  margin-block: auto 22px;
+  text-align: left;
+}
+.story-line {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin: 20px 0;
+}
+.scene-portrait {
+  flex: none;
+  width: 96px;
+  height: 112px;
+  object-fit: cover;
+  object-position: center 20%;
+  border: 1px solid #bca46c;
+}
+.story-line h3 {
+  color: #e6cc91;
+  font: 1.1rem var(--font-heraldic);
+  margin: 0;
+}
+.scene-count {
+  color: #aab99c;
+  font-size: 0.65rem;
+  margin-right: auto;
+  align-self: center;
+}
+.story-marker .piece-banner {
+  background: #55411a;
+  border-color: #f4da85;
+  color: #ffea9e;
+  font-size: 0.9rem;
+}
+.story-marker .pawn {
+  filter: drop-shadow(0 0 5px #e4c167);
+}
+.commission-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aa925e;
+  background: #1b2c20;
+  color: #ead6a0;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  margin: 0;
+  text-align: left;
+}
+.commission-title {
+  display: block;
+  font: 500 0.9rem var(--font-heraldic);
+}
+.commission-location {
+  display: block;
+  font-size: 0.62rem;
+  color: #d5c292;
+}
+@media (max-width: 700px), (max-height: 550px) and (orientation: landscape) {
+  .objective-panel:has(.commission-btn) {
+    width: min(230px, calc(100% - 110px));
+  }
+  .objective-panel:has(.commission-btn)::before {
+    display: none;
+  }
+  .commission-title {
+    font-size: 0.75rem;
+  }
+  .commission-btn {
+    font-size: 0.6rem;
+    padding: 4px 6px;
+  }
+  .commission-location {
+    font-size: 0.54rem;
+  }
+  .story-line {
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .scene-portrait {
+    width: 64px;
+    height: 80px;
+  }
+  .field-dialog:has(.story-line) {
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+}
+@media (max-height: 550px) and (orientation: landscape) {
+  .objective-panel:has(.commission-btn) {
+    left: auto;
+    right: 100px;
+    top: 6px;
+  }
+}

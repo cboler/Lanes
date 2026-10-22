@@ -19,6 +19,7 @@ export const CAMPAIGN: readonly Chapter[] = [
     missions: [
       {
         id: 'north-road',
+        route: ['fork', 'ford', 'fork', 'trail'],
         title: 'Wolves on the North Road',
         summary: 'A first paying contract: drive two bandits off the North Road.',
         band: 'Grey Wolf Scouts',
@@ -75,6 +76,7 @@ export const CAMPAIGN: readonly Chapter[] = [
       },
       {
         id: 'the-ford',
+        route: ['bridge', 'east', 'ridge', 'east'],
         title: 'Spikes at the Ford',
         summary:
           'The Wolves hold the river crossing, and they have salted the shallows with spikes.',
@@ -119,6 +121,7 @@ export const CAMPAIGN: readonly Chapter[] = [
       },
       {
         id: 'thorn-keep',
+        route: ['pass', 'gate', 'pass', 'steps'],
         title: 'The Gate at Thorn Keep',
         summary: 'Break the barricade the Wolves raised at the old keep, or find a way around it.',
         band: 'Grey Wolves',
@@ -166,6 +169,7 @@ export const CAMPAIGN: readonly Chapter[] = [
       },
       {
         id: 'vargr',
+        route: ['keep', 'gate'],
         title: 'The Grey Wolf',
         summary: 'Captain Vargr guards the wagons himself. End the Grey Wolves.',
         band: 'Vargr’s Pack',

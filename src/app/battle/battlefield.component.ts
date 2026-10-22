@@ -30,6 +30,7 @@ import { GamepadService } from '../core/services/gamepad.service';
 import { RosterService } from '../core/services/roster.service';
 import { GuildService } from '../core/services/guild.service';
 import { CampaignService, MissionReward } from '../core/services/campaign.service';
+import { OverworldService } from '../core/services/overworld.service';
 import { Contract, TIERS } from '../core/models/contract.model';
 import { ItemId, itemName } from '../core/models/item.model';
 import { FieldTrap, TRAP_NAMES } from '../core/models/field-object.model';
@@ -73,6 +74,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly pad = inject(GamepadService);
   private readonly guild = inject(GuildService);
   private readonly campaign = inject(CampaignService);
+  private readonly overworld = inject(OverworldService);
   protected readonly isLogOpen = signal(false);
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
@@ -176,6 +178,14 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     effect(() => {
       const report = this.battle.battleReport();
       this.rewards.set(report ? untracked(() => this.roster.claimRewards(report)) : null);
+      if (report?.contractId?.startsWith('overworld:') || report?.missionId) {
+        untracked(() =>
+          this.overworld.resolve(
+            report.contractId ?? `mission_${report.missionId}`,
+            report.outcome === 'victory',
+          ),
+        );
+      }
       // A won contract leaves the board; a lost one stays up for another try.
       if (report?.contractId && report.outcome === 'victory') {
         untracked(() => {
@@ -252,8 +262,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     // The game screen fills the window instead of scrolling; see styles.scss.
     this.document.body.classList.add('battle-screen');
     if (this.battle.units().length === 0) {
-      // The first battle of a visit fields the roster's squad.
-      this.battle.deployMercenaries(this.roster.squad());
+      // A refresh restarts a saved map encounter against that same squad, not a skirmish.
+      const encounter = this.overworld.contract();
+      if (encounter) this.battle.deployContract(encounter, this.roster.squad());
+      else this.battle.deployMercenaries(this.roster.squad());
     } else {
       this.battle.resume();
     }

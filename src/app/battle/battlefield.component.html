@@ -64,7 +64,8 @@
       >
         ↺ Restart
       </button>
-      <a routerLink="/" class="tactical-btn secondary" id="guild-link">🏰 Guild</a>
+      <a routerLink="/" class="tactical-btn secondary" id="overworld-link">♜ Overworld</a>
+      <a routerLink="/guild" class="tactical-btn secondary" id="guild-link">🏰 Guild</a>
       <a
         routerLink="/squad"
         class="tactical-btn primary"
@@ -670,7 +671,7 @@
           @if (battle.activeContract()?.missionId; as missionId) {
             @if (battle.battleStatus() === 'victory') {
               <a
-                routerLink="/campaign"
+                routerLink="/"
                 [queryParams]="{ debrief: missionId }"
                 class="tactical-btn primary large"
                 id="modal-story-btn"
@@ -678,12 +679,16 @@
                 📖 Continue the story
               </a>
             } @else {
-              <a routerLink="/campaign" class="tactical-btn secondary large" id="modal-story-btn">
-                📖 Campaign
+              <a routerLink="/" class="tactical-btn secondary large" id="modal-story-btn">
+                ♜ Return to the road
               </a>
             }
+          } @else if (battle.activeContract()?.id?.startsWith('overworld:')) {
+            <a routerLink="/" class="tactical-btn primary large" id="modal-overworld-btn">
+              ♜ Return to the map
+            </a>
           } @else if (battle.activeContract()) {
-            <a routerLink="/" class="tactical-btn secondary large" id="modal-guild-btn">
+            <a routerLink="/guild" class="tactical-btn secondary large" id="modal-guild-btn">
               🏰 Guild
             </a>
           }

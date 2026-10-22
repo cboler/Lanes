@@ -10,6 +10,7 @@ interface SavedCampaign {
   version: 1;
   /** Ids of missions won, in the order they were first won. */
   cleared: string[];
+  accepted?: string[];
 }
 
 /** A mission's first-clear reward, as paid. */
@@ -25,6 +26,7 @@ export class CampaignService {
   private readonly document = inject(DOCUMENT);
   private readonly roster = inject(RosterService);
   public readonly cleared = signal<string[]>([]);
+  public readonly accepted = signal<string[]>([]);
   /** The mission the story continues with, or null when every mission is won. */
   public readonly next = computed(() => nextMission(this.cleared()));
   /** First-clear rewards already paid this session, by battle report id. */
@@ -44,6 +46,12 @@ export class CampaignService {
 
   public mission(id: string): Mission | null {
     return findMission(id);
+  }
+
+  public accept(id: string): void {
+    if (!this.isUnlocked(id) || this.accepted().includes(id)) return;
+    this.accepted.update((ids) => [...ids, id]);
+    this.persist();
   }
 
   /**
@@ -70,6 +78,17 @@ export class CampaignService {
       if (!stored) return [];
       const raw = JSON.parse(stored) as Partial<SavedCampaign>;
       if (raw.version !== 1 || !Array.isArray(raw.cleared)) return [];
+      this.accepted.set(
+        Array.isArray(raw.accepted)
+          ? [
+              ...new Set(
+                raw.accepted.filter(
+                  (id): id is string => typeof id === 'string' && !!findMission(id),
+                ),
+              ),
+            ]
+          : [],
+      );
       // Unknown ids are kept: a mission may come back after the story is edited.
       return [...new Set(raw.cleared.filter((id): id is string => typeof id === 'string'))];
     } catch {
@@ -81,7 +100,11 @@ export class CampaignService {
     try {
       this.document.defaultView?.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ version: 1, cleared: this.cleared() } satisfies SavedCampaign),
+        JSON.stringify({
+          version: 1,
+          cleared: this.cleared(),
+          accepted: this.accepted(),
+        } satisfies SavedCampaign),
       );
     } catch {
       // Progress still counts for this session.

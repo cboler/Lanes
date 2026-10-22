@@ -1,307 +1,266 @@
 .app-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 }
-
 .app-header {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
-  background: linear-gradient(180deg, rgba(14, 20, 34, 0.95) 0%, rgba(7, 10, 16, 0.9) 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border-gilded);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
-  padding: var(--space-2) var(--space-4);
+  background: linear-gradient(180deg, #182321, #101a19);
+  border-bottom: 1px solid #8a7850;
+  padding: 3px 20px;
+  box-shadow: 0 2px 12px #0007;
 }
-
 .header-inner {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  gap: 12px;
 }
-
 .brand-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
+  min-height: 44px;
   text-decoration: none;
-  min-height: var(--touch-target-min);
-
-  &:hover {
-    text-decoration: none;
-  }
 }
-
 .brand-crest {
-  font-size: 1.5rem;
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  font-size: 1.7rem;
+  color: #d9c28c;
+  line-height: 1;
 }
-
 .brand-text {
   display: flex;
   flex-direction: column;
 }
-
 .brand-title {
-  font-family: var(--font-heraldic);
-  font-weight: 800;
-  font-size: 1.35rem;
-  letter-spacing: 0.08em;
-  background: linear-gradient(180deg, #ffd700 0%, #d4af37 60%, #b48316 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font: 500 1.3rem var(--font-heraldic);
+  letter-spacing: 0.12em;
   line-height: 1.1;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  color: #efe3bf;
 }
-
 .brand-sub {
-  font-family: var(--font-family);
-  font-size: 0.65rem;
-  letter-spacing: 0.18em;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: 0.4rem;
+  letter-spacing: 0.19em;
+  color: #a8b09c;
+  margin-top: 3px;
+  white-space: nowrap;
 }
-
-.app-nav {
+.header-commands {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-
-  @media (min-width: 640px) {
-    gap: var(--space-2);
-  }
+  gap: 10px;
 }
-
-.nav-link {
-  color: var(--text-secondary);
-  font-family: var(--font-family);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
-  transition: all 0.18s ease;
-
-  @media (min-width: 640px) {
-    font-size: var(--font-size-sm);
-    padding: var(--space-2) var(--space-4);
-    letter-spacing: 0.03em;
-  }
-
-  &::before {
-    margin-right: var(--space-1);
-    font-size: 0.85rem;
-
-    @media (min-width: 640px) {
-      margin-right: var(--space-2);
-      font-size: 1rem;
-    }
-  }
-
-  &.nav-battlefield::before {
-    content: '⚔️';
-  }
-
-  &.nav-guild::before {
-    content: '🏰';
-  }
-
-  &.nav-campaign::before {
-    content: '📖';
-  }
-
-  &.nav-options::before {
-    content: '⚙️';
-  }
-
-  &.nav-squad::before {
-    content: '🛡️';
-  }
-
-  &.nav-status::before {
-    content: '📜';
-  }
-
-  &:hover {
-    color: #fff;
-    background: rgba(30, 43, 68, 0.5);
-    border-color: var(--border-muted);
-    text-decoration: none;
-  }
-
-  &.active {
-    color: #ffd700;
-    background: linear-gradient(180deg, rgba(212, 175, 55, 0.18) 0%, rgba(212, 175, 55, 0.05) 100%);
-    border: 1px solid var(--border-gilded);
-    box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
-    font-weight: 700;
-  }
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.imperial-seal-btn {
+.hud-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  background: linear-gradient(180deg, #b48316 0%, #785310 100%);
-  border: 1px solid #ffd700;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: var(--space-1) var(--space-3);
-  min-height: 36px;
-  border-radius: var(--radius-sm);
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  border: 1px solid #88764c;
+  padding: 5px 12px;
+  background: #23342b;
+  color: #ead7a6;
+  font-size: 0.75rem;
   cursor: pointer;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.5),
-    0 0 8px rgba(245, 158, 11, 0.3);
-  transition: all 0.18s ease;
-
-  &:hover {
-    background: linear-gradient(180deg, #d4af37 0%, #875c12 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
-  }
+  text-decoration: none;
 }
-
-.mana-crystal-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-family: var(--font-family);
-  font-weight: 600;
-  background: rgba(14, 20, 34, 0.8);
-  border: 1px solid var(--border-muted);
-
-  .crystal-gem {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-  }
-
-  &.online {
-    color: var(--color-success);
-    border-color: rgba(16, 185, 129, 0.4);
-    .crystal-gem {
-      background-color: var(--color-success);
-      box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
-    }
-  }
-
-  &.offline {
-    color: var(--color-warning);
-    border-color: rgba(245, 158, 11, 0.4);
-    .crystal-gem {
-      background-color: var(--color-warning);
-      box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
-    }
-  }
+kbd {
+  font: inherit;
+  font-size: 0.65rem;
+  border: 1px solid #8a785080;
+  border-radius: 3px;
+  padding: 2px 5px;
+  color: #c8c9ad;
 }
-
 .app-content {
   flex: 1 0 auto;
-  max-width: 1200px;
   width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: var(--space-2);
-  box-sizing: border-box;
-
-  @media (min-width: 640px) {
-    padding: var(--space-4);
+  padding: 20px;
+}
+.management-screen {
+  height: 100dvh;
+  min-height: 0;
+  background:
+    linear-gradient(#07130bb0, #07130be6),
+    url('../../public/assets/overworld/thornwatch.webp') center / cover;
+  .app-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    background: #15231ef2;
+    border-inline: 1px solid #85744966;
   }
 }
-
 .controller-guide {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border-gilded);
-  background: #121b2a;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.5;
-
-  .controller-status {
-    color: var(--color-gold-antique);
-    font-weight: 700;
-  }
+  gap: 5px 12px;
+  padding: 4px 12px;
+  border-bottom: 1px solid #776f4a;
+  background: #1c2a22;
+  color: #c9cdbb;
+  font-size: 0.65rem;
 }
-
-.app-footer {
-  flex-shrink: 0;
-  border-top: 1px solid var(--border-gilded);
-  background: linear-gradient(180deg, #070a10 0%, #030508 100%);
-  padding: var(--space-6) var(--space-4);
-  font-size: var(--font-size-sm);
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
+.controller-status {
+  color: #e0c992;
 }
-
-.footer-inner {
-  max-width: 1200px;
-  margin: 0 auto;
-  text-align: center;
+.company-menu {
+  width: min(540px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 24px;
+  color: #eee4c7;
+  border: 1px solid #c6ac70;
+  background: radial-gradient(ellipse at top, #344637, #14211c 70%);
+  box-shadow:
+    inset 0 0 0 4px #14201d,
+    0 15px 70px #000a;
+}
+.company-menu::backdrop {
+  background: #06110bbd;
+  backdrop-filter: blur(4px);
+}
+.menu-heading {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-
-  @media (min-width: 640px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
+  gap: 16px;
+  align-items: center;
 }
-
-.footer-text {
+.menu-crest {
+  font-size: 3rem;
+  color: #d8bc77;
+}
+.eyebrow {
+  color: #bda46e;
+  font-size: 0.6rem;
+  letter-spacing: 0.17em;
+}
+h2 {
   margin: 0;
-  color: var(--text-muted);
-  font-family: var(--font-heraldic);
-  letter-spacing: 0.04em;
-  font-size: var(--font-size-xs);
+  font: 1.7rem var(--font-heraldic);
 }
-
-.footer-links {
+.menu-intro {
+  color: #b9c1ab;
+  font-size: 0.8rem;
+  margin: 8px 0 18px;
+}
+.company-commands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.company-commands a {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-
-  a {
-    color: var(--color-gold-antique);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    transition: color 0.15s ease;
-
-    &:hover {
-      color: #ffd700;
-      text-decoration: underline;
-    }
+  gap: 12px;
+  min-height: 72px;
+  padding: 10px;
+  background: #0c1c15ad;
+  border: 1px solid #6c78504f;
+  color: #e3cf9e;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.company-commands a:hover {
+  background: #4c54323b;
+  border-color: #c7ad6e;
+}
+.company-commands b {
+  color: #baa572;
+  font:
+    1.45rem Georgia,
+    serif;
+}
+.company-commands small {
+  display: block;
+  color: #a4b29a;
+  font-size: 0.63rem;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.menu-bottom {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  border-top: 1px solid #84936a50;
+  padding-top: 10px;
+}
+.menu-bottom a,
+.menu-bottom button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid transparent;
+  color: #c6bd9d;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+@media (max-width: 550px) {
+  .app-header {
+    padding-inline: 10px;
   }
-
-  .separator {
-    color: var(--border-muted);
+  .brand-sub {
+    display: none;
+  }
+  .brand-title {
+    font-size: 1.05rem;
+  }
+  .brand-link {
+    gap: 6px;
+  }
+  .header-commands {
+    gap: 6px;
+  }
+  .hud-button {
+    padding-inline: 8px;
+    font-size: 0.68rem;
+  }
+  .hud-button kbd {
+    display: none;
+  }
+  .app-content {
+    padding: 12px;
+  }
+  .company-menu {
+    padding: 18px;
+  }
+  .company-commands a {
+    font-size: 0.77rem;
+    gap: 7px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .company-menu {
+    width: min(740px, calc(100% - 24px));
+    padding: 14px 20px;
+  }
+  .company-commands {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .company-commands a {
+    min-height: 70px;
+  }
+  .menu-heading h2 {
+    font-size: 1.3rem;
+  }
+  .menu-crest {
+    font-size: 2rem;
+  }
+  .menu-intro {
+    margin: 4px 0 8px;
+  }
+  .menu-bottom {
+    margin-top: 8px;
   }
 }

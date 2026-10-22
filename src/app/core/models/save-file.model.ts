@@ -9,6 +9,7 @@ export const SAVE_KEYS = [
   'lanes.roster.v1',
   'lanes.guild.v1',
   'lanes.campaign.v1',
+  'lanes.overworld.v1',
   'lanes.defense-plan.v1',
   'lanes.timing.v1',
 ] as const;

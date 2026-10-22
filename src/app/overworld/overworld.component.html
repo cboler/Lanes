@@ -1,0 +1,546 @@
+<section class="expedition" aria-labelledby="region-title">
+  <header class="region-bar">
+    <div class="region-title">
+      <span class="region-crest" aria-hidden="true">♜</span>
+      <div>
+        <span class="eyebrow">THE BORDERLANDS / A MERCENARY'S TALE</span>
+        <h1 id="region-title">The Thornwatch March</h1>
+      </div>
+    </div>
+    <div class="region-resources">
+      <span class="purse"
+        ><i aria-hidden="true">◈</i> <strong id="overworld-gold">{{ roster.gold() }}</strong>
+        <small>GOLD</small></span
+      ><button
+        class="help-btn"
+        type="button"
+        (click)="help.set(!help())"
+        [attr.aria-expanded]="help()"
+        aria-label="How to play the overworld"
+      >
+        ?
+      </button>
+    </div>
+  </header>
+
+  <div class="field">
+    <div
+      class="map-scroll"
+      tabindex="0"
+      role="region"
+      aria-label="Thornwatch expedition board. Scroll to explore the map."
+    >
+      <div class="board" [class.hopping]="moving()" [attr.aria-busy]="moving()">
+        <div
+          class="landscape"
+          style="background-image: url('assets/overworld/thornwatch.webp')"
+          aria-hidden="true"
+        ></div>
+        <svg class="routes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker
+              id="patrol-arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="5"
+              markerHeight="5"
+              orient="auto"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 Z" fill="#ffb29a" />
+            </marker>
+          </defs>
+          @for (edge of edges; track $index) {
+            <line
+              class="route-shadow"
+              [attr.x1]="edge.a.x * 10"
+              [attr.y1]="edge.a.y * 10"
+              [attr.x2]="edge.b.x * 10"
+              [attr.y2]="edge.b.y * 10"
+            />
+            <line
+              class="route-line"
+              [class.reachable]="edge.a.id === current().id || edge.b.id === current().id"
+              [attr.x1]="edge.a.x * 10"
+              [attr.y1]="edge.a.y * 10"
+              [attr.x2]="edge.b.x * 10"
+              [attr.y2]="edge.b.y * 10"
+            />
+          }
+          @if (scouting() && !moving()) {
+            @for (patrol of patrols(); track patrol.id) {
+              <line
+                class="patrol-intent"
+                [attr.x1]="patrol.node.x * 10"
+                [attr.y1]="patrol.node.y * 10"
+                [attr.x2]="patrol.next.x * 10"
+                [attr.y2]="patrol.next.y * 10"
+                marker-end="url(#patrol-arrow)"
+              />
+            }
+          }
+        </svg>
+        <div class="place-label camp-label" aria-hidden="true">WAYFARER CAMP</div>
+        <div class="place-label keep-label" aria-hidden="true">OLD WATCHTOWER</div>
+        <div class="place-label forest-label" aria-hidden="true">Whispering Grove</div>
+        <div class="place-label lowroad-label" aria-hidden="true">The Low Road</div>
+        @for (node of nodes; track node.id) {
+          <button
+            type="button"
+            class="waypoint"
+            [class.available]="available(node) && !world.encounter()"
+            [class.selected]="selected() === node.id"
+            [class.visited]="world.state().collected.includes(node.id)"
+            [class.objective]="node.kind === 'goal'"
+            [style.left.%]="node.x"
+            [style.top.%]="node.y"
+            [attr.aria-label]="
+              label(node) +
+              (available(node) ? ' · connected, select to march here' : ' · inspect waypoint')
+            "
+            [attr.aria-pressed]="selected() === node.id"
+            [attr.data-node]="node.id"
+            [title]="label(node)"
+            (click)="inspect(node)"
+          >
+            <span class="node-ring" aria-hidden="true"></span>
+            @if (!world.state().collected.includes(node.id)) {
+              @if (node.kind === 'gold') {
+                <span class="loot gold-loot" aria-hidden="true">◈</span>
+              }
+              @if (node.kind === 'chest') {
+                <span class="loot chest-loot" aria-hidden="true">▣</span>
+              }
+            }
+            @if (node.kind === 'goal') {
+              <span class="goal-flag" aria-hidden="true">⚑</span>
+            }
+          </button>
+        }
+        @if (scouting() && !moving()) {
+          @for (patrol of patrols(); track patrol.id) {
+            <span
+              class="patrol-destination"
+              [style.left.%]="patrol.next.x"
+              [style.top.%]="patrol.next.y"
+              [attr.data-next]="patrol.id"
+              [attr.data-node]="patrol.next.id"
+              role="img"
+              [attr.aria-label]="patrol.name + ' will move to ' + patrol.next.name + ' next turn'"
+              ><span aria-hidden="true">⚔</span></span
+            >
+          }
+        }
+        @for (patrol of patrols(); track patrol.id) {
+          <button
+            type="button"
+            class="piece-marker enemy-marker"
+            [class.story-marker]="patrol.id.startsWith('story:')"
+            [style.left.%]="patrol.node.x"
+            [style.top.%]="patrol.node.y"
+            [attr.data-patrol]="patrol.id"
+            [disabled]="moving()"
+            [attr.aria-label]="
+              patrol.name +
+              ' at ' +
+              patrol.node.name +
+              '; next move: ' +
+              patrol.next.name +
+              '. Inspect patrol'
+            "
+            [title]="patrol.name + ' → ' + patrol.next.name"
+            (click)="inspectEnemy(patrol.id)"
+          >
+            <span class="piece-shadow" aria-hidden="true"></span>
+            <span class="pawn red" aria-hidden="true">
+              <span class="pawn-head"></span><span class="pawn-collar"></span
+              ><span class="pawn-body"></span><span class="pawn-base"></span>
+            </span>
+            <span class="piece-banner" aria-hidden="true">{{
+              patrol.id.startsWith('story:') ? '✧' : patrol.tier === 'easy' ? 'I' : 'II'
+            }}</span>
+          </button>
+        }
+        <div
+          class="piece-marker company-marker"
+          [style.left.%]="current().x"
+          [style.top.%]="current().y"
+          role="img"
+          [attr.aria-label]="'Your company at ' + current().name"
+          id="company-piece"
+        >
+          <div class="piece-shadow"></div>
+          <div class="pawn blue">
+            <span class="company-pennant"></span><span class="pawn-head"></span
+            ><span class="pawn-collar"></span><span class="pawn-body"></span
+            ><span class="pawn-base"></span>
+          </div>
+          <span class="company-tag">YOU</span>
+        </div>
+      </div>
+    </div>
+
+    <aside
+      class="objective-panel"
+      [class.under-way]="world.state().turn > 0"
+      aria-label="Expedition objective"
+    >
+      @if (world.campaign.next(); as mission) {
+        <button
+          type="button"
+          class="commission-btn"
+          id="read-commission-btn"
+          [disabled]="moving()"
+          (click)="showStory(mission, 'briefing')"
+          [attr.aria-label]="'Read commission: ' + mission.title"
+          [title]="mission.summary"
+        >
+          <span
+            ><strong class="commission-title">{{ mission.title }}</strong
+            ><span class="commission-location"
+              >✧ {{ commissionNode()?.name }} · {{ mission.reward.gold }} G</span
+            ></span
+          >
+          <span aria-hidden="true">→</span>
+        </button>
+      } @else {
+        <span class="eyebrow">{{
+          world.state().complete ? 'EXPEDITION COMPLETE' : 'GUILD COMMISSION'
+        }}</span>
+        <h2>{{ world.state().complete ? 'A road reclaimed' : 'Reach the watchtower' }}</h2>
+        <p>
+          {{
+            world.state().complete
+              ? 'The guild’s 250 gold is yours. The other roads still hold their secrets.'
+              : 'Lead your company through Thornwatch. Keep an eye on the patrols.'
+          }}
+        </p>
+        <div class="objective-reward">
+          <span>⚑ Old Watchtower</span><strong>250 <small>G</small></strong>
+        </div>
+      }
+    </aside>
+    <div class="turn-banner" aria-label="Expedition turn">
+      <span>TURN</span
+      ><strong id="expedition-turn">{{
+        (world.state().turn + 1).toString().padStart(3, '0')
+      }}</strong
+      ><small>ONE STEP · ONE TURN</small>
+    </div>
+    <div class="map-legend" aria-label="Map legend">
+      <span><i class="legend-blue"></i> Your company</span
+      ><span><i class="legend-red"></i> Enemy squad</span><span><b>◈</b> Treasure</span>
+    </div>
+    <div class="map-tools" aria-label="Field commands">
+      @if (world.state().complete) {
+        <button
+          type="button"
+          class="field-tool"
+          id="expedition-report-btn"
+          [disabled]="moving()"
+          (click)="showDialog('complete')"
+          aria-label="View expedition report"
+        >
+          <span aria-hidden="true">⚑</span> <span class="tool-label">Report</span>
+        </button>
+      }
+      <button
+        type="button"
+        class="field-tool"
+        id="scout-btn"
+        [class.active]="scouting()"
+        [attr.aria-pressed]="scouting()"
+        (click)="scouting.set(!scouting())"
+        aria-label="Show next patrol moves"
+      >
+        <span aria-hidden="true">{{ pad.connected() ? 'Ⓨ' : '⌖' }}</span> Scout
+      </button>
+    </div>
+
+    @if (help()) {
+      <aside class="field-help" aria-label="How to play" tabindex="0">
+        <button
+          type="button"
+          class="help-close"
+          aria-label="Close instructions"
+          (click)="help.set(false)"
+        >
+          ×
+        </button>
+        <h2>The world moves with you.</h2>
+        <p>
+          Select a connected stop, then <strong>March</strong>. Your company and every red patrol
+          hop once, together. Wait to let a patrol pass. Meet a patrol on a stop or cross its path
+          to enter battle.
+        </p>
+        <p>
+          Follow a side road for gold and scrolls. Every treasure can be collected once. Reach the
+          flag for the guild reward. Progress saves on this device.
+        </p>
+        <p>
+          <strong>Scout</strong> reveals where each patrol will hop next. Select a red piece to
+          inspect it. Roads marked ⚔ lead to an encounter on the next hop; waiting can also bring a
+          patrol to you. Scouting spends no turns.
+        </p>
+        <p>
+          <strong>Keyboard:</strong> arrows select a road, M marches; Tab and Enter operate every
+          control, V scouts. <strong>Controller:</strong> D-pad focuses, A confirms, right stick
+          selects a road, X waits, Y scouts. <strong>Company:</strong> C or the controller Menu
+          button opens your roster, formation, defense orders, guild, and journal. These spend no
+          turns.
+        </p>
+      </aside>
+    }
+  </div>
+
+  <div class="journey-message" role="status" aria-live="polite">
+    <span aria-hidden="true">◆</span><span>{{ world.warning() || world.message() }}</span
+    ><span class="location">{{ current().name }}</span>
+  </div>
+
+  <footer class="command-deck">
+    <section class="company-panel" aria-label="Deployed company">
+      <div class="company-heading">
+        <span class="eyebrow">YOUR COMPANY</span
+        ><a routerLink="/roster" aria-label="Manage your company">Manage ↗</a>
+      </div>
+      <div class="portraits">
+        @for (merc of roster.squad(); track merc.id) {
+          <a
+            routerLink="/roster"
+            class="portrait"
+            [attr.aria-label]="merc.name + ', level ' + merc.level + ', ' + merc.classId"
+            ><img [src]="'assets/units/' + merc.classId + '.jpg'" alt="" /><span>{{
+              merc.name
+            }}</span
+            ><small>Lv. {{ merc.level }}</small></a
+          >
+        }
+      </div>
+    </section>
+    <section class="route-panel" aria-label="Choose your next step">
+      @if (world.encounter(); as enemy) {
+        <span class="eyebrow encounter-label">ENEMY CONTACT</span>
+        <h2>{{ enemy.name }}</h2>
+        <p>A patrol blocks your way. Victory removes its piece from the board.</p>
+        <div class="march-actions">
+          <button
+            type="button"
+            class="march-btn"
+            id="engage-patrol"
+            [disabled]="moving()"
+            (click)="engage()"
+          >
+            {{ pendingBattle() ? 'Resume battle' : '⚔ Engage squad' }}
+          </button>
+        </div>
+      } @else if (pendingBattle()) {
+        <span class="eyebrow">BATTLE UNDER WAY</span>
+        <h2>Your company is engaged</h2>
+        <p>Finish your battle to continue the expedition.</p>
+        <a routerLink="/battle" class="march-btn">Resume battle →</a>
+      } @else {
+        <span class="eyebrow">CHOOSE YOUR ROAD <span class="step-cost">1 STEP = 1 TURN</span></span>
+        <div class="route-choices">
+          @for (node of choices(); track node.id) {
+            <button
+              type="button"
+              class="route-choice"
+              [class.chosen]="selected() === node.id"
+              [class.risky]="!!contact(node.id)"
+              [attr.aria-label]="
+                node.name +
+                (contact(node.id)
+                  ? ' · Enemy contact: ' + contact(node.id)!.name
+                  : ' · Clear next hop')
+              "
+              [attr.aria-pressed]="selected() === node.id"
+              (click)="inspect(node)"
+            >
+              <span aria-hidden="true">{{ node.y < current().y ? '↗' : '↘' }}</span> {{ node.name }}
+              @if (contact(node.id)) {
+                <b class="contact-mark" aria-hidden="true">⚔</b>
+              }
+              @if ((node.gold || node.item) && !world.state().collected.includes(node.id)) {
+                <b aria-hidden="true">◈</b>
+              }
+            </button>
+          }
+        </div>
+        <p
+          class="step-preview"
+          [class.danger]="!!contact(selected())"
+          [class.unreachable]="!available(selectedNode())"
+          id="step-preview"
+          role="status"
+        >
+          @if (!available(selectedNode())) {
+            {{ selectedNode().name }} · choose a connected road to march.
+          } @else if (contact(selected()); as patrol) {
+            ⚔ {{ patrol.name }} will intercept this hop.
+          } @else {
+            {{ label(selectedNode()) }} · clear next hop.
+          }
+        </p>
+        <div class="march-actions">
+          <button
+            type="button"
+            class="march-btn"
+            id="march-btn"
+            [disabled]="!available(selectedNode()) || moving()"
+            (click)="move(selected())"
+          >
+            {{ contact(selected()) ? 'March · Battle' : 'March' }}
+            <span aria-hidden="true">→</span></button
+          ><button
+            type="button"
+            class="wait-btn"
+            id="wait-btn"
+            [disabled]="moving()"
+            [class.risky]="!!contact(current().id)"
+            [attr.aria-label]="
+              contact(current().id)
+                ? 'Wait a turn · Enemy contact: ' + contact(current().id)!.name
+                : 'Wait a turn'
+            "
+            (click)="move(current().id)"
+          >
+            {{ pad.connected() ? 'ⓧ' : '◷' }}
+            {{ contact(current().id) ? 'Wait · Battle' : 'Wait a turn' }}
+          </button>
+        </div>
+      }
+    </section>
+  </footer>
+
+  @if (dialog()) {
+    <dialog
+      id="field-dialog"
+      class="field-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="field-dialog-title"
+      aria-describedby="field-dialog-description"
+      (cancel)="closeDialog($event)"
+    >
+      @if (dialog() === 'story') {
+        @if (line(); as currentLine) {
+          <span class="eyebrow scene-title">{{
+            scene()!.kind === 'briefing' ? 'COMMISSION' : 'AFTERMATH'
+          }}</span>
+          <h2 id="field-dialog-title">{{ scene()!.mission.title }}</h2>
+          <div class="story-line">
+            @if (portrait(currentLine); as url) {
+              <img class="scene-portrait" [src]="url" alt="" />
+            }
+            <div>
+              <h3 id="scene-speaker">{{ currentLine.speaker }}</h3>
+              <p id="field-dialog-description">
+                <span id="scene-text" aria-live="polite">{{ currentLine.text }}</span>
+              </p>
+            </div>
+          </div>
+          <div class="dialog-actions">
+            <span class="scene-count">{{ currentLine.number }} / {{ currentLine.count }}</span>
+            <button type="button" class="wait-btn" id="scene-skip-btn" (click)="advanceStory(true)">
+              Skip
+            </button>
+            <button type="button" class="march-btn" id="scene-next-btn" (click)="advanceStory()">
+              {{
+                !currentLine.last
+                  ? 'Next ▸'
+                  : world.state().encounter
+                    ? 'To battle'
+                    : scene()!.kind === 'briefing'
+                      ? 'Take to the road'
+                      : 'Continue the journey'
+              }}
+            </button>
+          </div>
+        }
+      } @else if (dialog() === 'patrol') {
+        @if (inspectedEnemy(); as enemy) {
+          <span class="dialog-crest enemy-crest" aria-hidden="true">♟</span>
+          <span class="eyebrow">FIELD INTELLIGENCE</span>
+          <h2 id="field-dialog-title">{{ enemy.name }}</h2>
+          <p id="field-dialog-description">
+            {{ tiers[enemy.tier].label }} enemy squad · {{ inspectedSquad().length }} mercenaries.
+          </p>
+          <div class="scouted-squad" aria-label="Enemy squad composition">
+            @for (merc of inspectedSquad(); track merc.id) {
+              <div>
+                <img [src]="'assets/units/' + merc.classId + '.jpg'" alt="" /><strong>{{
+                  merc.name
+                }}</strong
+                ><span class="scouted-class">{{ merc.classId }}</span
+                ><small>Lv. {{ merc.level }}</small>
+              </div>
+            }
+          </div>
+          <dl class="patrol-intel">
+            <div>
+              <dt>Current position</dt>
+              <dd>{{ enemy.node.name }}</dd>
+            </div>
+            <div>
+              <dt>Next hop</dt>
+              <dd>{{ enemy.next.name }}</dd>
+            </div>
+          </dl>
+          <p class="patrol-cycle">Fixed circuit · repeats every {{ enemy.path.length }} hops.</p>
+          <p class="dialog-hint">
+            Meet on a waypoint or cross the same road to enter battle. Inspecting a patrol spends no
+            turns.
+          </p>
+        }
+      } @else {
+        <span class="dialog-crest" aria-hidden="true">♜</span>
+        <span class="eyebrow">EXPEDITION COMPLETE</span>
+        <h2 id="field-dialog-title">Thornwatch secured</h2>
+        <p id="field-dialog-description">
+          Your company reached the Old Watchtower. The guild commission is yours.
+        </p>
+        <p class="commission-pay" id="completion-gold">250 <small>G claimed</small></p>
+        <dl class="expedition-record">
+          <div>
+            <dt>Turns taken</dt>
+            <dd id="report-turns">{{ world.state().turn }}</dd>
+          </div>
+          <div>
+            <dt>Patrols defeated</dt>
+            <dd>{{ world.state().defeated.length }} / {{ patrolCount }}</dd>
+          </div>
+          <div>
+            <dt>Caches recovered</dt>
+            <dd>{{ recovered().length }} / {{ cacheCount }}</dd>
+          </div>
+        </dl>
+        <div class="recovered-loot">
+          <span class="eyebrow">FOUND ALONG THE ROAD</span>
+          <p>
+            {{ recoveredGold() }} gold
+            @for (node of recovered(); track node.id) {
+              @if (node.item) {
+                <span> · {{ itemName(node.item) }}</span>
+              }
+            }
+          </p>
+        </div>
+        <p class="dialog-hint">
+          Keep exploring for remaining treasure, or return to the guild to manage your company.
+          Rewards already claimed stay with you.
+        </p>
+      }
+      @if (dialog() !== 'story') {
+        <div class="dialog-actions">
+          <button type="button" class="march-btn" id="field-return-btn" (click)="closeDialog()">
+            {{ dialog() === 'patrol' ? 'Back to the map' : 'Keep exploring' }}
+          </button>
+          @if (dialog() === 'complete') {
+            <a routerLink="/guild" class="wait-btn">Guild Hall →</a>
+          }
+        </div>
+      }
+    </dialog>
+  }
+</section>

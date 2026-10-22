@@ -1,123 +1,102 @@
 <a href="#main-content" class="skip-link">Skip to main content</a>
-
-<div class="app-layout">
+<div class="app-layout" [class.management-screen]="!onMap() && !inBattle()">
   <header class="app-header" role="banner">
     <div class="header-inner">
-      <div class="brand">
-        <a routerLink="/" class="brand-link" id="nav-brand-link">
-          <span class="brand-crest" aria-hidden="true">⚔️</span>
-          <div class="brand-text">
-            <span class="brand-title" id="starter-title">{{ title() }}</span>
-            <span class="brand-sub">TACTICAL CHRONICLE</span>
-          </div>
-        </a>
-      </div>
-
-      <nav class="app-nav" aria-label="Primary Navigation">
-        <a
-          routerLink="/"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-link nav-guild"
-          id="nav-link-guild"
+      <a routerLink="/" class="brand-link" id="nav-brand-link" aria-label="Return to the overworld">
+        <span class="brand-crest" aria-hidden="true">♜</span>
+        <span class="brand-text"
+          ><span class="brand-title" id="starter-title">{{ title() }}</span
+          ><span class="brand-sub">A MERCENARY'S TALE</span></span
         >
-          Guild Hall
-        </a>
-        <a
-          routerLink="/campaign"
-          routerLinkActive="active"
-          class="nav-link nav-campaign"
-          id="nav-link-campaign"
-        >
-          Campaign
-        </a>
-        <a
-          routerLink="/battle"
-          routerLinkActive="active"
-          class="nav-link nav-battlefield"
-          id="nav-link-home"
-        >
-          Battle
-        </a>
-        <a
-          routerLink="/squad"
-          routerLinkActive="active"
-          class="nav-link nav-squad"
-          id="nav-link-squad"
-        >
-          War Room
-        </a>
-        <a routerLink="/roster" routerLinkActive="active" class="nav-link" id="nav-link-roster">
-          Roster
-        </a>
-        <a routerLink="/defense" routerLinkActive="active" class="nav-link" id="nav-link-defense">
-          Defense Orders
-        </a>
-        <a
-          routerLink="/options"
-          routerLinkActive="active"
-          class="nav-link nav-options"
-          id="nav-link-options"
-        >
-          Options
-        </a>
-      </nav>
-
-      <div class="header-actions">
-        @if (canInstall()) {
-          <button
-            type="button"
-            class="imperial-seal-btn"
-            id="install-pwa-btn"
-            (click)="installApp()"
-            aria-label="Enlist Tactical Unit (Install App)"
-          >
-            <span class="seal-icon" aria-hidden="true">🎖️</span>
-            <span class="seal-text">Enlist</span>
-          </button>
+      </a>
+      <div class="header-commands">
+        @if (!onMap()) {
+          <a routerLink="/" class="hud-button" id="return-to-map">↶ <span>Overworld</span></a>
         }
-
-        <div
-          class="mana-crystal-status"
-          [class.online]="isOnline()"
-          [class.offline]="!isOnline()"
-          role="status"
-          [attr.aria-label]="isOnline() ? 'Device has network access' : 'Device is offline'"
+        <button
+          type="button"
+          class="hud-button"
+          id="company-menu-btn"
+          (click)="openCompany()"
+          aria-haspopup="dialog"
         >
-          <span class="crystal-gem"></span>
-          <span class="crystal-label">{{ isOnline() ? 'Online' : 'Offline' }}</span>
-        </div>
+          <span aria-hidden="true">{{ gamepad.connected() ? '☰' : '☷' }}</span> Company
+          <kbd>{{ gamepad.connected() ? 'Menu' : 'C' }}</kbd>
+        </button>
       </div>
     </div>
   </header>
-
   @if (gamepad.connected()) {
     <aside class="controller-guide" aria-label="Controller controls">
-      <span class="controller-status" role="status" [title]="gamepad.controllerName()">
-        🎮 Controller connected
-      </span>
-      <span>D-pad / left stick: focus · A: confirm · B: cancel · Menu: battle toolbar</span>
-      <span>X: guard &amp; end · Y: assist · LB / RB: skills · View: log</span>
-      <span>LT / RT: hold to walk · Right stick: one step or change lane</span>
+      <span class="controller-status" role="status" [title]="gamepad.controllerName()"
+        >🎮 Controller connected</span
+      >
+      @if (inBattle()) {
+        <span>D-pad: focus · A: confirm · B: cancel · Menu: battle toolbar</span>
+        <span>X: guard · Y: assist · LB / RB: skills · View: log · Triggers: walk</span>
+      } @else {
+        <span
+          >Menu: company · D-pad: focus · A: confirm · B: back · Right stick: roads · X: wait · Y:
+          scout</span
+        >
+      }
     </aside>
   }
-
-  <main id="main-content" class="app-content" role="main">
-    <router-outlet />
-  </main>
-
-  <footer class="app-footer" role="contentinfo">
-    <div class="footer-inner">
-      <p class="footer-text">
-        Lanes Tactical RPG • 3-Lane Strategic Skirmish • Grand Kingdom Heritage
-      </p>
-      <div class="footer-links">
-        <a href="https://github.com/cboler/Lanes" target="_blank" rel="noopener noreferrer">
-          War Archives (GitHub)
-        </a>
-        <span class="separator" aria-hidden="true">•</span>
-        <a routerLink="/status" id="nav-link-status">Diagnostics</a>
-      </div>
-    </div>
-  </footer>
+  <main id="main-content" class="app-content" role="main"><router-outlet /></main>
 </div>
+<dialog
+  id="company-menu"
+  tabindex="-1"
+  class="company-menu"
+  aria-labelledby="company-title"
+  (cancel)="closeCompany($event)"
+  (keydown.escape)="closeCompany($event)"
+  (keydown.tab)="trapCompanyFocus($event)"
+>
+  <div class="menu-heading">
+    <span class="menu-crest" aria-hidden="true">♜</span>
+    <div>
+      <span class="eyebrow">THE ROAD CAN WAIT</span>
+      <h2 id="company-title">Your company</h2>
+    </div>
+  </div>
+  <p class="menu-intro">Tend to your mercenaries, find work, and prepare for the road ahead.</p>
+  <nav class="company-commands" aria-label="Company commands">
+    <a routerLink="/" id="nav-link-overworld" (click)="closeCompany()"
+      ><b>↶</b
+      ><span>Return to the journey<small>Continue from your current position</small></span></a
+    >
+    <a routerLink="/roster" id="nav-link-roster" (click)="closeCompany()"
+      ><b>♟</b><span>Roster<small>Hire and develop your mercenaries</small></span></a
+    >
+    <a routerLink="/squad" id="nav-link-squad" (click)="closeCompany()"
+      ><b>⚔</b><span>War Room<small>Choose the squad you take into battle</small></span></a
+    >
+    <a routerLink="/defense" id="nav-link-defense" (click)="closeCompany()"
+      ><b>♜</b><span>Defense Orders<small>Prepare your company's battle plan</small></span></a
+    >
+    <a routerLink="/guild" id="nav-link-guild" (click)="closeCompany()"
+      ><b>⚑</b><span>Guild Hall<small>Contracts, supplies, and training</small></span></a
+    >
+    <a routerLink="/campaign" id="nav-link-campaign" (click)="closeCompany()"
+      ><b>✧</b><span>Campaign journal<small>Your work and the story so far</small></span></a
+    >
+    <a routerLink="/options" id="nav-link-options" (click)="closeCompany()"
+      ><b>⚙</b><span>Options<small>Controls, save backups, and settings</small></span></a
+    >
+    @if (battleInProgress()) {
+      <a routerLink="/battle" id="nav-link-home" (click)="closeCompany()"
+        ><b>⚔</b><span>Resume battle<small>Your squad is still engaged</small></span></a
+      >
+    }
+  </nav>
+  <div class="menu-bottom">
+    <a routerLink="/status" id="nav-link-status" (click)="closeCompany()">Diagnostics</a>
+    @if (canInstall()) {
+      <button type="button" id="install-pwa-btn" (click)="installApp()">Install game</button>
+    }
+    <button type="button" id="close-company-btn" (click)="closeCompany()">
+      Close <kbd>{{ gamepad.connected() ? 'B' : 'Esc' }}</kbd>
+    </button>
+  </div>
+</dialog>
