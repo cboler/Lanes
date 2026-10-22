@@ -1,62 +1,83 @@
-/* How the battle screen fits smaller windows. Kept apart from the look in battlefield.component.scss. */
+/* How the battle HUD fits smaller windows. Kept apart from the look in battlefield.component.scss.
+   Each size sets --hud-top/--hud-bottom to the room its HUD takes, so the camera frames the
+   fighters between them. */
 
-/* ---- Small screens ------------------------------------------------------------ */
-@media (max-width: 900px) {
-  .active-unit-panel {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .end-turn-btn {
-    grid-column: 1 / -1;
-  }
-
-  .combat-guide {
+/* ---- Narrower desktops and tablets: icons without labels --------------------------- */
+@media (max-width: 1180px) {
+  .hud-icon-label {
     display: none;
   }
-}
 
-@media (max-width: 600px) {
-  .arena-viewport {
-    --stage-safe-top: 46px;
-    --stage-safe-bottom: 56px;
-  }
-
-  /* A phone keeps the stage large: who is acting on top, skills beside the gauges. */
-  .active-unit-panel {
-    gap: 6px;
-    padding: 6px;
-  }
-
-  .dossier-card {
-    grid-column: 1 / -1;
-  }
-
-  .dossier-avatar {
-    width: 40px;
-    height: 40px;
-  }
-
-  .dossier-stats-row,
-  .resource-hint,
-  .skill-tags,
-  .hotkey-badge {
-    display: none;
+  .command-deck {
+    grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) auto;
   }
 
   .skill-btn {
-    gap: 4px;
-    padding: 2px 6px;
+    flex-basis: 140px;
+    min-width: 104px;
+  }
+}
+
+/* ---- Tablets in portrait: the deck takes two rows, skills along the top one ------ */
+@media (max-width: 900px) {
+  .battlefield-container {
+    --hud-bottom: 170px;
   }
 
-  .movement-pad {
-    grid-template-columns: 1fr 1fr;
+  .command-deck {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'skills skills'
+      'card controls';
   }
 
-  .end-turn-btn {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px var(--space-3);
+  .skill-list {
+    grid-area: skills;
+  }
+
+  .unit-card {
+    grid-area: card;
+  }
+
+  .turn-controls {
+    grid-area: controls;
+  }
+
+  .ai-turn-indicator {
+    grid-area: skills;
+  }
+
+  .skill-btn {
+    flex: 1 1 140px;
+  }
+}
+
+/* ---- Phones in portrait ------------------------------------------------------------ */
+@media (max-width: 600px) {
+  .battlefield-container {
+    --hud-top: 168px;
+    --hud-bottom: 200px;
+  }
+
+  /* Banners on the top corners, the options beside the player's; the round lives in the timeline. */
+  .round-badge {
+    display: none;
+  }
+
+  .hud-icon {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0 6px;
+    font-size: 0.85rem;
+  }
+
+  .action-timeline {
+    top: 112px;
+  }
+
+  .practice-note {
+    top: 164px;
+    max-width: calc(100% - 16px);
   }
 
   .troop-crest {
@@ -68,6 +89,44 @@
   .troop-name {
     min-width: 0;
     font-size: 0.68rem;
+  }
+
+  .assist-btn {
+    top: 52px;
+  }
+
+  .skill-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .skill-btn {
+    min-width: 0;
+  }
+
+  .dossier-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* The arrows fold into a square so the unit card keeps its width. */
+  .movement-pad {
+    grid-template-columns: repeat(2, 36px);
+  }
+
+  .action-btn {
+    min-height: 36px;
+  }
+
+  .end-turn-btn {
+    align-self: stretch;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    white-space: normal;
+  }
+
+  .turn-controls {
+    gap: 6px;
   }
 
   .turn-token {
@@ -107,44 +166,92 @@
   .leader-tag {
     font-size: 0.5rem;
   }
-
-  .top-actions .tactical-btn {
-    padding: 0 10px;
-  }
 }
 
-/* A short landscape screen puts the command deck beside the stage, scrolling inside if needed. */
+/* ---- Short landscape screens: one compact band top and bottom ------------------------ */
 @media (max-height: 500px) and (orientation: landscape) {
   .battlefield-container {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(250px, 34%);
-    grid-template-rows: auto auto minmax(0, 1fr);
+    --hud-top: 84px;
+    --hud-bottom: 92px;
   }
 
-  .top-tactical-bar,
+  .round-badge {
+    top: 4px;
+    padding: 0 10px;
+  }
+
+  .hud-system {
+    top: 4px;
+    right: 4px;
+  }
+
+  .hud-icon {
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 6px;
+  }
+
+  .troop-banner {
+    top: 4px;
+
+    &.enemy {
+      top: 44px;
+    }
+  }
+
+  .troop-crest {
+    width: 28px;
+    height: 32px;
+    font-size: 0.95rem;
+  }
+
+  .assist-btn {
+    top: 46px;
+    min-height: 30px;
+  }
+
+  .action-timeline {
+    top: 30px;
+    padding: 3px 8px;
+  }
+
+  .turn-token {
+    width: 24px;
+    height: 28px;
+
+    &.enemy {
+      width: 26px;
+      height: 26px;
+    }
+
+    &.active {
+      width: 30px;
+      height: 34px;
+
+      &.enemy {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
   .practice-note {
-    grid-column: 1 / -1;
+    top: 66px;
+    max-width: calc(100% - 260px);
   }
 
-  .arena-viewport {
-    grid-row: 3;
-    min-height: 0;
-  }
-
-  .bottom-command-deck {
-    grid-row: 3;
-    overflow-y: auto;
-  }
-
-  .active-unit-panel {
-    grid-template-columns: 1fr 1fr;
+  .command-deck {
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) auto;
+    grid-template-areas: none;
     gap: 6px;
-    padding: 6px;
+    padding: 12px 6px 6px;
   }
 
-  .dossier-card,
-  .end-turn-btn {
-    grid-column: 1 / -1;
+  .skill-list,
+  .unit-card,
+  .turn-controls,
+  .ai-turn-indicator {
+    grid-area: auto;
   }
 
   .dossier-avatar {
@@ -152,32 +259,47 @@
     height: 36px;
   }
 
-  .dossier-stats-row,
-  .resource-hint,
+  .role-pill {
+    display: none;
+  }
+
+  .skill-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .skill-btn {
+    min-width: 0;
+    min-height: 34px;
+  }
+
   .skill-tags,
-  .hotkey-badge,
-  .combat-guide {
+  .guard-preview {
     display: none;
   }
 
   .movement-pad {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .skill-btn {
-    min-height: 30px;
+    grid-template-columns: repeat(2, 36px);
   }
 
   .action-btn {
     min-height: 34px;
-    white-space: nowrap;
   }
 
   .end-turn-btn {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px var(--space-3);
+    min-height: 34px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+  }
+
+  .unit-name {
+    display: none;
+
+    .acting-unit &,
+    .selected-target & {
+      display: block;
+    }
   }
 }
 

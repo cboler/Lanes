@@ -136,18 +136,18 @@ Lanes/
 
 On the overworld, select a connected waypoint or route button, then **March**. Arrow keys cycle connected roads, **M** marches, and **V** toggles Scout; **Wait a turn** advances the patrols once. With a controller, D-pad/left stick moves focus, A confirms, right stick cycles roads, X waits, and Y scouts. Select an enemy piece to inspect its squad. A confirms a dialog choice and B closes it; Tab stays within an open dialog and Escape closes it. The **?** button opens the field guide.
 
-| Action             | Keyboard           | Touch / Click           |
-| ------------------ | ------------------ | ----------------------- |
-| Walk Left/Right    | `A`/`D` or arrows  | Retreat/Advance buttons |
-| Shift Lane Up/Down | `W`/`S` or arrows  | Shift buttons           |
-| Select Ability 1–5 | `1`–`5`            | Ability cards           |
-| Confirm/Cancel     | `Enter` / `Escape` | Target / Cancel buttons |
-| Fire the aim       | `Space` / `Enter`  | Aim track or target     |
-| Chain a combo      | `1`–`5` or `Enter` | Ability card or target  |
-| Call an assist     | `Q`, then `1`–`4`  | Assist button           |
-| Guard and end      | `E`                | Guard & End button      |
+| Action             | Keyboard           | Touch / Click               |
+| ------------------ | ------------------ | --------------------------- |
+| Walk Left/Right    | `A`/`D` or arrows  | ◀ / ▶ (hold to walk)        |
+| Shift Lane Up/Down | `W`/`S` or arrows  | ▲ / ▼                       |
+| Select Ability 1–5 | `1`–`5`            | Skill buttons               |
+| Confirm/Cancel     | `Enter` / `Escape` | A target, then Confirm      |
+| Fire the aim       | `Space` / `Enter`  | Click or tap anywhere       |
+| Chain a combo      | `1`–`5` or `Enter` | The skill, target or ground |
+| Call an assist     | `Q`, then `1`–`4`  | Assist button               |
+| Guard and end      | `E`                | Guard & End button          |
 
-Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller: D-pad or left stick moves focus, A presses the focused button, B cancels, X guards and ends the turn, Y calls an assist, LB/RB cycle skills, holding LT/RT walks, the right stick moves one step (or changes lane) per push, View toggles the log and Menu opens Company while traveling and jumps to the battle toolbar during combat. While aiming, the aim track holds focus, so A fires; during a combo, A on the target or LB/RB chains the next skill. Defense Orders, the Guild and the Roster are all usable by focus navigation.
+The battle fills the screen: banners and the turn order sit along the top, the active unit, its skills, the move arrows and Guard & End along the bottom, and a small hint in the corner shows what the keys, taps or controller buttons do right now. Auto-Battle, Timing, speed and the log are icons in the top-right corner; ☰ holds Restart and the way back to the overworld, Guild, War Room and Defense Orders. Tap to step; hold a key or button to walk continuously while Move Gauge lasts. With a standard controller: D-pad or left stick moves focus, A presses the focused button, B cancels, X guards and ends the turn, Y calls an assist, LB/RB cycle skills, holding LT/RT walks, the right stick moves one step (or changes lane) per push, View toggles the log and Menu opens Company while traveling and the battle menu during combat. While aiming, A fires wherever focus is; during a combo, A on the target or LB/RB chains the next skill. Defense Orders, the Guild and the Roster are all usable by focus navigation.
 
 ## Character art
 

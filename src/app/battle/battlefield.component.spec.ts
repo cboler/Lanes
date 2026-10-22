@@ -27,12 +27,14 @@ describe('BattlefieldComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.combat-lane').length).toBe(3);
   });
 
-  it('renders initiative tokens and quick utility buttons', () => {
+  it('renders initiative tokens, and a battle menu that holds restart', () => {
     const tokens = fixture.nativeElement.querySelectorAll('.turn-token');
     expect(tokens.length).toBeGreaterThan(0);
 
-    const restartBtn = fixture.nativeElement.querySelector('#restart-battle-btn');
-    expect(restartBtn).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#restart-battle-btn')).toBeNull();
+    fixture.nativeElement.querySelector('#battle-menu-btn').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#restart-battle-btn')).toBeTruthy();
   });
 
   it('handles keyboard shortcuts for movement', () => {

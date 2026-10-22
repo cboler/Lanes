@@ -36,7 +36,8 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     const lanes = page.locator('.combat-lane');
     await expect(lanes).toHaveCount(3);
 
-    // 5. Navigate to Squad Builder (the battle toolbar's War Room link shows at every size)
+    // 5. Navigate to Squad Builder through the battle menu
+    await page.locator('#battle-menu-btn').click();
     const squadLink = page.locator('#squad-builder-link');
     await expect(squadLink).toBeVisible();
     await squadLink.click();
@@ -55,6 +56,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     await expect(page.locator('.battlefield-container')).toBeVisible();
 
     // 7. Client-side navigation to the status screen, from a menu page's footer
+    await page.locator('#battle-menu-btn').click();
     await page.locator('#squad-builder-link').click();
     await expect(page).toHaveURL(/.*squad/);
     await page.locator('#company-menu-btn').click();
@@ -104,7 +106,7 @@ test.describe('Lanes Tactical RPG Responsive Shell Smoke Tests', () => {
     // 3. Engage Auto-Battle
     await autoBtn.click();
     await expect(autoBtn).toContainText('ON');
-    await expect(autoBtn).toHaveClass(/active-gold/);
+    await expect(autoBtn).toHaveAttribute('aria-pressed', 'true');
 
     // 4. Set 2x speed for fast resolution
     const speedBtn = page.locator('#speed-toggle-btn');

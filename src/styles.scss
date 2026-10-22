@@ -333,8 +333,8 @@ body.overworld-screen {
 }
 
 /* ---- Battle screen: one window, no page scroll --------------------------------
- * BattlefieldComponent marks the body while it is shown. The shell then fills the
- * window exactly: a one-row header, no footer, and the battle takes the rest. */
+ * BattlefieldComponent marks the body while it is shown. The shell then gives the
+ * battle the whole window, with no header or footer. */
 body.battle-screen {
   height: 100dvh;
   overflow: hidden;
@@ -344,12 +344,11 @@ body.battle-screen {
     min-height: 0;
   }
 
-  .app-header {
-    padding-block: 4px;
-  }
-
-  .header-inner {
-    flex-wrap: nowrap;
+  /* The battle is the whole screen: its own menu leads back to the map and the company,
+     and its corner hints replace the controller guide. */
+  .app-header,
+  .controller-guide {
+    display: none;
   }
 
   .app-content {
@@ -357,26 +356,11 @@ body.battle-screen {
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
-    padding: 6px;
+    padding: 0;
   }
 
   app-battlefield {
     flex: 1 1 auto;
     min-height: 0;
-  }
-
-  /* A short landscape phone gives the stage the header's height; the battle toolbar
-     still links to the War Room and Defense Orders. */
-  @media (max-height: 500px) and (orientation: landscape) {
-    .app-header {
-      display: none;
-    }
-  }
-
-  @media (max-width: 899px) {
-    .brand-text,
-    .controller-guide span:not(.controller-status) {
-      display: none;
-    }
   }
 }

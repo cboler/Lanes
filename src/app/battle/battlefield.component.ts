@@ -14,6 +14,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   BattleStateService,
   FloatingText,
@@ -55,10 +56,18 @@ const WALK_SPEED = 0.3;
 const HOLD_DELAY_MS = 200;
 const WALK_KEYS = ['a', 'd', 'arrowleft', 'arrowright'];
 
+/** How the player is playing right now, so hints name the right buttons. */
+type InputMode = 'keys' | 'touch' | 'pad';
+/** One piece of a controls hint: the keys (or buttons) and what they do. */
+interface HintPart {
+  readonly keys: readonly string[];
+  readonly label: string;
+}
+
 @Component({
   selector: 'app-battlefield',
   standalone: true,
-  imports: [RouterLink, BattleStageComponent],
+  imports: [RouterLink, NgTemplateOutlet, BattleStageComponent],
   templateUrl: './battlefield.component.html',
   styleUrls: [
     './battlefield.component.scss',
@@ -76,6 +85,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   private readonly campaign = inject(CampaignService);
   private readonly overworld = inject(OverworldService);
   protected readonly isLogOpen = signal(false);
+  protected readonly menuOpen = signal(false);
+  private readonly inputMode = signal<InputMode>(
+    typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 'touch' : 'keys',
+  );
   protected readonly lanes = [0, 1, 2];
   private readonly stage = viewChild(BattleStageComponent);
   private readonly sprites = new Map<string, string>();
@@ -159,6 +172,92 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     () => this.assistOpen() && this.battle.assistOptions().length > 0,
   );
 
+  /** A contextual panel (targeting, aim, combo, assist) is open; it carries its own hint. */
+  protected readonly panelShown = computed(
+    () =>
+      !!this.battle.aim() ||
+      !!this.battle.combo() ||
+      this.assistShown() ||
+      !!this.battle.selectedAbility(),
+  );
+
+  /** What the controls do right now, for the corner hint, in the player's own input. */
+  protected readonly hint = computed<HintPart[]>(() => {
+    if (!this.battle.canPlayerAct()) return [];
+    const mode: InputMode = this.pad.connected() ? 'pad' : this.inputMode();
+    const pick = (keys: HintPart[], touch: HintPart[], pad: HintPart[]) =>
+      mode === 'pad' ? pad : mode === 'touch' ? touch : keys;
+    if (this.battle.aim()) {
+      return pick(
+        [{ keys: ['Click', 'Space'], label: 'fire on the gold' }],
+        [{ keys: [], label: 'Tap anywhere to fire on the gold' }],
+        [{ keys: ['A'], label: 'fire on the gold' }],
+      );
+    }
+    if (this.battle.combo()) {
+      return pick(
+        [
+          { keys: ['Click', 'Enter'], label: 'strike again on the flash' },
+          { keys: ['1–5'], label: 'chain a skill' },
+        ],
+        [{ keys: [], label: 'Tap again on the flash to chain' }],
+        [
+          { keys: ['A'], label: 'strike again on the flash' },
+          { keys: ['LB', 'RB'], label: 'chain a skill' },
+        ],
+      );
+    }
+    if (this.assistShown()) {
+      return pick(
+        [
+          { keys: ['1–4'], label: 'call an ally' },
+          { keys: ['Q'], label: 'close' },
+        ],
+        [{ keys: [], label: 'Tap an ally to call' }],
+        [
+          { keys: ['A'], label: 'call an ally' },
+          { keys: ['B'], label: 'close' },
+        ],
+      );
+    }
+    if (this.battle.selectedAbility()) {
+      return pick(
+        [
+          { keys: ['←', '→'], label: 'target' },
+          { keys: ['Enter'], label: 'confirm' },
+          { keys: ['Esc'], label: 'cancel' },
+        ],
+        [{ keys: [], label: 'Tap a target, then Confirm' }],
+        [
+          { keys: ['D-pad'], label: 'target' },
+          { keys: ['A'], label: 'confirm' },
+          { keys: ['B'], label: 'cancel' },
+        ],
+      );
+    }
+    const assist = this.battle.assistOptions().length > 0;
+    return pick(
+      [
+        { keys: ['A', 'D'], label: 'walk' },
+        { keys: ['W', 'S'], label: 'lane' },
+        { keys: ['1–5'], label: 'skills' },
+        ...(assist ? [{ keys: ['Q'], label: 'assist' }] : []),
+        { keys: ['E'], label: 'guard & end' },
+      ],
+      [
+        { keys: ['◀', '▶'], label: 'hold to walk' },
+        { keys: [], label: 'tap a skill' },
+      ],
+      [
+        { keys: ['LT', 'RT'], label: 'walk' },
+        { keys: ['R-stick'], label: 'lane' },
+        { keys: ['LB', 'RB'], label: 'skills' },
+        ...(assist ? [{ keys: ['Y'], label: 'assist' }] : []),
+        { keys: ['X'], label: 'guard & end' },
+      ],
+    );
+  });
+
   /** Gold and EXP paid for the battle that just ended. */
   protected readonly rewards = signal<BattleRewards | null>(null);
   /** A story mission's first-win bonus, when this battle earned it. */
@@ -213,7 +312,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     this.pad.actions.pipe(takeUntilDestroyed()).subscribe((action) => {
       // Utility buttons work on any turn.
       if (action === 'toggle-log') return this.toggleLog();
-      if (action === 'menu') return this.focusFor('#auto-battle-btn');
+      if (action === 'menu') {
+        this.menuOpen.set(true);
+        setTimeout(() => this.focusFor('#battle-menu .hud-menu-item'));
+        return;
+      }
+      if (action === 'cancel' && this.menuOpen()) return this.closeMenu();
       if (action === 'walk-stop') return this.stopWalk();
       if (!this.battle.canPlayerAct()) return;
       const unit = this.battle.activeUnit()!;
@@ -287,6 +391,32 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     this.stopWalk();
   }
 
+  /**
+   * While aiming, a press anywhere fires: the timing is the point, not where the cursor
+   * is. During a combo, a press on open ground strikes again, as pressing the target does.
+   */
+  @HostListener('window:pointerdown', ['$event'])
+  public handlePointerdown(event: PointerEvent): void {
+    this.inputMode.set(event.pointerType === 'touch' ? 'touch' : 'keys');
+    const target = event.target instanceof Element ? event.target : null;
+    if (this.menuOpen() && !target?.closest('.hud-system')) this.menuOpen.set(false);
+    if (event.button > 0 || !this.battle.canPlayerAct()) return;
+    if (target?.closest('.hud-system, .battle-result-overlay, dialog')) return;
+    if (this.battle.aim()) {
+      this.battle.fireAim();
+      return;
+    }
+    const combo = this.battle.combo();
+    if (combo && target?.closest('.arena-viewport') && !target.closest('button')) {
+      this.battle.chainAbility(combo.abilityId);
+    }
+  }
+
+  protected closeMenu(): void {
+    this.menuOpen.set(false);
+    this.focusFor('#battle-menu-btn');
+  }
+
   /** Walk while held; spends MG exactly as taps do, and stops when blocked or out of MG. */
   protected startWalk(direction: number): void {
     this.stopWalk();
@@ -336,6 +466,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   @HostListener('window:keydown', ['$event'])
   public handleKeydown(event: KeyboardEvent): void {
+    this.inputMode.set('keys');
+    if (event.key === 'Escape' && this.menuOpen()) {
+      this.closeMenu();
+      event.preventDefault();
+      return;
+    }
     // Ignore input if in form field or modal
     if (
       event.defaultPrevented ||

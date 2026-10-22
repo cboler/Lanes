@@ -30,6 +30,7 @@ test('takes a contract from the guild board, fights its band, and a win replaces
   );
 
   // Restarting fights the same contract again.
+  await page.locator('#battle-menu-btn').click();
   await page.locator('#restart-battle-btn').click();
   await expect(page.locator('.contract-note')).toContainText(title);
 

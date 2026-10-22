@@ -30,6 +30,7 @@ test('saves a four-turn defense plan and practices against its first order', asy
     'Dara (Def) follows turn 1 order: Guard',
   );
   await expect(defender.locator('.guard-badge')).toBeVisible();
+  await page.locator('#battle-menu-btn').click();
   await page.locator('#restart-battle-btn').click();
   await expect(page.locator('.battlefield-container > .practice-note')).toBeVisible();
 });

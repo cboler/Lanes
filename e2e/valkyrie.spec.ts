@@ -253,6 +253,7 @@ test('the War Room fields one to four roster mercenaries and restart keeps the f
     })
     .toBe(2);
 
+  await page.locator('#battle-menu-btn').click();
   await page.locator('#restart-battle-btn').click();
   await expect(page.locator('.enemy-unit')).toHaveCount(4);
   expect(await deployed()).toEqual(['Aldric', 'Dara', 'Edric', 'Fiora']);
@@ -387,7 +388,9 @@ test('held controller buttons require release after startup, reconnect, and wind
   test.skip(testInfo.project.name !== 'desktop', 'Lifecycle behavior is independent of viewport.');
   await installController(page, [0]);
   await page.goto('/battle');
-  await expect(page.locator('.controller-status')).toBeVisible();
+  // In battle, the corner hint names the controller's buttons once one is connected.
+  await expect(page.locator('.battle-hint')).toContainText('guard & end');
+  await expect(page.locator('.battle-hint kbd').last()).toHaveText('X');
   await page.locator('#ability-btn-quick_shot').focus();
   await frames(page, 12);
   await expect(page.locator('.targeting-panel')).toHaveCount(0);
@@ -398,7 +401,8 @@ test('held controller buttons require release after startup, reconnect, and wind
   await controller(page, { connected: false, buttons: [0] });
   await expect(page.locator('.controller-status')).toHaveCount(0);
   await controller(page, { buttons: [0] });
-  await expect(page.locator('.controller-status')).toBeVisible();
+  // The shell's controller status is hidden in battle, but present once it reconnects.
+  await expect(page.locator('.controller-status')).toBeAttached();
   await frames(page, 12);
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
 
@@ -466,6 +470,15 @@ test('ranged skills fire from a sweeping cursor, and a cursor left to run out mi
   await page.keyboard.press('Space');
   await expect(page.locator('.aim-panel')).toHaveCount(0);
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '60');
+
+  // So does a click (or tap) anywhere on the screen, away from the aim bar.
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('.aim-panel')).toBeVisible();
+  const box = (await page.locator('.arena-viewport').boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.4);
+  await expect(page.locator('.aim-panel')).toHaveCount(0);
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '40');
 });
 
 test('melee skills chain into a combo when pressed again in the window', async ({
@@ -730,9 +743,10 @@ test('a controller plays a whole turn: walk, log, assist, Guard and End, and the
   await timingOff(page);
   await installController(page);
   await page.goto('/battle');
-  await expect(page.locator('.controller-status')).toBeVisible();
   await expect(page.locator('app-battle-stage')).toHaveAttribute('data-renderer', /webgl|fallback/);
   await frames(page);
+  // The corner hint names the controller's buttons.
+  await expect(page.locator('.battle-hint')).toContainText(/LT\s*RT\s*walk/);
   // A controller player's turn starts on the first skill.
   await expect(page.locator('#ability-btn-quick_shot')).toBeFocused();
   await expect(page.locator('#end-turn-btn .pad-glyph')).toHaveText('X');

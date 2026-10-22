@@ -159,6 +159,20 @@ describe('GamepadService browser polling', () => {
     expect(clicked).toHaveBeenCalledTimes(2);
   });
 
+  it('lets a shown control claim A wherever focus is, as the aim does', () => {
+    const [skill, fire] = render('<button>Skill</button><button data-pad-confirm>Fire</button>');
+    const skillClicked = vi.fn();
+    const fired = vi.fn();
+    skill.addEventListener('click', skillClicked);
+    fire.addEventListener('click', fired);
+    skill.focus();
+    tick();
+    press(0);
+    tick(20);
+    expect(fired).toHaveBeenCalledTimes(1);
+    expect(skillClicked).not.toHaveBeenCalled();
+  });
+
   it('uses spatial focus navigation and repeats navigation without activating controls', () => {
     const [first, disabled, second, hiddenButton, third] = render(`
       <button data-x="0">First</button>

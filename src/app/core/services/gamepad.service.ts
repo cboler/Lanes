@@ -226,6 +226,12 @@ export class GamepadService implements OnDestroy {
   }
 
   private activate(): void {
+    // A control can claim A while it shows (the aim's Fire), wherever focus has wandered.
+    const claimed = this.document.querySelector<HTMLElement>('[data-pad-confirm]');
+    if (claimed && !this.modal() && claimed.getClientRects().length > 0) {
+      claimed.click();
+      return;
+    }
     const active = this.document.activeElement as HTMLElement;
     if (this.controls().includes(active)) active.click();
   }

@@ -1,4 +1,5 @@
-/* The battle fills the space the shell gives it; only the stage stretches. */
+/* The battle fills the window. The stage is the screen; every control floats over it, so
+   nothing a turn shows or hides can resize the stage or reframe the camera. */
 :host {
   display: flex;
   flex-direction: column;
@@ -11,92 +12,154 @@
   --enemy: #ff5a4f;
   --panel: rgba(9, 12, 20, 0.86);
   --gild: #b8892a;
+  /* Room kept clear for the HUD above and below the fighters. Fixed per screen size,
+     never measured, so the camera holds still as turns change. */
+  --hud-top: 104px;
+  --hud-bottom: 112px;
   position: relative;
-  display: flex;
   flex: 1 1 auto;
-  flex-direction: column;
-  gap: 6px;
   min-height: 0;
+  overflow: hidden;
   color: var(--text-primary);
+  background: #12161f;
 }
 
-/* ---- Toolbar -------------------------------------------------------------- */
-.top-tactical-bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-gilded);
-  border-radius: var(--radius-md);
-}
-
+/* ---- Top HUD: round, notes, options ------------------------------------------ */
 .round-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 3;
   display: flex;
   align-items: baseline;
-  gap: var(--space-2);
-  padding: 0 var(--space-2);
+  gap: 6px;
+  padding: 2px 12px;
+  transform: translateX(-50%);
+  border: 1px solid var(--gild);
+  border-radius: var(--radius-full);
+  background: rgba(10, 12, 18, 0.8);
   font-family: var(--font-heraldic);
   color: var(--color-gold-antique);
+  pointer-events: none;
 
   .round-label {
-    font-size: var(--font-size-xs);
+    font-size: 0.62rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
   }
 
   .round-number {
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-base);
     font-weight: 800;
     color: #ffe08a;
   }
 }
 
-.top-actions {
-  display: flex;
-  gap: var(--space-1);
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+.practice-note {
+  position: absolute;
+  top: 94px;
+  left: 50%;
+  z-index: 3;
+  max-width: calc(100% - 340px);
+  margin: 0;
+  overflow: hidden;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #f3e6c4;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+}
 
-  .tactical-btn {
-    flex: none;
-    white-space: nowrap;
+.hud-system {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+}
+
+.hud-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid rgba(184, 137, 42, 0.6);
+  border-radius: var(--radius-md);
+  background: rgba(10, 12, 18, 0.72);
+  color: #f3e6c4;
+  font-size: 0.95rem;
+  font-weight: 800;
+
+  &:hover {
+    border-color: #ffe08a;
   }
 
-  a.tactical-btn {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--touch-target-min);
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-sm);
-    text-decoration: none;
+  &.on {
+    border-color: #ffd36a;
+    background: rgba(90, 62, 10, 0.85);
+    color: #ffe08a;
   }
 }
 
-.practice-note {
-  margin: 0;
-  padding: var(--space-1) var(--space-3);
-  border-left: 3px solid var(--color-gold-antique);
-  background: var(--bg-surface);
-  font-size: var(--font-size-sm);
+/* Labels say which toggle is which; icons alone stand in on smaller screens. */
+.hud-icon-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hud-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--gild);
+  border-radius: var(--radius-md);
+  background: rgba(8, 11, 18, 0.97);
+  box-shadow: var(--shadow-card);
+}
+
+.hud-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #f3e6c4;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(184, 137, 42, 0.2);
+  }
+
+  &.danger {
+    color: #ffb3a8;
+  }
 }
 
 /* ---- Stage ---------------------------------------------------------------- */
 .arena-viewport {
-  /* Screen space the camera keeps clear for the banners and timeline. */
-  --stage-safe-top: 60px;
-  --stage-safe-bottom: 64px;
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 150px;
+  /* Screen space the camera keeps clear for the HUD. */
+  --stage-safe-top: var(--hud-top);
+  --stage-safe-bottom: var(--hud-bottom);
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  border: 1px solid var(--border-gilded);
-  border-radius: var(--radius-md);
   background: #1b2130;
-  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.55);
   isolation: isolate;
 }
 
@@ -430,6 +493,7 @@
   }
 
   &.enemy {
+    top: 56px;
     right: 8px;
     text-align: right;
 
@@ -489,6 +553,10 @@
   display: flex;
   gap: 3px;
   padding: 2px 6px 0;
+
+  .enemy & {
+    justify-content: flex-end;
+  }
 }
 
 .orb {
@@ -555,10 +623,9 @@
 .targeting-panel,
 .aim-panel,
 .combo-panel,
-.assist-panel,
-.ai-banner {
+.assist-panel {
   position: absolute;
-  top: 8px;
+  bottom: var(--hud-bottom);
   left: 50%;
   z-index: 3;
   transform: translateX(-50%);
@@ -603,37 +670,9 @@
   }
 }
 
-.ai-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 4px 14px;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #ffd9c9;
-}
-
-.ai-spinner {
-  width: 10px;
-  height: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #ffb35c;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .action-timeline {
   position: absolute;
-  bottom: 8px;
+  top: 36px;
   left: 50%;
   z-index: 2;
   display: flex;
@@ -719,37 +758,36 @@
   filter: drop-shadow(0 0 4px rgba(255, 207, 90, 0.8));
 }
 
-/* ---- Command deck ---------------------------------------------------------- */
-.bottom-command-deck {
-  flex: none;
-  min-height: 0;
-}
-
-.active-unit-panel {
+/* ---- Command deck: one band along the bottom of the stage ----------------------- */
+.command-deck {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
   display: grid;
-  grid-template-columns: minmax(220px, 1.1fr) minmax(210px, 1fr) minmax(250px, 1.2fr) auto;
-  align-items: stretch;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: 1px solid var(--border-gilded);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, #121a2b, #0b101b);
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 18px 10px 10px;
+  background: linear-gradient(180deg, transparent, rgba(6, 8, 13, 0.82) 28%);
+  pointer-events: none;
 
-  &.enemy-turn {
-    border-color: rgba(255, 90, 79, 0.6);
+  > * {
+    pointer-events: auto;
   }
 }
 
-.dossier-card {
+.unit-card {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   min-width: 0;
 }
 
 .dossier-avatar {
-  width: 76px;
-  height: 76px;
+  width: 64px;
+  height: 64px;
   flex: 0 0 auto;
   border: 2px solid var(--gild);
   border-radius: 50% 50% 8px 8px;
@@ -762,115 +800,131 @@
   }
 }
 
-.dossier-meta {
+.unit-card-meta {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .dossier-title-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
   min-width: 0;
 }
 
 .dossier-name {
+  overflow: hidden;
   font-family: var(--font-heraldic);
   font-size: var(--font-size-base);
   font-weight: 800;
   line-height: 1.15;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px #000;
 }
 
 .role-pill {
   padding: 0 6px;
   border: 1px solid var(--gild);
   border-radius: var(--radius-full);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 800;
   text-transform: uppercase;
   color: #ffe9b0;
 }
 
-.dossier-hp {
-  display: flex;
+.gauge-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 28px;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+}
+
+.gauge-title {
+  font-family: var(--font-heraldic);
+  font-size: 0.6rem;
   font-weight: 800;
+  color: #c9f0b0;
+
+  .move & {
+    color: #9fd4ff;
+  }
+
+  .action & {
+    color: #ffd36a;
+  }
 }
 
-.dossier-hp-label {
-  font-size: 0.7rem;
-  font-style: italic;
-  color: #ffe08a;
-}
-
-.dossier-hp-track {
-  flex: 1;
+.gauge-track {
+  display: block;
   height: 8px;
+  overflow: hidden;
   border: 1px solid #000;
   border-radius: 2px;
   background: #0a0c12;
+  box-shadow: 0 0 0 1px rgba(184, 137, 42, 0.45);
 }
 
-.dossier-hp-fill {
+.gauge-fill {
   display: block;
   height: 100%;
   background: linear-gradient(180deg, #8cc4ff, var(--player));
-  transition: width 0.35s ease var(--impact-delay);
+  transition: width 0.3s ease var(--impact-delay);
 
-  .enemy-turn & {
+  .enemy-turn .hp & {
     background: linear-gradient(180deg, #ff9d8f, var(--enemy));
   }
-}
 
-.dossier-hp-value {
-  min-width: 2.5em;
-  text-align: right;
-  font-size: var(--font-size-sm);
-}
-
-.dossier-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-
-  strong {
-    color: var(--text-primary);
+  .move & {
+    background: linear-gradient(180deg, #9fe3ff, #2a86c8);
+    transition-delay: 0s;
   }
+
+  .action & {
+    background: linear-gradient(180deg, #ffe8a0, #d99a1e);
+    transition-delay: 0s;
+  }
+}
+
+.gauge-val {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: right;
 }
 
 .skill-list {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
+  min-width: 0;
 }
 
 .skill-btn {
   display: flex;
+  flex: 0 1 196px;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  min-height: 34px;
-  padding: 2px 8px;
-  border: 1px solid #2d3b55;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, rgba(34, 46, 70, 0.95), rgba(16, 22, 36, 0.95));
+  gap: 6px;
+  min-width: 112px;
+  min-height: 40px;
+  padding: 2px 8px 2px 4px;
+  border: 1px solid rgba(184, 137, 42, 0.45);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(34, 46, 70, 0.92), rgba(12, 17, 28, 0.92));
   color: var(--text-primary);
   text-align: left;
 
   &:hover:not(:disabled) {
-    border-color: var(--color-gold-antique);
+    border-color: #ffe08a;
   }
 
   &.selected {
     border-color: #ffe08a;
-    background: linear-gradient(90deg, rgba(120, 88, 20, 0.95), rgba(40, 30, 10, 0.95));
-    box-shadow: 0 0 10px rgba(255, 207, 90, 0.35);
+    background: linear-gradient(180deg, rgba(130, 96, 22, 0.95), rgba(40, 30, 10, 0.95));
+    box-shadow: 0 0 10px rgba(255, 207, 90, 0.4);
   }
 
   &:disabled {
@@ -881,13 +935,13 @@
 
 .hotkey-badge {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid #ffe08a;
   border-radius: 50%;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 800;
   color: #ffe08a;
 }
@@ -895,8 +949,9 @@
 .skill-name {
   flex: 1;
   overflow: hidden;
-  font-size: var(--font-size-sm);
+  font-size: 0.8rem;
   font-weight: 700;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -904,13 +959,13 @@
 .skill-tags {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
+  gap: 3px;
+  font-size: 0.7rem;
 }
 
 .tag-type {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #e25b4a;
 
@@ -932,18 +987,26 @@
 }
 
 .cost-badge {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   color: #ffd36a;
+
+  &::after {
+    content: ' AP';
+    font-size: 0.55rem;
+  }
 }
 
 .ai-turn-indicator {
   display: flex;
+  grid-column: 2 / -1;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2);
+  min-height: 40px;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+  text-shadow: 0 1px 3px #000;
 }
 
 .pulse-dot {
@@ -967,96 +1030,52 @@
   }
 }
 
-.gauge-and-movement {
+.turn-controls {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-}
-
-.gauge-row {
-  display: grid;
-  grid-template-columns: 52px 1fr 30px;
   align-items: center;
-  gap: 6px;
-}
-
-.gauge-title {
-  font-family: var(--font-heraldic);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #9fd4ff;
-
-  .action & {
-    color: #ffd36a;
-  }
-}
-
-.gauge-track {
-  height: 12px;
-  overflow: hidden;
-  border: 1px solid #000;
-  border-radius: 2px;
-  background: #0a0c12;
-  box-shadow: 0 0 0 1px rgba(184, 137, 42, 0.5);
-}
-
-.gauge-fill {
-  height: 100%;
-  background: linear-gradient(180deg, #9fe3ff, #2a86c8);
-  transition: width 0.25s ease;
-
-  .action & {
-    background: linear-gradient(180deg, #ffe8a0, #d99a1e);
-  }
-}
-
-.gauge-val {
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  text-align: right;
-}
-
-.resource-hint {
-  margin: 0;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  gap: 8px;
 }
 
 .movement-pad {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(4, 40px);
+  gap: 3px;
 }
 
 .action-btn {
-  padding: 2px 4px;
-  border: 1px solid #2d3b55;
-  background: #151e31;
-  color: var(--text-primary);
-  font-size: 0.72rem;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid rgba(184, 137, 42, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(16, 22, 36, 0.88);
+  color: #f3e6c4;
+  font-size: 0.85rem;
 
   &:hover:not(:disabled) {
-    border-color: var(--color-gold-antique);
+    border-color: #ffe08a;
   }
 
   &:disabled {
     cursor: not-allowed;
-    opacity: 0.4;
+    opacity: 0.35;
   }
 }
 
 .end-turn-btn {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 4px 14px;
   border: 1px solid #ffb35c;
+  border-radius: var(--radius-md);
   background: linear-gradient(180deg, #8a4b12, #4a2408);
   color: #fff;
   font-family: var(--font-heraldic);
+  font-size: 0.82rem;
   font-weight: 800;
+  white-space: nowrap;
 
   &:hover {
     background: linear-gradient(180deg, #a85c18, #5c2d0a);
@@ -1064,26 +1083,68 @@
 
   .guard-preview {
     font-family: var(--font-family);
-    font-size: 0.7rem;
+    font-size: 0.66rem;
     font-weight: 600;
     color: #ffe0b8;
   }
 }
 
-.combat-guide {
-  flex: none;
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+/* The corner hint: what the keys (or buttons, or taps) do right now. */
+.battle-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  max-width: min(520px, calc(100% - 20px));
+  margin: 0 0 2px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(6, 8, 13, 0.7);
+  font-size: 0.72rem;
+  color: #e8dcc0;
+  pointer-events: none;
+}
+
+.hint-part {
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  margin-right: 2px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 224, 138, 0.6);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: var(--font-family);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-align: center;
+  color: #ffe08a;
+  background: rgba(30, 24, 10, 0.8);
+}
+
+.panel-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #e8dcc0;
 }
 
 /* ---- Log and result ---------------------------------------------------------- */
 /* Opens over the enemy side of the stage, clear of the toolbar and command deck. */
 .combat-log-drawer {
   position: absolute;
-  top: 60px;
+  top: var(--hud-top);
   right: 8px;
-  bottom: 64px;
+  bottom: var(--hud-bottom);
   z-index: 4;
   display: flex;
   flex-direction: column;
