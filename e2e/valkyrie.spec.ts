@@ -827,3 +827,29 @@ test('a killing blow shows its number, and a skirmish verdict leads back to the 
   await page.locator('#modal-map-btn').click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('pressing a foe aims the first skill that reaches it, and pressing again attacks', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Targeting is independent of viewport.');
+  await timingOff(page);
+  await page.goto('/battle');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  // The foe Quick Shot (her first skill) can reach.
+  const foe = await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const battle = (window as any).ng.getComponent(
+      document.querySelector('app-battlefield'),
+    ).battle;
+    battle.selectAbility('quick_shot');
+    const id = battle.validTargets()[0].id;
+    battle.selectAbility(null);
+    return id;
+  });
+  await expect(page.locator('.targeting-panel')).toHaveCount(0);
+  await page.locator(`[id="unit-${foe}"]`).click();
+  await expect(page.locator('.targeting-panel')).toContainText('Quick Shot');
+  await expect(page.locator(`[id="unit-${foe}"]`)).toHaveClass(/selected-target/);
+  await page.locator(`[id="unit-${foe}"]`).click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+});

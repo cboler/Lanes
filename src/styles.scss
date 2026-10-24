@@ -166,10 +166,11 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Tactical Fantasy Buttons */
+/* Tactical Fantasy Buttons: a link styled as a button gets the same shape. */
 button,
 .button,
-.nav-link {
+.nav-link,
+a.tactical-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -194,6 +195,10 @@ button,
   text-transform: uppercase;
   font-size: var(--font-size-xs);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+a.tactical-btn:hover {
+  text-decoration: none;
 }
 
 .tactical-btn:hover:not(:disabled) {

@@ -39,6 +39,7 @@ import { BattleRewards } from '../core/models/progression.model';
 import { StatusEffectType } from '../core/models/status-effect.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DamageCalculator } from '../core/engine/damage-calculator';
+import { CombatExecutor } from '../core/engine/combat-executor';
 
 const STATUS_BADGES: Record<StatusEffectType, (potency: number) => string> = {
   stun: () => '💫 STUN',
@@ -241,12 +242,13 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
         { keys: ['A', 'D'], label: 'walk' },
         { keys: ['W', 'S'], label: 'lane' },
         { keys: ['1–5'], label: 'skills' },
+        { keys: ['Click'], label: 'a foe to target it' },
         ...(assist ? [{ keys: ['Q'], label: 'assist' }] : []),
         { keys: ['E'], label: 'guard & end' },
       ],
       [
         { keys: ['◀', '▶'], label: 'hold to walk' },
-        { keys: [], label: 'tap a skill' },
+        { keys: [], label: 'tap a foe twice to attack' },
       ],
       [
         { keys: ['LT', 'RT'], label: 'walk' },
@@ -643,12 +645,23 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       this.battle.chainAbility(combo.abilityId);
       return;
     }
-    const selectedAbility = this.battle.selectedAbility();
-    if (!selectedAbility) return;
-
-    const isValid = this.battle.validTargets().some((t) => t.id === unit.id);
-    if (isValid) {
+    // A second press on the aimed-at target attacks it.
+    if (this.battle.selectedAbility() && this.battle.validTargets().some((t) => t.id === unit.id)) {
       this.battle.commitSelectedAbility(unit);
+      return;
+    }
+    // A press on a foe nothing is aimed at yet takes the first affordable skill that reaches it.
+    const active = this.battle.activeUnit()!;
+    if (unit.team === active.team || !unit.isAlive) return;
+    const ability = active.abilities.find(
+      (a) =>
+        a.actionCost <= active.actionGauge.current &&
+        a.target.includes('enem') &&
+        CombatExecutor.getValidTargets(active, a, this.battle.units()).includes(unit),
+    );
+    if (ability) {
+      this.battle.selectAbility(ability.id);
+      this.battle.targetedUnitId.set(unit.id);
     }
   }
 
@@ -733,6 +746,26 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   protected isTargetable(unit: UnitInstance): boolean {
     return this.battle.canPlayerAct() && this.battle.validTargets().some((t) => t.id === unit.id);
+  }
+
+  /**
+   * What the selected skill would do to this target at normal power: the HP it takes
+   * (after Guard), "KO" when that fells it, or the HP it heals. Nothing for pure buffs.
+   */
+  protected preview(unit: UnitInstance): { text: string; heal: boolean; ko: boolean } | null {
+    const active = this.battle.activeUnit();
+    const ability = this.battle.selectedAbility();
+    if (!active || !ability || ability.powerMultiplier === 0 || !this.isTargetable(unit)) {
+      return null;
+    }
+    const amount = DamageCalculator.calculateWithDefense(active, unit, ability);
+    if (ability.damageType === 'healing') {
+      return { text: `+${Math.min(amount, unit.maxHp - unit.currentHp)}`, heal: true, ko: false };
+    }
+    const lost = Math.max(0, amount - unit.guardPoints);
+    return lost >= unit.currentHp
+      ? { text: 'KO', heal: false, ko: true }
+      : { text: `−${lost}`, heal: false, ko: false };
   }
 
   protected hasAdvantage(unit: UnitInstance): boolean {

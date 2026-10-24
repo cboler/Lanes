@@ -202,6 +202,15 @@
                 @if (hasAdvantage(unit)) {
                   <span class="advantage-badge">▲ +25%</span>
                 }
+                @if (preview(unit); as forecast) {
+                  <span
+                    class="preview-badge"
+                    [class.heal]="forecast.heal"
+                    [class.ko]="forecast.ko"
+                    >{{ forecast.text }}</span
+                  >
+                }
+                <span class="hp-num">{{ unit.currentHp }} / {{ unit.maxHp }}</span>
               </span>
               <span class="floating-text-container" aria-hidden="true">
                 @for (float of getFloatingTextsFor(unit.id); track float.id) {

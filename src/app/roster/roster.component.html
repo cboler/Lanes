@@ -3,16 +3,14 @@
     <div>
       <h1 id="roster-title">Mercenary Roster</h1>
       <p>
-        Each mercenary has eight stats graded F to S for aptitude, plus Skill Points. Stats scale
-        the combat numbers of their class. Battles pay gold and EXP; each level brings stat points
-        to invest, and a better aptitude turns invested points into more bonus points. Choose up to
-        {{ squadLimit }} for your squad. Your roster is saved on this device only.
+        Each level brings stat points to invest; the better a stat's aptitude (F to S), the more
+        bonus points it earns. Up to {{ squadLimit }} mercenaries march in the squad.
       </p>
     </div>
     <div class="roster-actions">
       <p class="purse" id="roster-gold" aria-label="Gold">💰 {{ roster.gold() }} gold</p>
       <button type="button" class="tactical-btn primary" id="deploy-roster-btn" (click)="deploy()">
-        Deploy squad ({{ roster.squadIds().length }}/{{ squadLimit }})
+        ⚔ Practice skirmish ({{ roster.squadIds().length }}/{{ squadLimit }})
       </button>
     </div>
   </header>

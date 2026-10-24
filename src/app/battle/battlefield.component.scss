@@ -386,6 +386,39 @@
   line-height: 1.5;
 }
 
+/* The selected skill's forecast on each target, and HP numbers where attention is. */
+.preview-badge {
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(150, 30, 24, 0.9);
+
+  &.ko {
+    background: linear-gradient(180deg, #ff5a4f, #8a1410);
+    box-shadow: 0 0 8px rgba(255, 90, 79, 0.7);
+  }
+
+  &.heal {
+    background: rgba(20, 110, 60, 0.92);
+  }
+}
+
+.hp-num {
+  display: none;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #f3e6c4;
+  text-shadow: 0 1px 2px #000;
+
+  .unit-node:hover &,
+  .unit-node:focus-visible &,
+  .selected-target & {
+    display: block;
+  }
+}
+
 .status-badge {
   border: 1px solid #7dffb2;
   background: rgba(14, 70, 40, 0.9);

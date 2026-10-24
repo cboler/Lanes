@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
-  background: linear-gradient(180deg, #131a29 0%, #0a0e17 100%);
+  background: linear-gradient(180deg, #1d2a22 0%, #121a15 100%);
   border-bottom: 1px solid var(--border-gilded);
   box-shadow: var(--shadow-gilded);
   gap: var(--space-3);
@@ -337,7 +337,7 @@
 
   &.active {
     border-color: #ffd700;
-    background: linear-gradient(180deg, rgba(212, 175, 55, 0.2) 0%, #152033 100%);
+    background: linear-gradient(180deg, rgba(212, 175, 55, 0.2) 0%, #1b2a20 100%);
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.4);
   }
 

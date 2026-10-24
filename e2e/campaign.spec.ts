@@ -19,7 +19,8 @@ async function winBattle(page: Page) {
 async function hop(page: Page, name: string) {
   await page.locator('.route-choice').filter({ hasText: name }).click();
   await page.locator('#march-btn').click();
-  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
+  // The hop either settles on the map or, on contact, moves straight into battle.
+  await expect(page.locator('.board[aria-busy="false"], app-battlefield')).toHaveCount(1);
 }
 
 test('the story starts on the overworld, encounters its named squad, and returns to the journey', async ({
