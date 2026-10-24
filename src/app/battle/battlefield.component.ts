@@ -266,6 +266,13 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected readonly storyWon = computed(
     () => this.battle.battleStatus() === 'victory' && !!this.battle.activeContract()?.missionId,
   );
+  /** A map squad (story or patrol) is beaten: the journey goes on, there is nothing to refight. */
+  protected readonly mapWon = computed(
+    () =>
+      this.storyWon() ||
+      (this.battle.battleStatus() === 'victory' &&
+        !!this.battle.activeContract()?.id?.startsWith('overworld:')),
+  );
   protected readonly leveledUp = computed(
     () => !!this.rewards()?.mercenaries.some((merc) => merc.levelsGained > 0),
   );
@@ -301,7 +308,11 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     // Controller focus: where a controller player needs to be when something opens or a turn starts.
     effect(() => {
       if (this.battle.battleStatus() === 'active') return;
-      const choice = this.storyWon() ? '#modal-story-btn' : '#modal-restart-btn';
+      const choice = this.storyWon()
+        ? '#modal-story-btn'
+        : this.mapWon()
+          ? '#modal-overworld-btn'
+          : '#modal-restart-btn';
       setTimeout(() => this.focusFor(choice));
     });
     effect(() => {
@@ -595,8 +606,13 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * The living units in a lane, plus any just felled whose numbers are still floating: the
+   * killing blow's damage shows over the falling body instead of vanishing with it.
+   */
   protected getUnitsInLane(lane: number): UnitInstance[] {
-    return this.battle.units().filter((u) => u.lane === lane && u.isAlive);
+    const floating = new Set(this.battle.floatingTexts().map((text) => text.targetId));
+    return this.battle.units().filter((u) => u.lane === lane && (u.isAlive || floating.has(u.id)));
   }
 
   protected getFloatingTextsFor(unitId: string): FloatingText[] {

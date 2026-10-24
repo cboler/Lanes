@@ -792,3 +792,38 @@ test('a controller plays a whole turn: walk, log, assist, Guard and End, and the
   await tap(page, { buttons: [0] });
   await expect(page.locator('.battle-result-overlay')).toHaveCount(0);
 });
+
+test('a killing blow shows its number, and a skirmish verdict leads back to the map', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Battle feedback is independent of viewport.');
+  await timingOff(page);
+  await page.goto('/battle');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  await page.locator('#ability-btn-quick_shot').click();
+  // Leave the target one hit from falling.
+  await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const battle = (window as any).ng.getComponent(
+      document.querySelector('app-battlefield'),
+    ).battle;
+    battle.units().find((unit: { id: string }) => unit.id === battle.targetedUnitId()).currentHp =
+      1;
+  });
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('.unit-node.fallen .floating-text')).toContainText('HP');
+  await expect(page.locator('.unit-node.fallen')).toHaveCount(0, { timeout: 5000 });
+
+  await page.evaluate(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const battle = (window as any).ng.getComponent(
+      document.querySelector('app-battlefield'),
+    ).battle;
+    for (const unit of battle.enemyUnits()) unit.takeDamage(99999);
+    battle.endCurrentTurn(true);
+  });
+  await expect(page.locator('.command-deck')).toHaveCount(0);
+  await expect(page.locator('#modal-restart-btn')).toBeVisible();
+  await page.locator('#modal-map-btn').click();
+  await expect(page).toHaveURL(/\/$/);
+});

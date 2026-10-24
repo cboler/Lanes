@@ -36,7 +36,7 @@
     color: var(--color-gold-antique);
     text-decoration: none;
     padding: var(--space-2) var(--space-3);
-    background: #172136;
+    background: #1d2a23;
     border: 1px solid var(--border-gilded);
     border-radius: var(--radius-sm);
     min-height: 44px;
@@ -124,7 +124,7 @@
 }
 
 .squad-card {
-  background: linear-gradient(180deg, #131a2a 0%, #0c121e 100%);
+  background: linear-gradient(180deg, #18231d 0%, #101914 100%);
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-md);
   padding: var(--space-4);
@@ -186,7 +186,7 @@
     padding: 4px 12px 4px 4px;
     border: 1px dashed var(--color-player);
     border-radius: var(--radius-sm);
-    background: #121a2b;
+    background: #1b2721;
     color: var(--text-primary);
     font: inherit;
     font-size: 0.8rem;
@@ -223,7 +223,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  background: #172136;
+  background: #1d2a23;
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
@@ -292,7 +292,7 @@
 }
 
 .class-picker-section {
-  background: linear-gradient(180deg, #131a2a 0%, #0c121e 100%);
+  background: linear-gradient(180deg, #18231d 0%, #101914 100%);
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-md);
   padding: var(--space-4);
@@ -319,7 +319,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  background: #172136;
+  background: #1d2a23;
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-2);
@@ -369,7 +369,7 @@
 
 /* Right Column: Dossier Panel */
 .class-dossier-panel {
-  background: linear-gradient(180deg, #131a2a 0%, #0c121e 100%);
+  background: linear-gradient(180deg, #18231d 0%, #101914 100%);
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-md);
   padding: var(--space-4);
@@ -398,7 +398,7 @@
     position: absolute;
     bottom: 0;
     inset-inline: 0;
-    background: linear-gradient(to top, rgba(12, 18, 30, 0.95), transparent);
+    background: linear-gradient(to top, rgba(16, 24, 19, 0.95), transparent);
     padding: var(--space-3);
     display: flex;
     align-items: flex-end;
@@ -443,7 +443,7 @@
 
   div {
     padding: var(--space-2) var(--space-3);
-    background: #172136;
+    background: #1d2a23;
     border: 1px solid var(--border-gilded);
     border-radius: var(--radius-sm);
   }
@@ -537,7 +537,7 @@
 }
 
 .dossier-ability-item {
-  background: #172136;
+  background: #1d2a23;
   border: 1px solid var(--border-gilded);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);

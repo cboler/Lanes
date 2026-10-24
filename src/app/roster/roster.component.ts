@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import {
   GRADES,
   Mercenary,
@@ -28,7 +28,7 @@ import { RosterService, SQUAD_LIMIT } from '../core/services/roster.service';
 @Component({
   selector: 'app-roster',
   standalone: true,
-  imports: [RouterLink],
+  imports: [],
   templateUrl: './roster.component.html',
   styleUrl: './roster.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

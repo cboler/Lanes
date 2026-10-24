@@ -20,7 +20,6 @@ import { BattleStateService } from '../core/services/battle-state.service';
   template: `
     <section class="options-page" aria-labelledby="options-title">
       <header class="options-card">
-        <a routerLink="/guild" class="tactical-btn secondary">◀ Guild Hall</a>
         <h1 id="options-title">Options</h1>
       </header>
 

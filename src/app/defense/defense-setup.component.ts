@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { getClassDefinition } from '../core/models/unit-class.model';
 import { knownAbilities } from '../core/models/skills.model';
 import {
@@ -17,7 +17,7 @@ import { RosterService } from '../core/services/roster.service';
 @Component({
   selector: 'app-defense-setup',
   standalone: true,
-  imports: [RouterLink],
+  imports: [],
   templateUrl: './defense-setup.component.html',
   styleUrl: './defense-setup.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

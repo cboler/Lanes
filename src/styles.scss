@@ -185,7 +185,7 @@ button,
 }
 
 .tactical-btn {
-  background: linear-gradient(180deg, #1f2b42 0%, #111726 100%);
+  background: linear-gradient(180deg, #2b3a2f 0%, #18221c 100%);
   border: 1px solid var(--border-gilded);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -197,7 +197,7 @@ button,
 }
 
 .tactical-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #273653 0%, #162033 100%);
+  background: linear-gradient(180deg, #36483a 0%, #1f2b23 100%);
   border-color: var(--color-gold-antique);
   color: #fff;
   transform: translateY(-1px);
@@ -229,7 +229,7 @@ button,
 }
 
 .tactical-btn.secondary {
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #233329 0%, #141d18 100%);
   border-color: var(--border-muted);
 }
 

@@ -13,8 +13,21 @@
   }
 
   .skill-btn {
-    flex-basis: 140px;
+    flex: 1 1 140px;
     min-width: 104px;
+  }
+
+  /* Room for full skill names: the arrows fold into a square and the tag icons go. */
+  .skill-tags {
+    display: none;
+  }
+
+  .movement-pad {
+    grid-template-columns: repeat(2, 36px);
+  }
+
+  .action-btn {
+    min-height: 36px;
   }
 }
 

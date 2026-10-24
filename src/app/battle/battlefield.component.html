@@ -152,6 +152,9 @@
               [class.player-unit]="unit.team === 'player'"
               [class.enemy-unit]="unit.team === 'enemy'"
               [class.acting-unit]="unit.id === battle.activeUnitId()"
+              [class.fallen]="!unit.isAlive"
+              [disabled]="!unit.isAlive"
+              [attr.aria-hidden]="unit.isAlive ? null : true"
               [class.targetable]="isTargetable(unit)"
               [class.aim-target]="isAimTarget(unit)"
               [class.selected-target]="
@@ -429,7 +432,7 @@
     </ol>
   </div>
 
-  @if (battle.activeUnit(); as active) {
+  @if (battle.battleStatus() === 'active' && battle.activeUnit(); as active) {
     <section
       class="command-deck"
       [class.enemy-turn]="active.team === 'enemy'"
@@ -683,16 +686,16 @@
           </section>
         }
         <div class="result-actions">
-          <button
-            type="button"
-            class="tactical-btn large"
-            [class.primary]="!storyWon()"
-            [class.secondary]="storyWon()"
-            id="modal-restart-btn"
-            (click)="restartBattle()"
-          >
-            ⚔️ Fight Again
-          </button>
+          @if (!mapWon()) {
+            <button
+              type="button"
+              class="tactical-btn primary large"
+              id="modal-restart-btn"
+              (click)="restartBattle()"
+            >
+              ⚔️ Fight Again
+            </button>
+          }
           @if (battle.activeContract()?.missionId; as missionId) {
             @if (battle.battleStatus() === 'victory') {
               <a
@@ -712,9 +715,14 @@
             <a routerLink="/" class="tactical-btn primary large" id="modal-overworld-btn">
               ♜ Return to the map
             </a>
-          } @else if (battle.activeContract()) {
-            <a routerLink="/guild" class="tactical-btn secondary large" id="modal-guild-btn">
-              🏰 Guild
+          } @else {
+            @if (battle.activeContract()) {
+              <a routerLink="/guild" class="tactical-btn secondary large" id="modal-guild-btn">
+                🏰 Guild
+              </a>
+            }
+            <a routerLink="/" class="tactical-btn secondary large" id="modal-map-btn">
+              ♜ Overworld
             </a>
           }
           <a routerLink="/squad" class="tactical-btn secondary large" id="modal-squad-btn">
