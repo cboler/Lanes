@@ -30,6 +30,17 @@ describe('BattleStateService', () => {
   let service: BattleStateService;
 
   beforeEach(() => {
+    // Each test starts with empty storage, so a remembered speed or timing choice from
+    // another test (or spec file) cannot change its pacing.
+    const values = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
     vi.useFakeTimers();
     service = new BattleStateService();
   });
