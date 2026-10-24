@@ -567,6 +567,19 @@ test('turning timing off resolves skills at once and is remembered', async ({ pa
   await expect(page.locator('.aim-panel')).toHaveCount(0);
 });
 
+test('battle speed is remembered, and shown in Options', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'The preference is independent of viewport.');
+  await page.goto('/battle');
+  await expect(page.locator('#speed-toggle-btn')).toContainText('1x');
+  await page.locator('#speed-toggle-btn').click();
+  await page.reload();
+  await expect(page.locator('#speed-toggle-btn')).toContainText('2x');
+  await page.goto('/options');
+  await expect(page.locator('#options-speed-btn')).toContainText('2x');
+  await page.locator('#options-speed-btn').click();
+  await expect(page.locator('#options-speed-btn')).toContainText('1x');
+});
+
 test('a veteran uses a skill its pattern taught, leaving a status on the target', async ({
   page,
 }) => {

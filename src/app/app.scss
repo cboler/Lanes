@@ -240,6 +240,24 @@ h2 {
     gap: 7px;
   }
 }
+/* A short landscape map has no height to spare: the Company button floats over the
+   region bar's corner instead of taking a header row. */
+@media (max-height: 550px) and (orientation: landscape) {
+  .app-layout:not(.management-screen) .app-header {
+    position: fixed;
+    top: 2px;
+    right: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+
+    .brand-link {
+      display: none;
+    }
+  }
+}
+
 @media (max-height: 500px) and (orientation: landscape) {
   .company-menu {
     width: min(740px, calc(100% - 24px));

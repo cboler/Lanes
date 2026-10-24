@@ -27,18 +27,29 @@ import { BattleStateService } from '../core/services/battle-state.service';
         <h2 id="battle-options-title">Battle</h2>
         <p>
           Timing aims ranged and magic skills and chains melee combos. Off, every attack lands at
-          normal power.
+          normal power. Speed sets how quickly blows and enemy turns play out.
         </p>
-        <button
-          type="button"
-          class="tactical-btn secondary"
-          id="options-timing-btn"
-          [class.active-gold]="battle.timingEnabled()"
-          [attr.aria-pressed]="battle.timingEnabled()"
-          (click)="battle.toggleTiming()"
-        >
-          🎯 Timing: {{ battle.timingEnabled() ? 'ON' : 'OFF' }}
-        </button>
+        <div class="options-actions">
+          <button
+            type="button"
+            class="tactical-btn secondary"
+            id="options-timing-btn"
+            [class.active-gold]="battle.timingEnabled()"
+            [attr.aria-pressed]="battle.timingEnabled()"
+            (click)="battle.toggleTiming()"
+          >
+            🎯 Timing: {{ battle.timingEnabled() ? 'ON' : 'OFF' }}
+          </button>
+          <button
+            type="button"
+            class="tactical-btn secondary"
+            id="options-speed-btn"
+            [attr.aria-label]="'Battle speed ' + battle.autoBattleSpeed()"
+            (click)="battle.toggleAutoSpeed()"
+          >
+            ⏩ Speed: {{ battle.autoBattleSpeed() }}
+          </button>
+        </div>
       </section>
 
       <section class="options-card" aria-labelledby="save-title">

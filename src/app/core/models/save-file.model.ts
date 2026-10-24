@@ -12,6 +12,7 @@ export const SAVE_KEYS = [
   'lanes.overworld.v1',
   'lanes.defense-plan.v1',
   'lanes.timing.v1',
+  'lanes.speed.v1',
 ] as const;
 
 export interface SaveFile {

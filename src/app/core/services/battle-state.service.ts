@@ -58,6 +58,7 @@ import {
 } from '../engine/execution';
 
 const TIMING_KEY = 'lanes.timing.v1';
+const SPEED_KEY = 'lanes.speed.v1';
 
 export { COLLISION_BUFFER };
 /** Presentation only: when a skill visibly lands, at 1x speed. Rules resolve immediately. */
@@ -154,6 +155,14 @@ function readTimingPreference(): boolean {
 export type BattleStatus = 'active' | 'victory' | 'defeat';
 export type BattleSpeed = '1x' | '2x';
 
+function readSpeedPreference(): BattleSpeed {
+  try {
+    return globalThis.localStorage?.getItem(SPEED_KEY) === '2x' ? '2x' : '1x';
+  } catch {
+    return '1x';
+  }
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -175,7 +184,8 @@ export class BattleStateService {
 
   // Auto-battle and combat animations
   public readonly isAutoBattle = signal<boolean>(false);
-  public readonly autoBattleSpeed = signal<BattleSpeed>('1x');
+  /** Animation and AI pacing; remembered on this device. */
+  public readonly autoBattleSpeed = signal<BattleSpeed>(readSpeedPreference());
   public readonly attackingUnitId = signal<string | null>(null);
   public readonly hitUnitId = signal<string | null>(null);
   public readonly lastAction = signal<BattleAction | null>(null);
@@ -509,6 +519,11 @@ export class BattleStateService {
   public toggleAutoSpeed(): void {
     const next = this.autoBattleSpeed() === '1x' ? '2x' : '1x';
     this.autoBattleSpeed.set(next);
+    try {
+      globalThis.localStorage?.setItem(SPEED_KEY, next);
+    } catch {
+      // Storage can be blocked; the choice still holds for this session.
+    }
     this.addLog(`⏩ Combat Speed: ${next}`);
   }
 

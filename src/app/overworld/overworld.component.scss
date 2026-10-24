@@ -953,6 +953,10 @@ h2 {
   .region-bar {
     padding: 4px 12px;
   }
+  /* Room for the floating Company button (app.scss) beside the gold. */
+  .region-bar > :last-child {
+    margin-right: 150px;
+  }
   .region-crest {
     display: none;
   }
