@@ -16,6 +16,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import {
+  BattleAction,
   BattleStateService,
   FloatingText,
   IMPACT_DELAY_MS,
@@ -28,6 +29,7 @@ import { AbilityDefinition } from '../core/models/ability.model';
 import { BattleStageComponent } from './battle-stage.component';
 import { spriteUrl } from './sprite-art';
 import { GamepadService } from '../core/services/gamepad.service';
+import { SoundService } from '../core/services/sound.service';
 import { RosterService } from '../core/services/roster.service';
 import { GuildService } from '../core/services/guild.service';
 import { CampaignService, MissionReward } from '../core/services/campaign.service';
@@ -82,6 +84,9 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   private readonly roster = inject(RosterService);
   private readonly document = inject(DOCUMENT);
   protected readonly pad = inject(GamepadService);
+  private readonly sound = inject(SoundService);
+  /** The last action already voiced, so returning to a battle does not replay its sound. */
+  private voicedSeq = this.battle.lastAction()?.seq ?? 0;
   private readonly guild = inject(GuildService);
   private readonly campaign = inject(CampaignService);
   private readonly overworld = inject(OverworldService);
@@ -306,6 +311,23 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
           ? untracked(() => this.campaign.complete(report.missionId!, report.id))
           : null,
       );
+    });
+    // Sound: each action is voiced once, its blows landing with the stage's.
+    effect(() => {
+      const action = this.battle.lastAction();
+      if (!action || action.seq <= this.voicedSeq) return;
+      this.voicedSeq = action.seq;
+      untracked(() => this.voice(action));
+    });
+    effect(() => {
+      const status = this.battle.battleStatus();
+      if (status === 'active' || !this.battle.battleReport()) return;
+      // The verdict appears after the final blow lands; so does its sting.
+      untracked(() => this.sound.play(status === 'victory' ? 'victory' : 'defeat', 1300));
+    });
+    effect(() => {
+      if (!this.battle.activeUnitId() || !untracked(this.battle.canPlayerAct)) return;
+      untracked(() => this.sound.play('turn'));
     });
     // Controller focus: where a controller player needs to be when something opens or a turn starts.
     effect(() => {
@@ -612,6 +634,34 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
    * The living units in a lane, plus any just felled whose numbers are still floating: the
    * killing blow's damage shows over the falling body instead of vanishing with it.
    */
+  /** The sound of an action: its release now, then what each blow did as it lands. */
+  private voice(action: BattleAction): void {
+    const units = this.battle.units();
+    const attacker = units.find((u) => u.id === action.attackerId);
+    const ability = attacker?.abilities.find((a) => a.id === action.abilityId);
+    if (!attacker || !ability) return;
+    const effects = action.effects;
+    if (ability.powerMultiplier === 0) {
+      this.sound.play('buff');
+      return;
+    }
+    if (ability.damageType === 'healing') {
+      this.sound.play('heal', IMPACT_DELAY_MS * this.battle.delayMultiplier);
+      return;
+    }
+    const archetype = attacker.classDef.archetype;
+    this.sound.play(archetype === 'melee' ? 'swing' : archetype === 'magic' ? 'spell' : 'shot');
+    if (action.grade === 'just') this.sound.play('just');
+    const impact = IMPACT_DELAY_MS * this.battle.delayMultiplier;
+    if (effects.every((effect) => effect.missed)) {
+      this.sound.play('miss', impact);
+      return;
+    }
+    this.sound.play(action.grade === 'critical' ? 'crit' : 'hit', impact);
+    if (effects.some((effect) => effect.guardAbsorbed > 0)) this.sound.play('guard', impact);
+    if (effects.some((effect) => effect.wasDefeated)) this.sound.play('fall', impact + 250);
+  }
+
   protected getUnitsInLane(lane: number): UnitInstance[] {
     const floating = new Set(this.battle.floatingTexts().map((text) => text.targetId));
     return this.battle.units().filter((u) => u.lane === lane && (u.isAlive || floating.has(u.id)));
@@ -623,6 +673,7 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   protected onSelectAbility(ability: AbilityDefinition): void {
     if (!this.battle.canPlayerAct()) return;
+    this.sound.play('select');
     if (this.battle.combo() && this.battle.chainAbility(ability.id)) return;
     if (this.battle.selectedAbilityId() === ability.id) {
       this.battle.selectAbility(null);

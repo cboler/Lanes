@@ -866,3 +866,40 @@ test('pressing a foe aims the first skill that reaches it, and pressing again at
   await page.locator(`[id="unit-${foe}"]`).click();
   await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
 });
+
+test('an attack is voiced, and turning sound off in Options silences it', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'Sound is independent of viewport.');
+  await timingOff(page);
+  // Count the oscillators each cue starts.
+  await page.addInitScript(() => {
+    const original = AudioContext.prototype.createOscillator;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).oscillators = 0;
+    AudioContext.prototype.createOscillator = function (this: AudioContext) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).oscillators++;
+      return original.call(this);
+    };
+  });
+  const oscillators = () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    page.evaluate(() => (window as any).oscillators as number);
+  await page.goto('/battle');
+  await expect(page.locator('.unit-node.acting-unit .unit-name')).toHaveText('Brenna');
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect.poll(oscillators).toBeGreaterThan(2);
+
+  await page.goto('/options');
+  await page.locator('#options-sound-btn').click();
+  await expect(page.locator('#options-sound-btn')).toHaveAttribute('aria-pressed', 'false');
+  await page.goto('/battle');
+  const before = await oscillators();
+  await page.locator('#ability-btn-quick_shot').click();
+  await page.locator('#confirm-ability-btn').click();
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '80');
+  await page.waitForTimeout(800);
+  expect(await oscillators()).toBe(before);
+});

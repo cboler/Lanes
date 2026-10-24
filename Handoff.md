@@ -22,6 +22,20 @@ After removing the header network indicator, all 319 unit tests, the four-viewpo
 
 Local development uses `http://localhost:4301/`. Starting the server and running unit/browser tests outside per-command isolation was required: separate sandbox commands could not reach each other's loopback server and Vitest temporary files failed to rename. The production build also requires access to the existing Google Fonts URL. Do not run a formatter while browser tests are exercising the development server, because live reload can interrupt them.
 
+## Usability pass and battle sound (2026-10-23)
+
+The user asked to keep working: "there's plenty to consider and do". A play-through at several sizes turned up these, all fixed and pushed:
+
+- **Killing blows:** a unit's DOM button (which carries its floating numbers) vanished the moment its HP hit 0, so the killing blow's number never showed. getUnitsInLane now keeps a felled unit while it still has floating texts (`.unit-node.fallen`: disabled, aria-hidden, plate hidden).
+- **Verdict:** every verdict leads home (#modal-map-btn "Overworld" for skirmishes and guild contracts, #modal-overworld-btn / #modal-story-btn for map battles). A won map or story battle drops Fight Again (`mapWon`). The command deck hides behind the verdict.
+- **Targeting:** pressing a foe with nothing aimed at it selects the first affordable skill that reaches it; pressing it again attacks. While a skill is selected, targets show a forecast at normal power (`.preview-badge`: −HP after Guard, KO, or +heal); the aimed-at or hovered unit shows `.hp-num`.
+- **Look:** shared `.tactical-btn` and component cards lost their navy literals for the green/brass palette; `a.tactical-btn` gets the button shape (journal and guild link buttons were bare text). Stale "◀ Guild Hall" back links on Roster, War Room, Defense and Options are gone (the header has Overworld and Company). Shorter intros; the Roster's deploy button reads "Practice skirmish".
+- **Mid widths:** under 1180px the move arrows fold into a square and skill tag icons hide, so skills keep one row and full names.
+- **Short landscape map:** the site header floats its Company button over the region bar (app.scss) instead of taking a row.
+- **Preferences:** battle speed persists (`lanes.speed.v1`) like Timing; both, plus sound, are in Options and in SAVE_KEYS.
+- **Sound:** SoundService (core/services/sound.service.ts) synthesizes cues with Web Audio: oscillators and band-passed noise with short envelopes, through a master gain (volume × LOUDNESS) and a compressor. The context is created on the first pointerdown/keydown; cues are only dropped once it is closed. BattlefieldComponent voices each `lastAction` once (by seq): release by archetype (swing/shot/spell, buff for pure buffs), then hit/crit/miss, guard and fall at IMPACT_DELAY_MS × speed; heals chime at impact; a Just Cancel pings; the player's turn start chimes; victory/defeat stings play with the verdict. `lanes.sound.v1` holds `{ on, volume }`. Measured offline (tmp/cues.mjs): single cues peak 0.05–0.4, five heavy cues together 0.6. Nobody has listened to them on real speakers yet.
+- **Tests:** new e2e for the kill number and verdict link, foe-press targeting, remembered speed, and sound (counts oscillators, then silence after Options turns it off); unit tests for SoundService settings. The campaign test's hop helper accepts contact moving straight into battle (it was flaky).
+
 ## Battle HUD over a full-screen stage (2026-10-22)
 
 The user called the battle screen and its on-screen controls "abysmal" and asked for the game itself to be the visual focus, with corner tooltips or contextual instructions for controls. Tester feedback: the timing bar needed the mouse on top of it, and the window "resized/refreshed" between enemy and ally turns.

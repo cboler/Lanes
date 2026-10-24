@@ -10,6 +10,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { SAVE_KEYS, createSaveFile, parseSaveFile } from '../core/models/save-file.model';
 import { BattleStateService } from '../core/services/battle-state.service';
+import { SoundService } from '../core/services/sound.service';
 
 /** Settings and save data: back up, restore, or start over. */
 @Component({
@@ -49,6 +50,36 @@ import { BattleStateService } from '../core/services/battle-state.service';
           >
             ⏩ Speed: {{ battle.autoBattleSpeed() }}
           </button>
+        </div>
+      </section>
+
+      <section class="options-card" aria-labelledby="sound-title">
+        <h2 id="sound-title">Sound</h2>
+        <div class="options-actions">
+          <button
+            type="button"
+            class="tactical-btn secondary"
+            id="options-sound-btn"
+            [class.active-gold]="sound.enabled()"
+            [attr.aria-pressed]="sound.enabled()"
+            (click)="sound.toggle()"
+          >
+            🔊 Sound: {{ sound.enabled() ? 'ON' : 'OFF' }}
+          </button>
+          <label class="volume">
+            Volume
+            <input
+              type="range"
+              id="options-volume"
+              min="0"
+              max="100"
+              step="5"
+              [value]="sound.volume() * 100"
+              [disabled]="!sound.enabled()"
+              (input)="setVolume($event)"
+              (change)="sound.play('hit')"
+            />
+          </label>
         </div>
       </section>
 
@@ -152,6 +183,19 @@ import { BattleStateService } from '../core/services/battle-state.service';
       gap: var(--space-2);
     }
 
+    .volume {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-height: 44px;
+      color: var(--text-secondary);
+
+      input {
+        width: 160px;
+        accent-color: var(--color-gold-antique);
+      }
+    }
+
     .options-message {
       margin: var(--space-3) 0 0 !important;
       color: #ffd36a !important;
@@ -174,6 +218,7 @@ import { BattleStateService } from '../core/services/battle-state.service';
 })
 export class OptionsComponent {
   protected readonly battle = inject(BattleStateService);
+  protected readonly sound = inject(SoundService);
   private readonly document = inject(DOCUMENT);
   private readonly file = viewChild.required<ElementRef<HTMLInputElement>>('file');
   protected readonly message = signal('');
@@ -201,6 +246,10 @@ export class OptionsComponent {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url));
     this.message.set('Backup downloaded.');
+  }
+
+  protected setVolume(event: Event): void {
+    this.sound.setVolume(Number((event.target as HTMLInputElement).value) / 100);
   }
 
   protected pick(): void {
