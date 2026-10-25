@@ -46,6 +46,8 @@ export class App implements OnInit, OnDestroy {
   private returnFocus: HTMLElement | null = null;
 
   constructor() {
+    // Battles read squad bonds from the roster.
+    this.battle.bondSource = () => this.roster.bonds();
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (event instanceof NavigationEnd) this.location.set(event.urlAfterRedirects);
     });

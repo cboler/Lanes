@@ -202,6 +202,9 @@
                 @if (hasAdvantage(unit)) {
                   <span class="advantage-badge">▲ +25%</span>
                 }
+                @if (bondBonus(unit); as bonus) {
+                  <span class="bond-badge" [title]="bonus">⚭</span>
+                }
                 @if (preview(unit); as forecast) {
                   <span
                     class="preview-badge"
@@ -687,6 +690,11 @@
                 </li>
               }
             </ul>
+            @for (bond of paid.bonds ?? []; track bond.names.join()) {
+              <p class="reward-bond">
+                ⚭ {{ bond.names[0] }} &amp; {{ bond.names[1] }} are now {{ bond.title }}
+              </p>
+            }
             @if (leveledUp()) {
               <a routerLink="/roster" class="reward-link" id="reward-roster-link"
                 >Spend new stat points on the Roster ▸</a

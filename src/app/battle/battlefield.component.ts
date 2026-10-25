@@ -819,6 +819,16 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       : { text: `−${lost}`, heal: false, ko: false };
   }
 
+  /** The Comrades bonus a unit has right now from bonded partners in its lane, if any. */
+  protected bondBonus(unit: UnitInstance): string | null {
+    const partners = unit.bonds
+      .filter((link) => link.partner.isAlive && link.partner.lane === unit.lane)
+      .map((link) => link.partner.name);
+    return partners.length
+      ? `Bond: +${Math.min(2, partners.length) * 10}% damage beside ${partners.join(' and ')}`
+      : null;
+  }
+
   protected hasAdvantage(unit: UnitInstance): boolean {
     const active = this.battle.activeUnit();
     return !!active && this.isTargetable(unit) && DamageCalculator.hasAdvantage(active, unit);

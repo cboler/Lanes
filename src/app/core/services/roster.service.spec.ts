@@ -264,4 +264,33 @@ describe('RosterService', () => {
     expect(service.mercenaries()[1].pattern[1]).toEqual({ id: skill, level: 4 });
     expect(service.count(`grimoire:${skill}`)).toBe(0);
   });
+
+  it('grows bonds from a battle report, names new ranks, and drops a dismissed mercenary', () => {
+    const service = TestBed.inject(RosterService);
+    const [a, b, c] = service.mercenaries();
+    const fought = {
+      id: 'bond-battle',
+      outcome: 'victory' as const,
+      enemiesDefeated: 4,
+      mercenaries: [
+        { id: a.id, survived: true },
+        { id: b.id, survived: true },
+        { id: c.id, survived: true },
+      ],
+      assists: [[a.id, b.id]] as [string, string][],
+    };
+    service.claimRewards(fought);
+    const rewards = service.claimRewards({ ...fought, id: 'bond-battle-2' });
+    expect(service.bondPoints(a.id, b.id)).toBe(24);
+    const named = rewards.bonds!.find(
+      (bond) => bond.names.includes(a.name) && bond.names.includes(b.name),
+    );
+    expect(named?.title).toBe('Comrades');
+    TestBed.resetTestingModule();
+    const again = TestBed.inject(RosterService);
+    expect(again.bondPoints(a.id, b.id)).toBe(24);
+    again.dismiss(b.id);
+    expect(again.bondPoints(a.id, b.id)).toBe(0);
+    expect(again.bondPoints(a.id, c.id)).toBe(16);
+  });
 });

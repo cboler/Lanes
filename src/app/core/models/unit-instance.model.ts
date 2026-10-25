@@ -3,6 +3,7 @@ import { StatusEffectInstance, StatusEffectType } from './status-effect.model';
 import { UnitClassDefinition } from './unit-class.model';
 import { UnitBaseStats } from './stats.model';
 import { AbilityDefinition } from './ability.model';
+import type { BondLink } from './bond.model';
 
 export type Team = 'player' | 'enemy';
 
@@ -21,6 +22,8 @@ export class UnitInstance {
   public readonly abilities: readonly AbilityDefinition[];
   /** Equipped support skill ids; stat bonuses are already in the stats. */
   public readonly supports: readonly string[];
+  /** Squad bonds with the other units on this side, set when the battle begins. */
+  public bonds: readonly BondLink[] = [];
   private readonly statsOverride?: UnitBaseStats;
   private readonly _statusEffects: StatusEffectInstance[] = [];
 

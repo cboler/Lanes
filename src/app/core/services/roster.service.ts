@@ -23,6 +23,7 @@ import {
 } from '../models/progression.model';
 import { getClassDefinition } from '../models/unit-class.model';
 import { canEquipSupport, patternSkill } from '../models/skills.model';
+import { Bonds, applyBondGains, bondGains, bondKey, parseBonds } from '../models/bond.model';
 import {
   Inventory,
   ItemId,
@@ -49,6 +50,8 @@ interface SavedRoster {
   recruits: Mercenary[];
   /** Scrolls and grimoires; saves from before items have none. */
   items?: Inventory;
+  /** Squad bond points by pair; saves from before bonds have none. */
+  bonds?: Bonds;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -62,6 +65,7 @@ export class RosterService {
   public readonly gold = signal(0);
   public readonly recruits = signal<Mercenary[]>([]);
   public readonly items = signal<Inventory>({});
+  public readonly bonds = signal<Bonds>({});
   /** Rewards already paid this session, by battle report id, so a battle pays once. */
   private readonly paid = new Map<string, BattleRewards>();
 
@@ -79,6 +83,7 @@ export class RosterService {
     this.gold.set(saved.gold);
     this.recruits.set(saved.recruits);
     this.items.set(saved.items ?? {});
+    this.bonds.set(saved.bonds ?? {});
     if (!this.warning()) this.persist();
   }
 
@@ -133,8 +138,20 @@ export class RosterService {
     const squad = this.squadIds().filter((other) => other !== id);
     this.mercenaries.set(remaining);
     this.squadIds.set(squad.length ? squad : [remaining[0].id]);
+    // Bonds end with the mercenary.
+    this.bonds.set(
+      parseBonds(
+        this.bonds(),
+        remaining.map((m) => m.id),
+      ),
+    );
     this.persist();
     return true;
+  }
+
+  /** Bond points between two mercenaries. */
+  public bondPoints(a: string, b: string): number {
+    return this.bonds()[bondKey(a, b)] ?? 0;
   }
 
   /** Equips a support skill if level and SP allow, or takes it off. */
@@ -203,7 +220,17 @@ export class RosterService {
         },
       ];
     });
-    const rewards: BattleRewards = { gold: battleGold(report), mercenaries };
+    const grown = applyBondGains(this.bonds(), bondGains(report));
+    this.bonds.set(grown.bonds);
+    const nameOf = (id: string) => this.mercenaries().find((m) => m.id === id)?.name ?? '?';
+    const rewards: BattleRewards = {
+      gold: battleGold(report),
+      mercenaries,
+      bonds: grown.rankUps.map((up) => ({
+        names: [nameOf(up.ids[0]), nameOf(up.ids[1])] as const,
+        title: up.rank.title,
+      })),
+    };
     this.gold.update((gold) => gold + rewards.gold);
     this.paid.set(report.id, rewards);
     this.persist();
@@ -331,6 +358,10 @@ export class RosterService {
         gold: gold!,
         recruits,
         items: parseInventory(raw.items),
+        bonds: parseBonds(
+          raw.bonds,
+          mercenaries.map((m) => m.id),
+        ),
       };
     } catch {
       this.warning.set('Saved roster could not be loaded; a new roster was created.');
@@ -357,6 +388,7 @@ export class RosterService {
       gold: this.gold(),
       recruits: this.recruits(),
       items: this.items(),
+      bonds: this.bonds(),
     };
     try {
       const storage = this.document.defaultView?.localStorage;

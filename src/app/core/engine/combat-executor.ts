@@ -100,6 +100,8 @@ export class CombatExecutor {
     grade?: ExecutionGrade,
     /** False for an assist: the ally acts outside its turn, free of AP. */
     spendAp = true,
+    /** Extra power on top of the grade, such as a Trusted bond's assist. */
+    bonus = 1,
   ): CombatResult {
     if (!attacker.isAlive) {
       return { success: false, failureReason: 'Attacker is dead.', effects: [] };
@@ -165,7 +167,7 @@ export class CombatExecutor {
       };
     }
 
-    const power = grade ? GRADE_POWER[grade] : 1;
+    const power = (grade ? GRADE_POWER[grade] : 1) * bonus;
     if (power === 0) {
       // A miss spends the AP but lands nowhere, so it cannot catch allies either.
       return {

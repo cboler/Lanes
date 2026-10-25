@@ -8,6 +8,7 @@ import {
   STAT_LABELS,
 } from '../core/models/mercenary.model';
 import { ItemId, SCRIBE_COST, grimoireSkill } from '../core/models/item.model';
+import { BOND_RANKS, bondRank, nextBondRank } from '../core/models/bond.model';
 import {
   APTITUDE_RATIO,
   LEVEL_CAP,
@@ -48,6 +49,34 @@ export class RosterComponent {
 
   protected readonly supportSkills = SUPPORT_SKILLS;
   protected readonly scribeCost = SCRIBE_COST;
+
+  /** This mercenary's bonds with the rest of the roster, strongest first. */
+  protected bondsOf(
+    merc: Mercenary,
+  ): { name: string; title: string; points: number; progress: number; perk: string }[] {
+    return this.roster
+      .mercenaries()
+      .filter((other) => other.id !== merc.id)
+      .map((other) => {
+        const points = this.roster.bondPoints(merc.id, other.id);
+        const rank = bondRank(points);
+        const next = nextBondRank(points);
+        const from = rank ? BOND_RANKS[rank - 1].points : 0;
+        return {
+          name: other.name,
+          title: rank
+            ? BOND_RANKS[rank - 1].title
+            : `Acquainted · ${next!.points - points} to Comrades`,
+          points,
+          progress: next ? ((points - from) / (next.points - from)) * 100 : 100,
+          perk: BOND_RANKS.slice(0, rank)
+            .map((step) => step.perk)
+            .join(' · '),
+        };
+      })
+      .filter((bond) => bond.points > 0)
+      .sort((a, b) => b.points - a.points);
+  }
 
   protected nextGrade(merc: Mercenary, stat: PrimaryStat): string | null {
     return GRADES[GRADES.indexOf(merc.aptitudes[stat]) + 1] ?? null;

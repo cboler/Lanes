@@ -148,6 +148,27 @@
             }
           </div>
         </details>
+        <details class="bonds-panel">
+          <summary>Bonds · {{ bondsOf(merc).length }}</summary>
+          @for (bond of bondsOf(merc); track bond.name) {
+            <div class="bond-row">
+              <span
+                ><strong>{{ bond.name }}</strong> · {{ bond.title }}</span
+              >
+              <span class="bond-track" [attr.aria-label]="bond.points + ' bond points'">
+                <span class="bond-fill" [style.width.%]="bond.progress"></span>
+              </span>
+              @if (bond.perk) {
+                <small>{{ bond.perk }}</small>
+              }
+            </div>
+          } @empty {
+            <p class="items-note">
+              Fighting beside others builds bonds: shared battles, answered assists and tended
+              wounds. Bonds unlock perks for the pair.
+            </p>
+          }
+        </details>
         <details class="items-panel">
           <summary>
             Scrolls &amp; grimoires · {{ roster.count('tactics') }} Tactics ·

@@ -1,5 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { UnitInstance } from '../models/unit-instance.model';
+import { StatusEffectInstance } from '../models/status-effect.model';
 import {
   ARCHER_CLASS,
   CLERIC_CLASS,
@@ -47,6 +48,14 @@ import {
 } from '../models/field-object.model';
 import { BARRICADE_CLASS } from '../models/unit-class.model';
 import { knownAbilities } from '../models/skills.model';
+import {
+  Bonds,
+  TRUSTED_ASSIST_POWER,
+  VENGEANCE,
+  bondKey,
+  bondRank,
+  bondRankWith,
+} from '../models/bond.model';
 import {
   CHAIN_WINDOW,
   ExecutionGrade,
@@ -222,6 +231,11 @@ export class BattleStateService {
   private placedCount = 0;
   /** Who set each placed barricade or trap down, by object id. */
   private placedBy = new Map<string, string>();
+  /** Assists and heals between mercenaries this battle, for their bonds. */
+  private assistLog: [string, string][] = [];
+  private healLog: [string, string][] = [];
+  /** Where squad bonds come from; the app points this at the roster. */
+  public bondSource: () => Bonds = () => ({});
   private playerSquad = [FIGHTER_CLASS, ARCHER_CLASS, CLERIC_CLASS, LANCER_CLASS];
   private playerMercenaries: readonly (Mercenary | undefined)[] = [];
   private enemySquad = [LANCER_CLASS, GUNNER_CLASS, WITCH_CLASS, FIGHTER_CLASS];
@@ -385,6 +399,8 @@ export class BattleStateService {
     this.mercenaryOf = new Map();
     this.levelOf = new Map();
     this.placedBy = new Map();
+    this.assistLog = [];
+    this.healLog = [];
     this.attackingUnitId.set(null);
     this.hitUnitId.set(null);
 
@@ -467,6 +483,18 @@ export class BattleStateService {
         const trap = makeTrap(spec, 'enemy', activeContract!.level, `trap_${index}`);
         this.traps.update((list) => [...list, trap]);
       }
+    }
+
+    // Squad bonds link the player's mercenaries who fight together.
+    const bonds = this.bondSource();
+    const squad = newUnits.filter((unit) => this.mercenaryOf.has(unit.id));
+    for (const unit of squad) {
+      unit.bonds = squad.flatMap((partner) => {
+        if (partner === unit) return [];
+        const key = bondKey(this.mercenaryOf.get(unit.id)!, this.mercenaryOf.get(partner.id)!);
+        const rank = bondRank(bonds[key] ?? 0);
+        return rank ? [{ partner, rank }] : [];
+      });
     }
 
     this.units.set(newUnits);
@@ -914,6 +942,8 @@ export class BattleStateService {
       (candidate) => candidate.ally.id === allyId,
     );
     if (!plan) return false;
+    // Trusted partners hit harder answering each other's calls.
+    const trusted = bondRankWith(plan.ally, active) >= 2;
     const result = CombatExecutor.execute(
       plan.ally,
       plan.ability,
@@ -921,6 +951,7 @@ export class BattleStateService {
       this.units(),
       undefined,
       false,
+      trusted ? TRUSTED_ASSIST_POWER : 1,
     );
     if (!result.success) {
       this.addLog(`⚠️ ${result.failureReason}`);
@@ -932,8 +963,21 @@ export class BattleStateService {
       ...gauge,
       [active.team]: gauge[active.team] - ASSIST_COST,
     }));
-    this.addLog(`🤝 Assist! ${plan.ally.name} answers ${active.name}'s call.`);
-    this.triggerFloatingText(plan.ally.id, 'ASSIST', false, false, true);
+    this.addLog(
+      trusted
+        ? `🤝 Assist! ${plan.ally.name} answers ${active.name}'s call, a trusted friend's (+30%).`
+        : `🤝 Assist! ${plan.ally.name} answers ${active.name}'s call.`,
+    );
+    this.triggerFloatingText(
+      plan.ally.id,
+      trusted ? 'TRUSTED ASSIST' : 'ASSIST',
+      false,
+      false,
+      true,
+    );
+    const caller = this.mercenaryOf.get(active.id);
+    const ally = this.mercenaryOf.get(plan.ally.id);
+    if (caller && ally) this.assistLog.push([caller, ally]);
     this.resolveAction(plan.ally, plan.ability, result.effects, undefined, false);
     return true;
   }
@@ -964,6 +1008,7 @@ export class BattleStateService {
     }, 350 * this.delayMultiplier);
 
     this.processCombatEffects(attacker, ability, effects, grade);
+    this.recordBonds(attacker, effects);
     this.lastAction.set({
       seq: ++this.actionSeq,
       attackerId: attacker.id,
@@ -997,6 +1042,29 @@ export class BattleStateService {
 
     // Check end condition
     this.checkBattleStatus();
+  }
+
+  /**
+   * Squad bonds in battle: heals between mercenaries count toward their bond, and a Sworn
+   * partner who sees the other fall is spurred to vengeance.
+   */
+  private recordBonds(attacker: UnitInstance, effects: readonly TargetEffect[]): void {
+    const healer = this.mercenaryOf.get(attacker.id);
+    for (const effect of effects) {
+      const patient = this.mercenaryOf.get(effect.target.id);
+      if (effect.isHealing && healer && patient && healer !== patient) {
+        this.healLog.push([healer, patient]);
+      }
+      if (!effect.wasDefeated) continue;
+      for (const link of effect.target.bonds) {
+        if (link.rank < 3 || !link.partner.isAlive) continue;
+        link.partner.refreshStatusEffect(
+          new StatusEffectInstance(VENGEANCE.type, VENGEANCE.duration, VENGEANCE.potency),
+        );
+        this.triggerFloatingText(link.partner.id, 'VENGEANCE · ATK +25', false, false, true);
+        this.addLog(`  🔥 ${link.partner.name} swears vengeance for ${effect.target.name}!`);
+      }
+    }
   }
 
   /**
@@ -1392,6 +1460,8 @@ export class BattleStateService {
         : { contractId: this.activeContract()?.id }),
       enemiesDefeated: this.units().filter((u) => u.team === 'enemy' && !u.isAlive && !u.isObject)
         .length,
+      assists: [...this.assistLog],
+      heals: [...this.healLog],
       mercenaries: this.units().flatMap((unit) => {
         const id = this.mercenaryOf.get(unit.id);
         return id ? [{ id, survived: unit.isAlive }] : [];

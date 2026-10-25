@@ -419,6 +419,19 @@
   }
 }
 
+.bond-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #ffb3d1;
+  text-shadow: 0 0 6px rgba(255, 120, 180, 0.8);
+}
+
+.reward-bond {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+  color: #ffb3d1;
+}
+
 .status-badge {
   border: 1px solid #7dffb2;
   background: rgba(14, 70, 40, 0.9);

@@ -1,3 +1,4 @@
+import { DamageCalculator } from '../engine/damage-calculator';
 import { CAMPAIGN } from '../models/campaign-story';
 import { missionContract } from '../models/campaign.model';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -782,5 +783,33 @@ describe('BattleStateService', () => {
     ]);
     const log = [...service.combatLogs()].reverse().join(' ');
     expect(log).toMatch(/sets a snare.*unleashed/);
+  });
+
+  it('links bonded mercenaries: Comrades hit harder together, and a Sworn partner avenges a fall', () => {
+    const fighter = { ...defender, id: 'merc_f' };
+    const archer = { ...generateMercenary('archer', seededRandom(5)), id: 'merc_a' };
+    service.bondSource = () => ({ 'merc_a|merc_f': 130 });
+    // A lightly armoured foe, so a 10% bonus survives rounding.
+    service.deployMercenaries([fighter, archer], [ARCHER_CLASS]);
+    const [unitF, unitA] = service.playerUnits();
+    expect(unitF.bonds).toEqual([{ partner: unitA, rank: 3 }]);
+    const foe = service.enemyUnits()[0];
+    const bash = unitF.abilities.find((a) => a.id === 'shield_bash')!;
+    unitA.lane = 2;
+    unitF.lane = 1;
+    const apart = DamageCalculator.calculateWithDefense(unitF, foe, bash);
+    unitA.lane = 1;
+    const together = DamageCalculator.calculateWithDefense(unitF, foe, bash);
+    expect(together).toBeGreaterThan(apart);
+
+    // The archer falls to a blow; the Sworn fighter swears vengeance.
+    unitA.currentHp = 1;
+    service.activeUnitId.set(foe.id);
+    foe.lane = unitA.lane;
+    unitF.lane = 0;
+    service.selectedAbilityId.set('quick_shot');
+    expect(service.executeSelectedAbility(unitA, true)).toBe(true);
+    expect(unitA.isAlive).toBe(false);
+    expect(unitF.hasEffect('attack-up')).toBe(true);
   });
 });

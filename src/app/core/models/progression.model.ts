@@ -45,6 +45,10 @@ export interface BattleReport {
   readonly contractId?: string;
   /** The campaign mission fought, if any; a victory clears it. */
   readonly missionId?: string;
+  /** Assists answered, as [caller, ally] mercenary ids, for squad bonds. */
+  readonly assists?: readonly (readonly [string, string])[];
+  /** Heals given, as [healer, patient] mercenary ids, for squad bonds. */
+  readonly heals?: readonly (readonly [string, string])[];
 }
 
 export interface MercenaryReward {
@@ -60,6 +64,8 @@ export interface MercenaryReward {
 export interface BattleRewards {
   readonly gold: number;
   readonly mercenaries: readonly MercenaryReward[];
+  /** Pairs whose bond reached a new rank, by name. */
+  readonly bonds?: readonly { readonly names: readonly [string, string]; readonly title: string }[];
 }
 
 export function battleGold(report: BattleReport): number {

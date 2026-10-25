@@ -1,5 +1,6 @@
 import { AbilityDefinition } from '../models/ability.model';
 import { UnitInstance } from '../models/unit-instance.model';
+import { bondPower } from '../models/bond.model';
 
 /**
  * Calculates raw and net combat numbers for abilities.
@@ -55,6 +56,7 @@ export class DamageCalculator {
 
     const net = Math.max(1, raw - defense);
     // MVP tuning: the tactical triangle adds 25% after defense, with no reverse penalty.
-    return Math.max(1, Math.floor(net * (this.hasAdvantage(attacker, target) ? 1.25 : 1) * power));
+    const triangle = this.hasAdvantage(attacker, target) ? 1.25 : 1;
+    return Math.max(1, Math.floor(net * triangle * power * bondPower(attacker)));
   }
 }

@@ -202,7 +202,8 @@
   min-height: 44px;
 }
 .skills-panel,
-.items-panel {
+.items-panel,
+.bonds-panel {
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--space-2);
 
@@ -314,4 +315,29 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
+}
+
+.bond-row {
+  display: grid;
+  gap: 3px;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+
+  small {
+    color: #ffb3d1;
+  }
+}
+
+.bond-track {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: #0b120e;
+  overflow: hidden;
+}
+
+.bond-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b8487a, #ffb3d1);
 }
