@@ -42,20 +42,29 @@ export function regionOfNode(id: string): Region | undefined {
   return REGIONS.find((region) => region.nodes.some((node) => node.id === id));
 }
 
-export interface Expedition {
-  readonly version: 1;
+/** Where a company stands in one region, kept while it travels elsewhere. */
+export interface RegionProgress {
   readonly position: string;
   readonly turn: number;
   readonly collected: readonly string[];
   readonly defeated: readonly string[];
-  readonly encounter: string | null;
   readonly complete: boolean;
 }
 
-export function newExpedition(): Expedition {
+export interface Expedition extends RegionProgress {
+  readonly version: 1;
+  /** The region the company is in; saves from before regions are in Thornwatch. */
+  readonly region?: string;
+  readonly encounter: string | null;
+  /** Progress in the other regions visited, by region id. */
+  readonly atlas?: Readonly<Record<string, RegionProgress>>;
+}
+
+export function newExpedition(region: Region = THORNWATCH): Expedition {
   return {
     version: 1,
-    position: 'camp',
+    region: region.id,
+    position: region.start,
     turn: 0,
     collected: [],
     defeated: [],
@@ -64,12 +73,14 @@ export function newExpedition(): Expedition {
   };
 }
 
+/** Waypoint ids are unique across regions, so a waypoint is found on whichever board has it. */
 export function nodeAt(id: string): MapNode {
-  return MAP_NODES.find((node) => node.id === id)!;
+  return regionOfNode(id)?.nodes.find((node) => node.id === id) ?? THORNWATCH.nodes[0];
 }
 
 export function neighbors(id: string): MapNode[] {
-  return MAP_EDGES.filter((edge) => edge.includes(id)).map(([a, b]) => nodeAt(a === id ? b : a));
+  const region = regionOfNode(id) ?? THORNWATCH;
+  return region.edges.filter((edge) => edge.includes(id)).map(([a, b]) => nodeAt(a === id ? b : a));
 }
 
 export function patrolPosition(patrol: MapPatrol, turn: number): string {
@@ -88,8 +99,9 @@ export function advanceExpedition(
   )
     return state;
   const turn = state.turn + 1;
+  const patrols = regionById(state.region).patrols;
   const encounter =
-    (story ? [story, ...PATROLS] : PATROLS).find(
+    (story ? [story, ...patrols] : patrols).find(
       (patrol) =>
         !state.defeated.includes(patrol.id) &&
         (patrolPosition(patrol, turn) === destination ||
@@ -99,22 +111,47 @@ export function advanceExpedition(
   return { ...state, position: destination, turn, encounter };
 }
 
-/** Validate persisted positions and counters before they can index the board. */
-export function parseExpedition(raw: unknown): Expedition | null {
+const strings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((id) => typeof id === 'string');
+
+/** One region's saved progress, checked against that region's board, or null. */
+function parseProgress(raw: unknown, region: Region): RegionProgress | null {
   if (!raw || typeof raw !== 'object') return null;
-  const s = raw as Expedition;
-  const strings = (value: unknown): value is string[] =>
-    Array.isArray(value) && value.every((id) => typeof id === 'string');
+  const s = raw as RegionProgress;
   if (
-    s.version !== 1 ||
-    !MAP_NODES.some((n) => n.id === s.position) ||
+    !region.nodes.some((n) => n.id === s.position) ||
     !Number.isSafeInteger(s.turn) ||
     s.turn < 0 ||
     !strings(s.collected) ||
     !strings(s.defeated) ||
-    typeof s.complete !== 'boolean' ||
+    typeof s.complete !== 'boolean'
+  )
+    return null;
+  return {
+    position: s.position,
+    turn: s.turn,
+    collected: [
+      ...new Set(
+        s.collected.filter((id) => region.nodes.some((n) => n.id === id && (n.gold || n.item))),
+      ),
+    ],
+    defeated: [...new Set(s.defeated.filter((id) => region.patrols.some((p) => p.id === id)))],
+    complete: s.complete,
+  };
+}
+
+/** Validate persisted positions and counters before they can index the board. */
+export function parseExpedition(raw: unknown): Expedition | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Expedition;
+  const region = REGIONS.find((r) => r.id === (s.region ?? THORNWATCH.id));
+  const progress = region && parseProgress(s, region);
+  if (
+    s.version !== 1 ||
+    !region ||
+    !progress ||
     (s.encounter !== null &&
-      !PATROLS.some((p) => p.id === s.encounter) &&
+      !region.patrols.some((p) => p.id === s.encounter) &&
       !(
         typeof s.encounter === 'string' &&
         s.encounter.startsWith('story:') &&
@@ -122,17 +159,40 @@ export function parseExpedition(raw: unknown): Expedition | null {
       ))
   )
     return null;
+  const atlas: Record<string, RegionProgress> = {};
+  for (const other of REGIONS) {
+    const kept = other.id !== region.id && parseProgress(s.atlas?.[other.id], other);
+    if (kept) atlas[other.id] = kept;
+  }
   return {
     version: 1,
-    position: s.position,
-    turn: s.turn,
-    collected: [
-      ...new Set(
-        s.collected.filter((id) => MAP_NODES.some((n) => n.id === id && (n.gold || n.item))),
-      ),
-    ],
-    defeated: [...new Set(s.defeated.filter((id) => PATROLS.some((p) => p.id === id)))],
+    region: region.id,
+    ...progress,
     encounter: s.encounter,
-    complete: s.complete,
+    ...(Object.keys(atlas).length ? { atlas } : {}),
+  };
+}
+
+/** Leaves the current region (its progress goes to the atlas) for `region`, where the
+ * company resumes where it last stood, or arrives at its start. */
+export function travel(state: Expedition, region: Region): Expedition {
+  if (state.encounter || region.id === (state.region ?? THORNWATCH.id)) return state;
+  const { position, turn, collected, defeated, complete } = state;
+  const atlas = {
+    ...state.atlas,
+    [state.region ?? THORNWATCH.id]: { position, turn, collected, defeated, complete },
+  };
+  const resumed = atlas[region.id] ?? newExpedition(region);
+  delete atlas[region.id];
+  return {
+    version: 1,
+    region: region.id,
+    position: resumed.position,
+    turn: resumed.turn,
+    collected: resumed.collected,
+    defeated: resumed.defeated,
+    complete: resumed.complete,
+    encounter: null,
+    atlas,
   };
 }

@@ -31,6 +31,13 @@ export interface Region {
   readonly goalReward: number;
   /** The chapter whose missions must all be won before the company can travel here. */
   readonly unlockedBy?: string;
+  /** Names painted on the board: a place in small capitals, an area in italics. */
+  readonly labels: readonly {
+    readonly text: string;
+    readonly x: number;
+    readonly y: number;
+    readonly kind: 'place' | 'area';
+  }[];
 }
 
 export const THORNWATCH: Region = {
@@ -42,6 +49,12 @@ export const THORNWATCH: Region = {
   start: 'camp',
   goal: 'keep',
   goalReward: 250,
+  labels: [
+    { text: 'WAYFARER CAMP', x: 4, y: 64, kind: 'place' },
+    { text: 'OLD WATCHTOWER', x: 72, y: 8, kind: 'place' },
+    { text: 'Whispering Grove', x: 18, y: 16, kind: 'area' },
+    { text: 'The Low Road', x: 42, y: 83, kind: 'area' },
+  ],
   nodes: [
     { id: 'camp', name: 'Wayfarer Camp', x: 10, y: 55, kind: 'camp' },
     { id: 'trail', name: 'Old Cart Track', x: 18, y: 49 },
@@ -156,6 +169,12 @@ export const SALTMERE: Region = {
   start: 's-camp',
   goal: 's-fort',
   goalReward: 400,
+  labels: [
+    { text: 'DRIFTWOOD CAMP', x: 84, y: 46, kind: 'place' },
+    { text: 'SALTMERE FORT', x: 4, y: 30, kind: 'place' },
+    { text: 'Windward Heath', x: 44, y: 13, kind: 'area' },
+    { text: 'The Grey Shallows', x: 36, y: 84, kind: 'area' },
+  ],
   unlockedBy: 'prologue',
   nodes: [
     { id: 's-camp', name: 'Driftwood Camp', x: 90, y: 58, kind: 'camp' },
@@ -247,6 +266,12 @@ export const VELLMARK: Region = {
   start: 'v-camp',
   goal: 'v-keep',
   goalReward: 600,
+  labels: [
+    { text: 'RELIEF CAMP', x: 3, y: 87, kind: 'place' },
+    { text: 'VELLMARK KEEP', x: 79, y: 8, kind: 'place' },
+    { text: 'The Burning Hills', x: 30, y: 8, kind: 'area' },
+    { text: 'Corvane Siege Lines', x: 52, y: 64, kind: 'area' },
+  ],
   unlockedBy: 'saltmere',
   nodes: [
     { id: 'v-camp', name: 'Relief Camp', x: 10, y: 80, kind: 'camp' },

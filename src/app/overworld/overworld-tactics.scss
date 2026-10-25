@@ -40,6 +40,7 @@
 }
 .map-tools {
   position: absolute;
+  z-index: 6;
   bottom: 12px;
   right: 18px;
   display: flex;
@@ -496,4 +497,20 @@
     right: 100px;
     top: 6px;
   }
+}
+
+.region-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.region-choice {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  text-align: left;
+}
+.region-choice small {
+  opacity: 0.8;
+  font-size: 0.7rem;
 }

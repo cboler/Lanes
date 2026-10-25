@@ -48,6 +48,8 @@ export interface Mission {
 export interface Chapter {
   readonly id: string;
   readonly title: string;
+  /** The overworld region whose board the chapter's squads walk; Thornwatch if unset. */
+  readonly region?: string;
   readonly missions: readonly Mission[];
 }
 
@@ -112,4 +114,22 @@ export function tellLine(line: StoryLine, leader: string): StoryLine {
     speaker: line.speaker.replaceAll('{leader}', leader),
     text: line.text.replaceAll('{leader}', leader),
   };
+}
+
+/** The chapter a mission belongs to. */
+export function chapterOf(
+  missionId: string,
+  campaign: readonly Chapter[] = CAMPAIGN,
+): Chapter | null {
+  return campaign.find((chapter) => chapter.missions.some((m) => m.id === missionId)) ?? null;
+}
+
+/** Whether every mission of a chapter is won. */
+export function chapterCleared(
+  chapterId: string,
+  cleared: readonly string[],
+  campaign: readonly Chapter[] = CAMPAIGN,
+): boolean {
+  const chapter = campaign.find((c) => c.id === chapterId);
+  return !!chapter && chapter.missions.every((m) => cleared.includes(m.id));
 }

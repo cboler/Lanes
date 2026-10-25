@@ -72,7 +72,7 @@ test('the story starts on the overworld, encounters its named squad, and returns
   await expect(page.locator('#company-piece')).toHaveAttribute('aria-label', /Three Roads/);
   await page.locator('#company-menu-btn').click();
   await page.locator('#nav-link-campaign').click();
-  await expect(page.locator('#campaign-progress')).toHaveText('1 / 4');
+  await expect(page.locator('#campaign-progress')).toHaveText('1 / 10');
   await expect(page.locator('[data-mission="north-road"]')).toContainText('Won');
   await page.locator('#return-to-map').click();
   await expect(page.locator('#expedition-turn')).toHaveText('003');
@@ -211,4 +211,37 @@ test('all four scripted squads are encountered on their repeated circuits and a 
     ).toBe(index + 1);
   }
   await expect(page.locator('.story-marker')).toHaveCount(0);
+});
+
+test('winning the prologue opens Saltmere, where chapter one begins', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone-landscape', 'Travel is covered at the other sizes.');
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('lanes.campaign.v1')) {
+      localStorage.setItem(
+        'lanes.campaign.v1',
+        JSON.stringify({
+          version: 1,
+          cleared: ['north-road', 'the-ford', 'thorn-keep', 'vargr'],
+          accepted: [],
+        }),
+      );
+    }
+  });
+  await page.goto('/');
+  await expect(page.locator('#region-title')).toHaveText('The Thornwatch March');
+  await expect(page.locator('.story-marker')).toHaveCount(0);
+  await expect(page.locator('#travel-story-btn')).toContainText('The Seal on the Crates');
+  await page.locator('#travel-story-btn').click();
+  await expect(page.locator('#region-title')).toHaveText('The Saltmere Coast');
+  await expect(page.locator('#company-piece')).toHaveAttribute('aria-label', /Driftwood Camp/);
+  await expect(page.locator('.story-marker')).toHaveAttribute('data-patrol', 'story:s1-docks');
+  // The Travel dialog leads back, and each board keeps its place.
+  await page.locator('#regions-btn').click();
+  await page.locator('#travel-thornwatch').click();
+  await expect(page.locator('#region-title')).toHaveText('The Thornwatch March');
+  await page.locator('#regions-btn').click();
+  await page.locator('#travel-saltmere').click();
+  await expect(page.locator('#region-title')).toHaveText('The Saltmere Coast');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `tmp/saltmere-${info.project.name}.png` });
 });

@@ -4,17 +4,20 @@ import {
   newExpedition,
   nodeAt,
   parseExpedition,
-  PATROLS,
+  regionById,
   storyPatrol,
+  travel,
 } from '../models/overworld.model';
-import { findMission, missionContract } from '../models/campaign.model';
+import { REGIONS, Region } from '../models/overworld-regions';
+import { chapterCleared, chapterOf, findMission, missionContract } from '../models/campaign.model';
 import { Contract, TIERS, generateContract, parseContract } from '../models/contract.model';
 import { seededRandom } from '../models/mercenary.model';
 import { RosterService } from './roster.service';
 import { GuildService } from './guild.service';
 import { CampaignService } from './campaign.service';
 
-const STORAGE_KEY = 'lanes.overworld.v1';
+// A localStorage key name, not a secret.
+const STORAGE_KEY = 'lanes.overworld.v1'; // gitleaks:allow
 
 @Injectable({ providedIn: 'root' })
 export class OverworldService {
@@ -25,15 +28,31 @@ export class OverworldService {
   public readonly state = signal(newExpedition());
   /** Compositions are rolled once per journey, independent of the fixed map circuits. */
   private readonly squads = new Map<string, Contract>();
+  private readonly random = seededRandom(Date.now() ^ (Math.random() * 2 ** 32));
   public readonly warning = signal('');
   public readonly message = signal('The road is yours. Choose a connected waypoint to set out.');
-  public readonly story = computed(() =>
-    this.campaign.next() ? storyPatrol(this.campaign.next()!) : undefined,
+  /** The board the company is on. */
+  public readonly region = computed(() => regionById(this.state().region));
+  /** Regions the story has opened, in order. */
+  public readonly regions = computed(() =>
+    REGIONS.filter(
+      (region) => !region.unlockedBy || chapterCleared(region.unlockedBy, this.campaign.cleared()),
+    ),
   );
+  /** The region the next story mission waits in. */
+  public readonly storyRegion = computed(() => {
+    const next = this.campaign.next();
+    return next ? regionById(chapterOf(next.id)?.region) : null;
+  });
+  /** The next story squad, when it walks this board. */
+  public readonly story = computed(() => {
+    const next = this.campaign.next();
+    return next && this.storyRegion()?.id === this.region().id ? storyPatrol(next) : undefined;
+  });
   public readonly encounter = computed(() => {
     const id = this.state().encounter;
     const mission = id?.startsWith('story:') ? findMission(id.slice(6)) : null;
-    return mission ? storyPatrol(mission) : PATROLS.find((p) => p.id === id);
+    return mission ? storyPatrol(mission) : this.region().patrols.find((p) => p.id === id);
   });
 
   constructor() {
@@ -44,7 +63,7 @@ export class OverworldService {
         const state = parseExpedition(raw);
         if (state) {
           this.state.set(state);
-          for (const patrol of PATROLS) {
+          for (const patrol of REGIONS.flatMap((region) => region.patrols)) {
             const squad = parseContract(raw.squads?.[patrol.id]);
             if (
               squad?.id === `overworld:${patrol.id}` &&
@@ -58,18 +77,33 @@ export class OverworldService {
     } catch {
       this.warning.set('Saved expedition could not be read. A new journey has begun.');
     }
-    const random = seededRandom(Date.now() ^ (Math.random() * 2 ** 32));
-    for (const patrol of PATROLS) {
+    this.rollSquads(this.region());
+    // Optional squad snapshots extend the v1 save without discarding an older journey.
+    this.persist();
+  }
+
+  /** Each patrol's squad is rolled when the company first reaches its region, at its level then. */
+  private rollSquads(region: Region): void {
+    for (const patrol of region.patrols) {
       if (!this.squads.has(patrol.id)) {
         this.squads.set(patrol.id, {
-          ...generateContract(patrol.tier, this.guild.partyLevel(), random),
+          ...generateContract(patrol.tier, this.guild.partyLevel(), this.random),
           id: `overworld:${patrol.id}`,
           band: patrol.name,
         });
       }
     }
-    // Optional squad snapshots extend the v1 save without discarding an older journey.
+  }
+
+  /** Sets out for another opened region; its board resumes where the company left it. */
+  public travelTo(regionId: string): boolean {
+    const region = this.regions().find((r) => r.id === regionId);
+    if (!region || this.state().encounter || region.id === this.region().id) return false;
+    this.state.set(travel(this.state(), region));
+    this.rollSquads(region);
+    this.message.set(`Your company arrives at ${nodeAt(this.state().position).name}.`);
     this.persist();
+    return true;
   }
 
   public step(destination: string): boolean {
@@ -99,10 +133,11 @@ export class OverworldService {
       );
     }
     if (!state.encounter && node.kind === 'goal' && !state.complete) {
+      const region = this.region();
       this.state.update((s) => ({ ...s, complete: true }));
-      this.roster.grant(250, []);
+      this.roster.grant(region.goalReward, []);
       this.message.set(
-        'Watchtower reached! Expedition complete. The guild awards you 250 gold. You can still explore the other roads.',
+        `${node.name} reached! The guild awards you ${region.goalReward} gold. You can still explore the other roads.`,
       );
     }
     this.persist();
@@ -114,18 +149,20 @@ export class OverworldService {
       const mission = findMission(patrolId.slice(6));
       return mission ? missionContract(mission) : null;
     }
-    const patrol = PATROLS.find((p) => p.id === patrolId);
+    const patrol = this.region().patrols.find((p) => p.id === patrolId);
     const contract = patrol && this.squads.get(patrol.id);
     if (!patrol || !contract) return null;
     return {
       ...contract,
       id: `overworld:${patrol.id}`,
       band: patrol.name,
-      title: `Thornwatch • ${nodeAt(this.state().position).name}`,
+      title: `${this.region().short} • ${nodeAt(this.state().position).name}`,
     };
   }
 
   public resolve(contractId: string, victory: boolean): void {
+    const camp = this.region().start;
+    const campName = nodeAt(camp).name;
     if (
       contractId.startsWith('mission_') &&
       this.state().encounter === `story:${contractId.slice(8)}`
@@ -133,17 +170,17 @@ export class OverworldService {
       this.state.update((s) => ({
         ...s,
         encounter: null,
-        position: victory ? s.position : 'camp',
+        position: victory ? s.position : camp,
       }));
       this.message.set(
         victory
           ? 'The contract is won. Your company has a new lead to follow.'
-          : 'Your company regroups at Wayfarer Camp. The contract remains unfinished.',
+          : `Your company regroups at ${campName}. The contract remains unfinished.`,
       );
       this.settle();
       return;
     }
-    const id = PATROLS.find((p) => contractId === `overworld:${p.id}`)?.id;
+    const id = this.region().patrols.find((p) => contractId === `overworld:${p.id}`)?.id;
     if (!id || this.state().defeated.includes(id)) return;
     if (id !== this.state().encounter) {
       // Retrying from a defeat verdict can still beat that patrol after regrouping at camp.
@@ -156,13 +193,13 @@ export class OverworldService {
     this.state.update((s) => ({
       ...s,
       encounter: null,
-      position: victory ? s.position : 'camp',
+      position: victory ? s.position : camp,
       defeated: victory ? [...s.defeated, id] : s.defeated,
     }));
     this.message.set(
       victory
         ? 'The patrol is defeated. Your company can continue.'
-        : 'Your company regroups at Wayfarer Camp. The patrol remains on the road.',
+        : `Your company regroups at ${campName}. The patrol remains on the road.`,
     );
     this.settle();
   }

@@ -14,10 +14,7 @@ import {
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
-  MAP_EDGES,
-  MAP_NODES,
   MapNode,
-  PATROLS,
   advanceExpedition,
   neighbors,
   nodeAt,
@@ -47,14 +44,17 @@ export class OverworldComponent implements OnDestroy {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
-  protected readonly nodes = MAP_NODES;
-  protected readonly edges = MAP_EDGES.map(([a, b]) => ({ a: nodeAt(a), b: nodeAt(b) }));
+  protected readonly nodes = computed(() => this.world.region().nodes);
+  protected readonly edges = computed(() =>
+    this.world.region().edges.map(([a, b]) => ({ a: nodeAt(a), b: nodeAt(b) })),
+  );
+  protected readonly goal = computed(() => nodeAt(this.world.region().goal));
   protected readonly current = computed(() => nodeAt(this.world.state().position));
   protected readonly choices = computed(() => neighbors(this.world.state().position));
   protected readonly patrols = computed(() =>
     [
       ...(this.world.story() ? [this.world.story()!] : []),
-      ...PATROLS.filter((p) => !this.world.state().defeated.includes(p.id)),
+      ...this.world.region().patrols.filter((p) => !this.world.state().defeated.includes(p.id)),
     ].map((patrol) => ({
       ...patrol,
       node: nodeAt(patrolPosition(patrol, this.world.state().turn)),
@@ -64,7 +64,7 @@ export class OverworldComponent implements OnDestroy {
   protected readonly moving = signal(false);
   protected readonly help = signal(false);
   protected readonly scouting = signal(false);
-  protected readonly dialog = signal<'patrol' | 'complete' | 'story' | null>(null);
+  protected readonly dialog = signal<'patrol' | 'complete' | 'story' | 'travel' | null>(null);
   protected readonly scene = signal<{
     mission: Mission;
     kind: 'briefing' | 'debrief';
@@ -81,11 +81,10 @@ export class OverworldComponent implements OnDestroy {
       last: scene.index === lines.length - 1,
     };
   });
-  protected readonly commissionNode = computed(() =>
-    this.world.campaign.next()
-      ? nodeAt(patrolPosition(this.world.story()!, this.world.state().turn))
-      : null,
-  );
+  protected readonly commissionNode = computed(() => {
+    const story = this.world.story();
+    return story ? nodeAt(patrolPosition(story, this.world.state().turn)) : null;
+  });
   private readonly inspectedPatrol = signal('');
   protected readonly inspectedEnemy = computed(() =>
     this.patrols().find((p) => p.id === this.inspectedPatrol()),
@@ -93,11 +92,13 @@ export class OverworldComponent implements OnDestroy {
   protected readonly inspectedSquad = computed(
     () => this.world.contract(this.inspectedPatrol())?.enemies ?? [],
   );
-  protected readonly cacheCount = MAP_NODES.filter((node) => node.gold || node.item).length;
+  protected readonly cacheCount = computed(
+    () => this.nodes().filter((node) => node.gold || node.item).length,
+  );
   protected readonly tiers = TIERS;
-  protected readonly patrolCount = PATROLS.length;
+  protected readonly patrolCount = computed(() => this.world.region().patrols.length);
   protected readonly recovered = computed(() =>
-    MAP_NODES.filter((node) => this.world.state().collected.includes(node.id)),
+    this.nodes().filter((node) => this.world.state().collected.includes(node.id)),
   );
   protected readonly recoveredGold = computed(() =>
     this.recovered().reduce((sum, node) => sum + (node.gold ?? 0), 0),
@@ -191,7 +192,7 @@ export class OverworldComponent implements OnDestroy {
     this.showDialog('patrol');
   }
 
-  protected showDialog(kind: 'patrol' | 'complete' | 'story'): void {
+  protected showDialog(kind: 'patrol' | 'complete' | 'story' | 'travel'): void {
     this.returnFocus = this.document.activeElement as HTMLElement | null;
     this.help.set(false);
     this.dialog.set(kind);
@@ -279,6 +280,14 @@ export class OverworldComponent implements OnDestroy {
       top: (board.clientHeight * this.current().y) / 100 - viewport.clientHeight * 0.6,
       behavior: animate && !reduced ? 'smooth' : 'instant',
     });
+  }
+
+  /** Sets out for another region, and shows the company where it arrives. */
+  protected travelTo(regionId: string): void {
+    if (this.moving() || this.pendingBattle() || !this.world.travelTo(regionId)) return;
+    if (this.dialog()) this.closeDialog();
+    this.selected.set(this.choices()[0].id);
+    afterNextRender(() => this.panToCompany(false), { injector: this.injector });
   }
 
   protected engage(): void {

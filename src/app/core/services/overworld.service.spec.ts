@@ -207,4 +207,32 @@ describe('OverworldService', () => {
     expect(world.warning()).toContain('Saving is unavailable');
     Object.defineProperty(window, 'localStorage', { configurable: true, value: storage });
   });
+
+  it('opens Saltmere once the prologue is won, travels there, and finds the next contract', () => {
+    const prologue = ['north-road', 'the-ford', 'thorn-keep', 'vargr'];
+    values.set('lanes.campaign.v1', JSON.stringify({ version: 1, cleared: prologue.slice(0, 3) }));
+    let world = TestBed.inject(OverworldService);
+    expect(world.regions().map((r) => r.id)).toEqual(['thornwatch']);
+    expect(world.travelTo('saltmere')).toBe(false);
+
+    values.set('lanes.campaign.v1', JSON.stringify({ version: 1, cleared: prologue }));
+    TestBed.resetTestingModule();
+    world = TestBed.inject(OverworldService);
+    expect(world.regions().map((r) => r.id)).toEqual(['thornwatch', 'saltmere']);
+    // The next contract waits in Saltmere, so no story squad walks Thornwatch.
+    expect(world.storyRegion()?.id).toBe('saltmere');
+    expect(world.story()).toBeUndefined();
+    world.step('trail');
+    expect(world.travelTo('saltmere')).toBe(true);
+    expect(world.state()).toMatchObject({ region: 'saltmere', position: 's-camp', turn: 0 });
+    expect(world.story()?.id).toBe('story:s1-docks');
+    expect(world.contract('salt-wardens')?.title).toContain('Saltmere');
+
+    // Regions and squads survive a reload.
+    TestBed.resetTestingModule();
+    world = TestBed.inject(OverworldService);
+    expect(world.region().id).toBe('saltmere');
+    expect(world.travelTo('thornwatch')).toBe(true);
+    expect(world.state().position).toBe('trail');
+  });
 });

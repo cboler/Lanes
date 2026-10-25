@@ -3,8 +3,8 @@
     <div class="region-title">
       <span class="region-crest" aria-hidden="true">♜</span>
       <div>
-        <span class="eyebrow">THE BORDERLANDS / A MERCENARY'S TALE</span>
-        <h1 id="region-title">The Thornwatch March</h1>
+        <span class="eyebrow">{{ world.region().area }}</span>
+        <h1 id="region-title">{{ world.region().name }}</h1>
       </div>
     </div>
     <div class="region-resources">
@@ -28,12 +28,14 @@
       class="map-scroll"
       tabindex="0"
       role="region"
-      aria-label="Thornwatch expedition board. Scroll to explore the map."
+      [attr.aria-label]="world.region().short + ' expedition board. Scroll to explore the map.'"
     >
       <div class="board" [class.hopping]="moving()" [attr.aria-busy]="moving()">
         <div
           class="landscape"
-          style="background-image: url('assets/overworld/thornwatch.webp')"
+          [style.background-image]="'url(' + world.region().art + ')'"
+          [style.filter]="world.region().artFilter ?? null"
+          [style.transform]="world.region().artTransform ?? null"
           aria-hidden="true"
         ></div>
         <svg class="routes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
@@ -50,7 +52,7 @@
               <path d="M 0 0 L 10 5 L 0 10 Z" fill="#ffb29a" />
             </marker>
           </defs>
-          @for (edge of edges; track $index) {
+          @for (edge of edges(); track $index) {
             <line
               class="route-shadow"
               [attr.x1]="edge.a.x * 10"
@@ -80,11 +82,18 @@
             }
           }
         </svg>
-        <div class="place-label camp-label" aria-hidden="true">WAYFARER CAMP</div>
-        <div class="place-label keep-label" aria-hidden="true">OLD WATCHTOWER</div>
-        <div class="place-label forest-label" aria-hidden="true">Whispering Grove</div>
-        <div class="place-label lowroad-label" aria-hidden="true">The Low Road</div>
-        @for (node of nodes; track node.id) {
+        @for (label of world.region().labels; track label.text) {
+          <div
+            class="place-label"
+            [class.area-label]="label.kind === 'area'"
+            [style.left.%]="label.x"
+            [style.top.%]="label.y"
+            aria-hidden="true"
+          >
+            {{ label.text }}
+          </div>
+        }
+        @for (node of nodes(); track node.id) {
           <button
             type="button"
             class="waypoint"
@@ -185,7 +194,7 @@
       [class.under-way]="world.state().turn > 0"
       aria-label="Expedition objective"
     >
-      @if (world.campaign.next(); as mission) {
+      @if (world.story() && world.campaign.next(); as mission) {
         <button
           type="button"
           class="commission-btn"
@@ -203,20 +212,37 @@
           >
           <span aria-hidden="true">→</span>
         </button>
+      } @else if (world.campaign.next() && world.storyRegion(); as region) {
+        <button
+          type="button"
+          class="commission-btn"
+          id="travel-story-btn"
+          [disabled]="moving() || !!world.state().encounter || pendingBattle()"
+          (click)="travelTo(region.id)"
+          [attr.aria-label]="'Travel to ' + region.name + ' for the next contract'"
+        >
+          <span
+            ><strong class="commission-title">{{ world.campaign.next()!.title }}</strong
+            ><span class="commission-location">✧ Awaits in {{ region.name }} · Travel</span></span
+          >
+          <span aria-hidden="true">→</span>
+        </button>
       } @else {
         <span class="eyebrow">{{
           world.state().complete ? 'EXPEDITION COMPLETE' : 'GUILD COMMISSION'
         }}</span>
-        <h2>{{ world.state().complete ? 'A road reclaimed' : 'Reach the watchtower' }}</h2>
+        <h2>{{ world.state().complete ? 'A road reclaimed' : 'Reach ' + goal().name }}</h2>
         <p>
-          {{
-            world.state().complete
-              ? 'The guild’s 250 gold is yours. The other roads still hold their secrets.'
-              : 'Lead your company through Thornwatch. Keep an eye on the patrols.'
-          }}
+          @if (world.state().complete) {
+            The guild’s {{ world.region().goalReward }} gold is yours. The other roads still hold
+            their secrets.
+          } @else {
+            Lead your company through {{ world.region().short }}. Keep an eye on the patrols.
+          }
         </p>
         <div class="objective-reward">
-          <span>⚑ Old Watchtower</span><strong>250 <small>G</small></strong>
+          <span>⚑ {{ goal().name }}</span
+          ><strong>{{ world.region().goalReward }} <small>G</small></strong>
         </div>
       }
     </aside>
@@ -232,6 +258,18 @@
       ><span><i class="legend-red"></i> Enemy squad</span><span><b>◈</b> Treasure</span>
     </div>
     <div class="map-tools" aria-label="Field commands">
+      @if (world.regions().length > 1) {
+        <button
+          type="button"
+          class="field-tool"
+          id="regions-btn"
+          [disabled]="moving()"
+          (click)="showDialog('travel')"
+          aria-label="Travel to another region"
+        >
+          <span aria-hidden="true">🗺</span> <span class="tool-label">Travel</span>
+        </button>
+      }
       @if (world.state().complete) {
         <button
           type="button"
@@ -461,6 +499,33 @@
             </button>
           </div>
         }
+      } @else if (dialog() === 'travel') {
+        <span class="dialog-crest" aria-hidden="true">🗺</span>
+        <span class="eyebrow">THE ROAD GOES ON</span>
+        <h2 id="field-dialog-title">Travel</h2>
+        <p id="field-dialog-description">
+          Each region keeps your place, its treasure and its beaten patrols. Travel spends no turns.
+        </p>
+        <div class="region-list">
+          @for (region of world.regions(); track region.id) {
+            <button
+              type="button"
+              class="route-choice region-choice"
+              [id]="'travel-' + region.id"
+              [class.selected]="region.id === world.region().id"
+              [disabled]="region.id === world.region().id || !!world.state().encounter"
+              (click)="travelTo(region.id)"
+            >
+              <strong>{{ region.name }}</strong>
+              <small>
+                {{ region.id === world.region().id ? 'You are here' : region.area }}
+                @if (world.storyRegion()?.id === region.id) {
+                  · next contract
+                }
+              </small>
+            </button>
+          }
+        </div>
       } @else if (dialog() === 'patrol') {
         @if (inspectedEnemy(); as enemy) {
           <span class="dialog-crest enemy-crest" aria-hidden="true">♟</span>
@@ -499,11 +564,13 @@
       } @else {
         <span class="dialog-crest" aria-hidden="true">♜</span>
         <span class="eyebrow">EXPEDITION COMPLETE</span>
-        <h2 id="field-dialog-title">Thornwatch secured</h2>
+        <h2 id="field-dialog-title">{{ world.region().short }} secured</h2>
         <p id="field-dialog-description">
-          Your company reached the Old Watchtower. The guild commission is yours.
+          Your company reached {{ goal().name }}. The guild commission is yours.
         </p>
-        <p class="commission-pay" id="completion-gold">250 <small>G claimed</small></p>
+        <p class="commission-pay" id="completion-gold">
+          {{ world.region().goalReward }} <small>G claimed</small>
+        </p>
         <dl class="expedition-record">
           <div>
             <dt>Turns taken</dt>
@@ -511,11 +578,11 @@
           </div>
           <div>
             <dt>Patrols defeated</dt>
-            <dd>{{ world.state().defeated.length }} / {{ patrolCount }}</dd>
+            <dd>{{ world.state().defeated.length }} / {{ patrolCount() }}</dd>
           </div>
           <div>
             <dt>Caches recovered</dt>
-            <dd>{{ recovered().length }} / {{ cacheCount }}</dd>
+            <dd>{{ recovered().length }} / {{ cacheCount() }}</dd>
           </div>
         </dl>
         <div class="recovered-loot">
@@ -537,7 +604,7 @@
       @if (dialog() !== 'story') {
         <div class="dialog-actions">
           <button type="button" class="march-btn" id="field-return-btn" (click)="closeDialog()">
-            {{ dialog() === 'patrol' ? 'Back to the map' : 'Keep exploring' }}
+            {{ dialog() === 'complete' ? 'Keep exploring' : 'Back to the map' }}
           </button>
           @if (dialog() === 'complete') {
             <a routerLink="/guild" class="wait-btn">Guild Hall →</a>

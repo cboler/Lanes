@@ -47,7 +47,12 @@ export const test = base.extend<{ seedRoster: boolean; seedCampaign: boolean }>(
             'lanes.campaign.v1',
             JSON.stringify({
               version: 1,
-              cleared: ['north-road', 'the-ford', 'thorn-keep', 'vargr'],
+              // Every mission, so free-exploration tests see no story squad.
+              cleared: [
+                ...['north-road', 'the-ford', 'thorn-keep', 'vargr'],
+                ...['s1-docks', 's1-lighthouse', 's1-fort'],
+                ...['v2-trenches', 'v2-walls', 'v2-keep'],
+              ],
             }),
           );
       });

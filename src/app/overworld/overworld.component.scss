@@ -237,27 +237,11 @@ h1 {
     0 2px 3px #111,
     0 0 6px #111;
 }
-.camp-label {
-  left: 4%;
-  top: 64%;
-}
-.keep-label {
-  right: 18%;
-  top: 8%;
-}
-.forest-label {
-  left: 18%;
-  top: 16%;
+.area-label {
   font-style: italic;
   font-weight: 400;
   font-size: 0.95rem;
-}
-.lowroad-label {
-  left: 42%;
-  top: 83%;
-  font-style: italic;
-  font-weight: 400;
-  font-size: 1rem;
+  letter-spacing: 0.05em;
 }
 .piece-marker {
   position: absolute;

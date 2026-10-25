@@ -10,7 +10,14 @@ import type { Chapter } from './campaign.model';
  * enemy front line is near 0.68). Traps are spikes (poison) or snares (stun) and sit in
  * the middle of the field, 0.44 to 0.56, where the player must walk.
  *
- * This prologue is a first draft: it teaches the battle rules and sets up a hook.
+ * Engines: { kind: 'engine', engine: 'ballista' | 'catapult' | 'sparkcoil', lane, x, team? }.
+ * They belong to the enemy unless `team: 'player'`; anyone of their side beside one can fire it.
+ *
+ * Each chapter names its overworld region (overworld-regions.ts); a mission's route is a
+ * circuit of that region's waypoints. Regions open as the chapter before them is won.
+ *
+ * This story is a first draft: the prologue teaches the battle rules, chapters one and two
+ * follow the sealed swords to House Corvane and the siege of Vellmark.
  */
 export const CAMPAIGN: readonly Chapter[] = [
   {
@@ -220,6 +227,360 @@ export const CAMPAIGN: readonly Chapter[] = [
           },
         ],
         reward: { gold: 400, items: ['tactics', 'charm'] },
+      },
+    ],
+  },
+  {
+    id: 'saltmere',
+    title: 'Chapter One: Salt and Silver',
+    region: 'saltmere',
+    missions: [
+      {
+        id: 's1-docks',
+        route: ['s-net', 's-market', 's-net', 's-cross'],
+        title: 'The Seal on the Crates',
+        summary:
+          'Follow the sealed crates to the Saltmere docks, where Corvane wardens stand guard.',
+        band: 'Corvane Wardens',
+        level: 5,
+        enemies: [
+          { classId: 'fighter', name: 'Dren Hollow' },
+          { classId: 'gunner', name: 'Saska' },
+          { classId: 'archer', name: 'Pim' },
+          { classId: 'cleric', name: 'Brother Tamsin' },
+        ],
+        objects: [
+          { kind: 'barricade', lane: 1, x: 0.62 },
+          { kind: 'engine', engine: 'ballista', lane: 0, x: 0.9 },
+        ],
+        briefing: [
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'The seal on those crates belongs to House Corvane: merchants, they call themselves. Their ships unload at Saltmere, where nobody asks what is in a crate.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Nobody but me. My father kept the harbour until Corvane bought it out from under him. Their wardens guard the docks with a ballista now. A ballista, on a fish market.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Then we take the docks, and the ballista with them.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Mind the engine. Anyone standing beside it can fire it, theirs or yours. A bolt that size goes through everyone in its lane.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'The manifests. Swords, spears, crossbows, all bound inland. And this: "For the lighthouse, by order of Master Quellin." Quellin is Corvane’s tinker.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'What does a tinker want with a lighthouse?',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Ships have been breaking on the rocks since spring. Every one of them a rival of Corvane’s. I think we are about to find out why.',
+          },
+        ],
+        reward: { gold: 450, items: ['tactics'] },
+      },
+      {
+        id: 's1-lighthouse',
+        route: ['s-cliff', 's-light', 's-cliff', 's-dunes'],
+        title: 'The Dark Lighthouse',
+        summary:
+          'Master Quellin has wired the lighthouse to wreck ships. Shut his contraption down.',
+        band: 'Quellin’s Wreckers',
+        level: 6,
+        enemies: [
+          { classId: 'witch', name: 'Master Quellin' },
+          { classId: 'lancer', name: 'Joss' },
+          { classId: 'gunner', name: 'Ketta' },
+          { classId: 'fighter', name: 'Ruel' },
+        ],
+        objects: [
+          { kind: 'engine', engine: 'sparkcoil', lane: 1, x: 0.74 },
+          { kind: 'trap', trap: 'snare', lane: 2, x: 0.5 },
+        ],
+        briefing: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'There. The light burns green, not gold. Ships steer for it thinking it is the channel, and run onto the Teeth.',
+          },
+          {
+            speaker: 'Master Quellin',
+            portrait: 'witch',
+            text: 'Do you like my coil? Copper, brine and a little lightning. It sings when it strikes. Come closer and hear it.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Keep clear of that thing. It reaches only so far, but whatever it touches will not move for a turn.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Master Quellin',
+            portrait: 'witch',
+            text: 'You think this ends with me? I build what I am paid to build. Lady Iselde pays very well.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Iselde Corvane. The head of the house. If she wants ships wrecked and roads armed, she wants a war.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Then we find where she keeps her soldiers. Where does Corvane keep its accounts?',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'In Saltmere Fort, behind walls and a catapult. You will need an engine of your own. Leave that to me.',
+          },
+        ],
+        reward: { gold: 520, items: ['charm'] },
+      },
+      {
+        id: 's1-fort',
+        route: ['s-gate', 's-fort', 's-watch', 's-fort'],
+        title: 'Storming Saltmere Fort',
+        summary: 'Assault the fort with a stolen ballista, past a catapult and a barricade.',
+        band: 'Saltmere Garrison',
+        level: 7,
+        enemies: [
+          { classId: 'fighter', name: 'Ser Odran Vey' },
+          { classId: 'lancer', name: 'Brannoc' },
+          { classId: 'witch', name: 'Ilse Marrow' },
+          { classId: 'gunner', name: 'Corwin' },
+        ],
+        objects: [
+          { kind: 'engine', engine: 'ballista', lane: 1, x: 0.18, team: 'player' },
+          { kind: 'engine', engine: 'catapult', lane: 2, x: 0.92 },
+          { kind: 'barricade', lane: 0, x: 0.6 },
+        ],
+        briefing: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'One ballista, liberated from the docks and dragged up the cliff path by six very tired fishermen. It is yours. Put someone beside it.',
+          },
+          {
+            speaker: 'Ser Odran Vey',
+            portrait: 'fighter',
+            text: 'Sellswords at my gate. Go home. Whatever Saltmere paid you, House Corvane will pay you twice to walk away.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'We were not paid to come. That is the part your house never understands.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Their catapult can reach any lane. Do not bunch up where it is looking.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Ledgers. Thousands of crowns to a siege camp at Vellmark, in the hills. Vellmark refused Corvane’s tolls last year.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'So she starves a town for saying no. How long can Vellmark hold?',
+          },
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'Not long. The guild is raising a relief column, and it needs a company that has already bloodied Corvane’s nose. That is you, if you will take it.',
+          },
+        ],
+        reward: { gold: 650, items: ['tactics', 'charm'] },
+      },
+    ],
+  },
+  {
+    id: 'vellmark',
+    title: 'Chapter Two: The Siege of Vellmark',
+    region: 'vellmark',
+    missions: [
+      {
+        id: 'v2-trenches',
+        route: ['v-bridge', 'v-trench', 'v-bridge', 'v-mill'],
+        title: 'Through the Siege Lines',
+        summary: 'Break through Corvane’s trenches to reach the town, under catapult fire.',
+        band: 'Corvane Sappers',
+        level: 8,
+        enemies: [
+          { classId: 'lancer', name: 'Captain Garreth' },
+          { classId: 'fighter', name: 'Mott' },
+          { classId: 'archer', name: 'Wren' },
+          { classId: 'cleric', name: 'Sister Vael' },
+        ],
+        objects: [
+          { kind: 'engine', engine: 'catapult', lane: 0, x: 0.92 },
+          { kind: 'engine', engine: 'sparkcoil', lane: 2, x: 0.72 },
+          { kind: 'trap', trap: 'spikes', lane: 1, x: 0.48 },
+        ],
+        briefing: [
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'Vellmark’s walls still stand, but Corvane has dug in all around them. The relief column cannot pass the trenches with their engines firing.',
+          },
+          {
+            speaker: 'Captain Garreth',
+            portrait: 'lancer',
+            text: 'Turn back, or be buried in our trench. My lady pays for every head we take, and yours will be worth the most.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Silence the catapult first. Everyone else, stay out of that coil’s reach until it is ours to ignore.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'The column is through. Bread and arrows for Vellmark, and a gap in Corvane’s line. She will not forgive it.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Good. An angry general makes mistakes. Where will she strike?',
+          },
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'The walls, tonight, with everything she has. Vellmark has two ballistae and nobody left who can aim them.',
+          },
+        ],
+        reward: { gold: 720, items: ['tactics'] },
+      },
+      {
+        id: 'v2-walls',
+        route: ['v-batteries', 'v-wall', 'v-batteries', 'v-trench'],
+        title: 'Hold the Walls',
+        summary: 'Man Vellmark’s two ballistae against Corvane’s night assault.',
+        band: 'Iron Pike Assault',
+        level: 9,
+        enemies: [
+          { classId: 'fighter', name: 'Brann Ironside' },
+          { classId: 'lancer', name: 'Kesh' },
+          { classId: 'witch', name: 'Morwen' },
+          { classId: 'gunner', name: 'Dace' },
+        ],
+        objects: [
+          { kind: 'engine', engine: 'ballista', lane: 0, x: 0.16, team: 'player' },
+          { kind: 'engine', engine: 'ballista', lane: 2, x: 0.16, team: 'player' },
+          { kind: 'engine', engine: 'catapult', lane: 1, x: 0.92 },
+        ],
+        briefing: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'I could not let you have all the fun. I have seen your crews work an engine; let me show the town’s gunners how.',
+          },
+          {
+            speaker: 'Brann Ironside',
+            portrait: 'fighter',
+            text: 'Open the gate, Vellmark, and we spare the children. Make us break it, and we spare nobody.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'Two bolts, two lanes. Keep someone beside each one, and let them come to us.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'They broke. Ironside is running for the keep road. The keep, the old one above the town, flies Corvane’s colours.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'She has been here all along, watching from the high ground.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Then we go up and end it. We captured one of their catapults in the rout. It is yours, if you can haul it up the hill.',
+          },
+        ],
+        reward: { gold: 820, items: ['charm'] },
+      },
+      {
+        id: 'v2-keep',
+        route: ['v-gatehouse', 'v-keep', 'v-tower', 'v-keep'],
+        title: 'The Iron Lady',
+        summary: 'Storm Vellmark Keep and face Lady Iselde Corvane herself.',
+        band: 'House Corvane',
+        level: 10,
+        enemies: [
+          { classId: 'witch', name: 'Lady Iselde' },
+          { classId: 'fighter', name: 'Ser Aldous' },
+          { classId: 'cleric', name: 'Mother Ysolde' },
+          { classId: 'gunner', name: 'Tavish' },
+        ],
+        objects: [
+          { kind: 'engine', engine: 'catapult', lane: 1, x: 0.12, team: 'player' },
+          { kind: 'engine', engine: 'sparkcoil', lane: 1, x: 0.8 },
+          { kind: 'engine', engine: 'ballista', lane: 0, x: 0.9 },
+          { kind: 'barricade', lane: 2, x: 0.62 },
+        ],
+        briefing: [
+          {
+            speaker: 'Lady Iselde',
+            portrait: 'witch',
+            text: 'The guild’s little company. You have cost me a harbour, a fort and a siege. Do you know what a war is worth, mercenary? I was about to find out.',
+          },
+          {
+            speaker: '{leader}',
+            portrait: 'leader',
+            text: 'We know what it costs. We have been paying it since the North Road.',
+          },
+          {
+            speaker: 'Lady Iselde',
+            portrait: 'witch',
+            text: 'Then pay the rest.',
+          },
+        ],
+        debrief: [
+          {
+            speaker: 'Lady Iselde',
+            portrait: 'witch',
+            text: 'You think I was the buyer? I was a merchant, nothing more. Someone across the sea wanted these hills hungry and armed. Look at the last ledger.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Paid in coin I have never seen. A crown on one side, a closed eye on the other.',
+          },
+          {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'Vellmark is free and Corvane is broken. The guild has a name for you now, {leader}, and kings will learn it. Rest. When that coin turns up again, we will need you.',
+          },
+        ],
+        reward: { gold: 1000, items: ['tactics', 'tactics', 'charm'] },
       },
     ],
   },
