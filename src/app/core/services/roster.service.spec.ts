@@ -293,4 +293,32 @@ describe('RosterService', () => {
     expect(again.bondPoints(a.id, b.id)).toBe(0);
     expect(again.bondPoints(a.id, c.id)).toBe(16);
   });
+
+  it('buys, equips, reforges and sells equipment, and keeps it through a reload', () => {
+    const service = TestBed.inject(RosterService);
+    const fighter = service.mercenaries().find((m) => m.classId === 'fighter')!;
+    // Tier 2 opens at squad level 4.
+    expect(service.buyEquipment('sword-2')).toBe(false);
+    expect(service.buyEquipment('sword-1')).toBe(true);
+    expect(service.buyEquipment('copper-ring')).toBe(true);
+    expect(service.gold()).toBe(STARTING_GOLD - 120 - 150);
+    const [sword, ring] = service.armory();
+    // A longbow-only archer cannot hold a sword.
+    const archer = service.mercenaries().find((m) => m.classId === 'archer')!;
+    expect(service.equip(archer.id, sword.uid)).toBe(false);
+    expect(service.equip(fighter.id, sword.uid)).toBe(true);
+    expect(service.armory().map((p) => p.uid)).toEqual([ring.uid]);
+    expect(service.reforge(sword.uid)).toBe(true);
+    expect(service.mercenaries().find((m) => m.id === fighter.id)!.equipment?.weapon?.plus).toBe(1);
+    expect(service.sellPiece(sword.uid)).toBe(false);
+    expect(service.sellPiece(ring.uid)).toBe(true);
+    TestBed.resetTestingModule();
+    const again = TestBed.inject(RosterService);
+    expect(again.mercenaries().find((m) => m.id === fighter.id)!.equipment?.weapon).toEqual({
+      ...sword,
+      plus: 1,
+    });
+    expect(again.unequip(fighter.id, 'weapon')).toBe(true);
+    expect(again.armory()).toHaveLength(1);
+  });
 });

@@ -1,4 +1,5 @@
 import { UnitBaseStats } from './stats.model';
+import { Equipped, applyEquipment, parseEquipped } from './equipment.model';
 import { ALL_CLASSES, UnitClassDefinition, getClassDefinition } from './unit-class.model';
 import {
   PatternStep,
@@ -52,6 +53,8 @@ export interface Mercenary {
   pattern: PatternStep[];
   /** Equipped support skills, paid for with SP. */
   supports: string[];
+  /** Weapon, armour and accessory; saves from before equipment have none. */
+  equipment?: Equipped;
   aptitudes: Aptitudes;
   stats: MercenaryStats;
 }
@@ -206,7 +209,7 @@ export function deriveCombatStats(cls: UnitClassDefinition, merc: Mercenary): Un
     magicDefense: scaled(base.magicDefense, stats.spi),
     meleeRange: base.meleeRange,
   };
-  return applySupports(derived, merc.supports);
+  return applySupports(applyEquipment(derived, merc.equipment), merc.supports);
 }
 
 /** Validate untrusted (saved) input and return a sanitized copy, or null. */
@@ -269,6 +272,7 @@ export function parseMercenary(value: unknown): Mercenary | null {
       : parsePattern(merc.classId, merc.pattern);
   if (!pattern) return null;
   const supports = fitSupports(merc.supports, merc.level!, stats.sp);
+  const equipment = parseEquipped(merc.equipment, merc.classId);
   return {
     id: merc.id,
     name: merc.name,
@@ -279,6 +283,7 @@ export function parseMercenary(value: unknown): Mercenary | null {
     invested,
     pattern,
     supports,
+    ...(Object.keys(equipment).length ? { equipment } : {}),
     aptitudes,
     stats,
   };

@@ -203,7 +203,8 @@
 }
 .skills-panel,
 .items-panel,
-.bonds-panel {
+.bonds-panel,
+.gear-panel {
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--space-2);
 
@@ -340,4 +341,30 @@
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #b8487a, #ffb3d1);
+}
+
+.gear-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: var(--space-1) 0;
+  font-size: var(--font-size-xs);
+
+  > span:not(.gear-slot-name) {
+    display: grid;
+    flex: 1;
+  }
+
+  small {
+    color: var(--text-secondary);
+  }
+}
+
+.gear-slot-name {
+  min-width: 64px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-gold-antique);
 }

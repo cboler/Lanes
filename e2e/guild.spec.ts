@@ -67,3 +67,24 @@ test('a hard contract raises a barricade and sets two traps', async ({ page }, t
   await expect(page.locator('.troop-banner.enemy .pip')).toHaveCount(4);
   await expect(page.locator('.turn-token.enemy')).toHaveCount(4);
 });
+
+test('buys a sword in the armoury, equips it on the roster, and reforges it', async ({ page }) => {
+  await page.goto('/guild');
+  await expect(page.locator('#buy-sword-2')).toHaveCount(0);
+  await page.locator('#buy-sword-1').click();
+  await expect(page.locator('#guild-gold')).toHaveText('380');
+  await expect(page.locator('.forge-row')).toContainText('Iron Sword');
+  await page.screenshot({ path: `tmp/armoury-${test.info().project.name}.png`, fullPage: true });
+
+  await page.goto('/roster');
+  const aldric = page.locator('.merc-card').filter({ hasText: 'Aldric' });
+  await aldric.locator('.gear-panel summary').click();
+  await aldric.getByRole('button', { name: 'Equip Iron Sword on Aldric' }).click();
+  await expect(aldric.locator('.gear-panel summary')).toContainText('1/3');
+
+  await page.goto('/guild');
+  await expect(page.locator('.forge-row')).toContainText('worn by Aldric');
+  await page.getByRole('button', { name: /^Reforge Iron Sword for 60 gold/ }).click();
+  await expect(page.locator('.forge-row')).toContainText('Iron Sword +1');
+  await expect(page.locator('#guild-gold')).toHaveText('320');
+});

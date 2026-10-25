@@ -110,6 +110,86 @@
     </div>
   </section>
 
+  <section class="guild-store armoury" aria-labelledby="armoury-title">
+    <h2 id="armoury-title">Armoury</h2>
+    <p>
+      Weapons, armour and accessories. Better tiers open as your squad grows (squad level
+      {{ roster.squadLevel() }}). Equip pieces from a mercenary's card on the Roster.
+    </p>
+    <div class="store-grid">
+      @for (item of armouryItems(); track item.id) {
+        <article class="store-item" [class.locked]="!unlocked(item)">
+          <h3>{{ item.name }}</h3>
+          <p>{{ slotName[item.slot] }} · {{ wearers(item) }}</p>
+          <p class="owned">{{ describeBonus(item.bonus) }}</p>
+          @if (unlocked(item)) {
+            <button
+              type="button"
+              class="tactical-btn primary"
+              [id]="'buy-' + item.id"
+              [disabled]="roster.gold() < item.price"
+              [attr.aria-label]="'Buy ' + item.name + ' for ' + item.price + ' gold'"
+              (click)="roster.buyEquipment(item.id)"
+            >
+              Buy · {{ item.price }} gold
+            </button>
+          } @else {
+            <p class="locked-note">Opens at squad level {{ tierLevel[item.tier] }}</p>
+          }
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="guild-store forge" aria-labelledby="forge-title">
+    <h2 id="forge-title">Forge</h2>
+    <p>
+      Reforge a piece to make it stronger, up to +{{ maxPlus }}: each step adds a fifth of its
+      bonuses again. Pieces nobody wears can be sold for part of what they cost.
+    </p>
+    <ul class="forge-list">
+      @for (owned of roster.pieces(); track owned.piece.uid) {
+        <li class="forge-row">
+          <span
+            ><strong>{{ pieceName(owned.piece) }}</strong>
+            <small
+              >{{ describeBonus(pieceBonus(owned.piece)) }} ·
+              {{ owned.wearer ? 'worn by ' + owned.wearer.name : 'in the armoury' }}</small
+            ></span
+          >
+          @if (reforgeCost(owned.piece); as cost) {
+            <button
+              type="button"
+              class="tactical-btn secondary"
+              [id]="'reforge-' + owned.piece.uid"
+              [disabled]="roster.gold() < cost"
+              [attr.aria-label]="'Reforge ' + pieceName(owned.piece) + ' for ' + cost + ' gold'"
+              (click)="roster.reforge(owned.piece.uid)"
+            >
+              Reforge · {{ cost }} gold
+            </button>
+          } @else {
+            <small class="locked-note">Fully reforged</small>
+          }
+          @if (!owned.wearer) {
+            <button
+              type="button"
+              class="tactical-btn secondary"
+              [attr.aria-label]="
+                'Sell ' + pieceName(owned.piece) + ' for ' + sellValue(owned.piece) + ' gold'
+              "
+              (click)="roster.sellPiece(owned.piece.uid)"
+            >
+              Sell · {{ sellValue(owned.piece) }}
+            </button>
+          }
+        </li>
+      } @empty {
+        <li class="forge-row"><small>No equipment yet. Buy some in the armoury.</small></li>
+      }
+    </ul>
+  </section>
+
   <section class="contract-board" aria-labelledby="board-title">
     <div class="board-header">
       <h2 id="board-title">Contract board</h2>

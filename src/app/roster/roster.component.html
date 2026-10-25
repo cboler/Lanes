@@ -148,6 +148,40 @@
             }
           </div>
         </details>
+        <details class="gear-panel">
+          <summary>Equipment · {{ gearCount(merc) }}/3</summary>
+          @for (slot of slots; track slot) {
+            <div class="gear-slot">
+              <span class="gear-slot-name">{{ slotName[slot] }}</span>
+              @if (merc.equipment?.[slot]; as piece) {
+                <span
+                  ><strong>{{ pieceName(piece) }}</strong>
+                  <small>{{ describeBonus(pieceBonus(piece)) }}</small></span
+                >
+                <button
+                  type="button"
+                  class="support-btn"
+                  [attr.aria-label]="'Unequip ' + pieceName(piece) + ' from ' + merc.name"
+                  (click)="roster.unequip(merc.id, slot)"
+                >
+                  Remove
+                </button>
+              } @else {
+                <small class="items-note">Empty</small>
+              }
+            </div>
+            @for (piece of spareFor(merc, slot); track piece.uid) {
+              <button
+                type="button"
+                class="support-btn wide"
+                [attr.aria-label]="'Equip ' + pieceName(piece) + ' on ' + merc.name"
+                (click)="roster.equip(merc.id, piece.uid)"
+              >
+                Equip {{ pieceName(piece) }} · {{ describeBonus(pieceBonus(piece)) }}
+              </button>
+            }
+          }
+        </details>
         <details class="bonds-panel">
           <summary>Bonds · {{ bondsOf(merc).length }}</summary>
           @for (bond of bondsOf(merc); track bond.name) {

@@ -10,6 +10,15 @@ import {
 import { ItemId, SCRIBE_COST, grimoireSkill } from '../core/models/item.model';
 import { BOND_RANKS, bondRank, nextBondRank } from '../core/models/bond.model';
 import {
+  Piece,
+  Slot,
+  canWear,
+  describeBonus,
+  equipment,
+  pieceBonus,
+  pieceName,
+} from '../core/models/equipment.model';
+import {
   APTITUDE_RATIO,
   LEVEL_CAP,
   REFRESH_COST,
@@ -49,6 +58,23 @@ export class RosterComponent {
 
   protected readonly supportSkills = SUPPORT_SKILLS;
   protected readonly scribeCost = SCRIBE_COST;
+  protected readonly slots: Slot[] = ['weapon', 'armor', 'accessory'];
+  protected readonly slotName = { weapon: 'Weapon', armor: 'Armour', accessory: 'Accessory' };
+  protected readonly pieceName = pieceName;
+  protected readonly pieceBonus = pieceBonus;
+  protected readonly describeBonus = describeBonus;
+
+  protected gearCount(merc: Mercenary): number {
+    return Object.values(merc.equipment ?? {}).filter(Boolean).length;
+  }
+
+  /** Unworn pieces in the armoury this mercenary could wear in a slot. */
+  protected spareFor(merc: Mercenary, slot: Slot): Piece[] {
+    return this.roster.armory().filter((piece) => {
+      const item = equipment(piece.base);
+      return !!item && item.slot === slot && canWear(merc.classId, item);
+    });
+  }
 
   /** This mercenary's bonds with the rest of the roster, strongest first. */
   protected bondsOf(

@@ -25,6 +25,16 @@ import { getClassDefinition } from '../models/unit-class.model';
 import { canEquipSupport, patternSkill } from '../models/skills.model';
 import { Bonds, applyBondGains, bondGains, bondKey, parseBonds } from '../models/bond.model';
 import {
+  Piece,
+  Slot,
+  TIER_LEVEL,
+  canWear,
+  equipment,
+  parsePiece,
+  reforgeCost,
+  sellValue,
+} from '../models/equipment.model';
+import {
   Inventory,
   ItemId,
   SCRIBE_COST,
@@ -52,6 +62,8 @@ interface SavedRoster {
   items?: Inventory;
   /** Squad bond points by pair; saves from before bonds have none. */
   bonds?: Bonds;
+  /** Equipment not worn by anyone; saves from before equipment have none. */
+  armory?: Piece[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -66,6 +78,14 @@ export class RosterService {
   public readonly recruits = signal<Mercenary[]>([]);
   public readonly items = signal<Inventory>({});
   public readonly bonds = signal<Bonds>({});
+  public readonly armory = signal<Piece[]>([]);
+  /** The squad's average level, which opens the armoury's better tiers. */
+  public readonly squadLevel = computed(() => {
+    const squad = this.squad();
+    return squad.length
+      ? Math.max(1, Math.round(squad.reduce((sum, m) => sum + m.level, 0) / squad.length))
+      : 1;
+  });
   /** Rewards already paid this session, by battle report id, so a battle pays once. */
   private readonly paid = new Map<string, BattleRewards>();
 
@@ -84,6 +104,7 @@ export class RosterService {
     this.recruits.set(saved.recruits);
     this.items.set(saved.items ?? {});
     this.bonds.set(saved.bonds ?? {});
+    this.armory.set(saved.armory ?? []);
     if (!this.warning()) this.persist();
   }
 
@@ -136,6 +157,9 @@ export class RosterService {
     if (roster.length <= 1 || !roster.some((m) => m.id === id)) return false;
     const remaining = roster.filter((m) => m.id !== id);
     const squad = this.squadIds().filter((other) => other !== id);
+    // Their gear stays with the company.
+    const gear = Object.values(roster.find((m) => m.id === id)!.equipment ?? {});
+    this.armory.update((list) => [...list, ...gear.filter((piece): piece is Piece => !!piece)]);
     this.mercenaries.set(remaining);
     this.squadIds.set(squad.length ? squad : [remaining[0].id]);
     // Bonds end with the mercenary.
@@ -145,6 +169,82 @@ export class RosterService {
         remaining.map((m) => m.id),
       ),
     );
+    this.persist();
+    return true;
+  }
+
+  /** Buys a piece from the guild armoury, if its tier is open and the purse allows. */
+  public buyEquipment(id: string): boolean {
+    const item = equipment(id);
+    if (!item || TIER_LEVEL[item.tier] > this.squadLevel() || this.gold() < item.price) {
+      return false;
+    }
+    this.gold.update((gold) => gold - item.price);
+    const uid = `piece_${Math.floor(this.random() * 0xffffffff).toString(36)}${Date.now().toString(36)}`;
+    this.armory.update((list) => [...list, { uid, base: id, plus: 0 }]);
+    this.persist();
+    return true;
+  }
+
+  /** Puts a piece from the armoury on a mercenary; whatever it replaces goes back. */
+  public equip(mercId: string, uid: string): boolean {
+    const merc = this.mercenaries().find((m) => m.id === mercId);
+    const piece = this.armory().find((p) => p.uid === uid);
+    const item = piece && equipment(piece.base);
+    if (!merc || !piece || !item || !canWear(merc.classId, item)) return false;
+    const previous = merc.equipment?.[item.slot];
+    this.replace({ ...merc, equipment: { ...merc.equipment, [item.slot]: piece } });
+    this.armory.update((list) => [
+      ...list.filter((p) => p.uid !== uid),
+      ...(previous ? [previous] : []),
+    ]);
+    this.persist();
+    return true;
+  }
+
+  public unequip(mercId: string, slot: Slot): boolean {
+    const merc = this.mercenaries().find((m) => m.id === mercId);
+    const piece = merc?.equipment?.[slot];
+    if (!merc || !piece) return false;
+    const rest = { ...merc.equipment };
+    delete rest[slot];
+    this.replace({ ...merc, equipment: rest });
+    this.armory.update((list) => [...list, piece]);
+    this.persist();
+    return true;
+  }
+
+  /** Every owned piece, with who wears it (if anyone). */
+  public readonly pieces = computed(() => [
+    ...this.mercenaries().flatMap((merc) =>
+      Object.values(merc.equipment ?? {}).map((piece) => ({ piece: piece!, wearer: merc })),
+    ),
+    ...this.armory().map((piece) => ({ piece, wearer: null as Mercenary | null })),
+  ]);
+
+  /** Reforges a piece one step, wherever it is. */
+  public reforge(uid: string): boolean {
+    const owned = this.pieces().find((entry) => entry.piece.uid === uid);
+    const cost = owned && reforgeCost(owned.piece);
+    if (!owned || cost === null || cost === undefined || this.gold() < cost) return false;
+    const better = { ...owned.piece, plus: owned.piece.plus + 1 };
+    this.gold.update((gold) => gold - cost);
+    if (owned.wearer) {
+      const slot = equipment(better.base)!.slot;
+      this.replace({ ...owned.wearer, equipment: { ...owned.wearer.equipment, [slot]: better } });
+    } else {
+      this.armory.update((list) => list.map((p) => (p.uid === uid ? better : p)));
+    }
+    this.persist();
+    return true;
+  }
+
+  /** Sells a piece from the armoury (not one being worn). */
+  public sellPiece(uid: string): boolean {
+    const piece = this.armory().find((p) => p.uid === uid);
+    if (!piece) return false;
+    this.gold.update((gold) => gold + sellValue(piece));
+    this.armory.update((list) => list.filter((p) => p.uid !== uid));
     this.persist();
     return true;
   }
@@ -362,6 +462,9 @@ export class RosterService {
           raw.bonds,
           mercenaries.map((m) => m.id),
         ),
+        armory: (Array.isArray(raw.armory) ? raw.armory : [])
+          .map(parsePiece)
+          .filter((piece): piece is Piece => !!piece),
       };
     } catch {
       this.warning.set('Saved roster could not be loaded; a new roster was created.');
@@ -389,6 +492,7 @@ export class RosterService {
       recruits: this.recruits(),
       items: this.items(),
       bonds: this.bonds(),
+      armory: this.armory(),
     };
     try {
       const storage = this.document.defaultView?.localStorage;
