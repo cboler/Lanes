@@ -813,3 +813,71 @@ describe('BattleStateService', () => {
     expect(unitF.hasEffect('attack-up')).toBe(true);
   });
 });
+
+describe('BattleStateService siege engines', () => {
+  let service: BattleStateService;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    service = new BattleStateService();
+  });
+  afterEach(() => {
+    service.suspend();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  const withEngines = () => ({
+    ...generateContract('normal', 2, seededRandom(31)),
+    objects: [
+      {
+        kind: 'engine' as const,
+        engine: 'ballista' as const,
+        lane: 1,
+        x: 0.2,
+        team: 'player' as const,
+      },
+      { kind: 'engine' as const, engine: 'catapult' as const, lane: 0, x: 0.9 },
+    ],
+  });
+
+  it('lets a crew member beside an allied engine fire it, paying the AP', () => {
+    service.timingEnabled.set(false);
+    service.deployContract(withEngines(), [defender]);
+    const crew = service.playerUnits().find((u) => !u.isObject)!;
+    const ballista = service.units().find((u) => u.classDef.id === 'ballista')!;
+    expect(ballista.team).toBe('player');
+    service.activeUnitId.set(crew.id);
+    crew.lane = 1;
+    crew.positionX = 0.3;
+    service.units.update((list) => [...list]);
+    expect(service.engineAbilities().map((e) => e.ability.id)).toEqual(['ballista_bolt']);
+    for (const foe of service.enemyUnits()) foe.lane = 1;
+    service.units.update((list) => [...list]);
+    service.selectAbility('ballista_bolt');
+    expect(service.abilitySource()).toBe(ballista);
+    const before = service.enemyUnits().map((u) => u.currentHp);
+    expect(service.commitSelectedAbility()).toBe(true);
+    expect(crew.actionGauge.current).toBe(60);
+    expect(service.lastAction()?.attackerId).toBe(ballista.id);
+    // The bolt pierces every foe in the lane.
+    service.enemyUnits().forEach((u, i) => expect(u.currentHp).toBeLessThan(before[i]));
+  });
+
+  it('crews its own engines on the enemy side too', () => {
+    const squad = generateStarterRoster(seededRandom(8)).slice(0, 3);
+    service.deployContract(withEngines(), squad);
+    // The squad bunches up in the far lane, where only a lobbed stone reaches all three.
+    service.playerUnits().forEach((unit, i) => {
+      unit.lane = 2;
+      unit.positionX = 0.1 + 0.1 * i;
+    });
+    const catapult = service.units().find((u) => u.classDef.id === 'catapult')!;
+    const gunner = service.enemyUnits()[1];
+    gunner.lane = catapult.lane;
+    gunner.positionX = catapult.positionX - 0.1;
+    service.activeUnitId.set(gunner.id);
+    service.resume();
+    vi.advanceTimersByTime(4000);
+    expect(service.combatLogs().join(' ')).toContain('works the Catapult');
+  });
+});

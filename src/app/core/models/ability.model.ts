@@ -45,4 +45,8 @@ export interface AbilityDefinition {
   readonly knockback?: number;
   /** Sets down a barricade or trap instead of striking anyone (target 'self', power 0). */
   readonly place?: PlacedObject;
+  /** 'lane': the blow lands on every enemy in the chosen target's lane. */
+  readonly splash?: 'lane';
+  /** How far along the lane it reaches, as a share of the field (unlimited when unset). */
+  readonly range?: number;
 }

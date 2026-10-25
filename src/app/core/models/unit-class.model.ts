@@ -15,6 +15,8 @@ export interface UnitClassDefinition {
   readonly portraitUrl: string;
   /** A battlefield object, not a fighter: it never takes a turn and does not count toward victory. */
   readonly object?: true;
+  /** A siege engine: a unit of its side standing beside it can fire its ability. */
+  readonly engine?: true;
 }
 
 /**
@@ -44,6 +46,101 @@ export const BARRICADE_CLASS: UnitClassDefinition = {
   advancedAbilities: [],
   portraitUrl: 'assets/units/fighter.jpg',
   object: true,
+};
+
+export type EngineKind = 'ballista' | 'catapult' | 'sparkcoil';
+
+/** A siege engine's sheet at level 1; engineStats() scales it with the battle's level. */
+function engine(
+  id: EngineKind,
+  name: string,
+  description: string,
+  stats: Partial<UnitClassDefinition['baseStats']>,
+  ability: AbilityDefinition,
+): UnitClassDefinition {
+  return {
+    id,
+    name,
+    description,
+    role: 'support',
+    archetype: 'specialist',
+    baseStats: {
+      maxHp: 160,
+      attack: 0,
+      defense: 25,
+      speed: 0,
+      agility: 0,
+      vitality: 0,
+      technique: 0,
+      magicAttack: 0,
+      magicDefense: 25,
+      meleeRange: 0,
+      ...stats,
+    },
+    abilities: [ability],
+    advancedAbilities: [],
+    portraitUrl: 'assets/units/gunner.jpg',
+    object: true,
+    engine: true,
+  };
+}
+
+/**
+ * Siege engines (spec 1.1.5): scripted battles field them, never defense plans. Any unit
+ * of the engine's side within reach of it, in its lane, can spend AP to fire it; the
+ * engine's own stats decide the blow.
+ */
+export const ENGINE_CLASSES: Record<EngineKind, UnitClassDefinition> = {
+  ballista: engine(
+    'ballista',
+    'Ballista',
+    'A giant crossbow on a frame. Its bolt pierces every foe down its lane.',
+    { maxHp: 170, attack: 70, defense: 30 },
+    {
+      id: 'ballista_bolt',
+      name: 'Ballista Bolt',
+      description: 'A spear-length bolt down the engine’s lane: it strikes every foe in that lane.',
+      actionCost: 40,
+      damageType: 'physical',
+      powerMultiplier: 1.3,
+      target: 'same-lane-enemies',
+    },
+  ),
+  catapult: engine(
+    'catapult',
+    'Catapult',
+    'A throwing arm that lobs stones over the line onto any lane.',
+    { maxHp: 190, attack: 64, defense: 25 },
+    {
+      id: 'catapult_stone',
+      name: 'Catapult Stone',
+      description: 'Lob a stone at any foe: it crashes down on every foe in that lane.',
+      actionCost: 50,
+      damageType: 'physical',
+      powerMultiplier: 1.1,
+      target: 'single-enemy-any-lane',
+      crossLane: true,
+      splash: 'lane',
+    },
+  ),
+  sparkcoil: engine(
+    'sparkcoil',
+    'Sparkcoil',
+    'A tinker’s contraption of copper coils that lashes out with lightning.',
+    { maxHp: 140, magicAttack: 60, magicDefense: 40 },
+    {
+      id: 'sparkcoil_shock',
+      name: 'Sparkcoil Shock',
+      description:
+        'Lightning lashes every foe near the coil in its lane, stunning them for a turn.',
+      actionCost: 35,
+      damageType: 'magical',
+      powerMultiplier: 0.7,
+      target: 'same-lane-enemies',
+      range: 0.35,
+      status: { type: 'stun', duration: 1, potency: 0 },
+    },
+  ),
 };
 
 export const FIGHTER_CLASS: UnitClassDefinition = {

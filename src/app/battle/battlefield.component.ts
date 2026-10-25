@@ -604,9 +604,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       case '2':
       case '3':
       case '4':
-      case '5': {
-        const ability = active.abilities[Number(event.key) - 1];
-        if (ability) this.onSelectAbility(ability);
+      case '5':
+      case '6':
+      case '7': {
+        // Own skills first, then any engine beside the unit.
+        const entry = this.battle.usableAbilities(active)[Number(event.key) - 1];
+        if (entry) this.onSelectAbility(entry.ability);
         break;
       }
       case ' ':
@@ -768,8 +771,8 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   /** A melee skill with nobody in reach: the player has to walk closer first. */
   protected outOfReach(ability: AbilityDefinition): boolean {
-    const active = this.battle.activeUnit();
-    return !!active && needsReach(active, ability) && this.battle.validTargets().length === 0;
+    const source = this.battle.abilitySource();
+    return !!source && needsReach(source, ability) && this.battle.validTargets().length === 0;
   }
 
   protected trapsInLane(lane: number): FieldTrap[] {
@@ -804,12 +807,12 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
    * (after Guard), "KO" when that fells it, or the HP it heals. Nothing for pure buffs.
    */
   protected preview(unit: UnitInstance): { text: string; heal: boolean; ko: boolean } | null {
-    const active = this.battle.activeUnit();
+    const source = this.battle.abilitySource();
     const ability = this.battle.selectedAbility();
-    if (!active || !ability || ability.powerMultiplier === 0 || !this.isTargetable(unit)) {
+    if (!source || !ability || ability.powerMultiplier === 0 || !this.isTargetable(unit)) {
       return null;
     }
-    const amount = DamageCalculator.calculateWithDefense(active, unit, ability);
+    const amount = DamageCalculator.calculateWithDefense(source, unit, ability);
     if (ability.damageType === 'healing') {
       return { text: `+${Math.min(amount, unit.maxHp - unit.currentHp)}`, heal: true, ko: false };
     }
@@ -866,9 +869,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
 
   private cycleAbility(direction: number): void {
     const unit = this.battle.activeUnit()!;
-    const choices = unit.abilities.filter(
-      (ability) => ability.actionCost <= unit.actionGauge.current,
-    );
+    const choices = this.battle
+      .usableAbilities(unit)
+      .map((entry) => entry.ability)
+      .filter((ability) => ability.actionCost <= unit.actionGauge.current);
     if (!choices.length) return;
     const index = choices.findIndex((ability) => ability.id === this.battle.selectedAbilityId());
     const next =

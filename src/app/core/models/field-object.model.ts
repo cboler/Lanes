@@ -2,7 +2,7 @@ import { AbilityStatus, PlacedObject } from './ability.model';
 import { COLLISION_BUFFER, FIELD_MAX_X, FIELD_MIN_X } from '../engine/field';
 import { StatusEffectInstance, StatusEffectType } from './status-effect.model';
 import { UnitBaseStats } from './stats.model';
-import { BARRICADE_CLASS } from './unit-class.model';
+import { BARRICADE_CLASS, ENGINE_CLASSES, EngineKind } from './unit-class.model';
 import { Team, UnitInstance } from './unit-instance.model';
 
 /*
@@ -16,7 +16,45 @@ export type TrapKind = 'spikes' | 'snare';
 /** Where a band places an object, as saved with its contract. */
 export type FieldObjectSpec =
   | { readonly kind: 'barricade'; readonly lane: number; readonly x: number }
-  | { readonly kind: 'trap'; readonly trap: TrapKind; readonly lane: number; readonly x: number };
+  | { readonly kind: 'trap'; readonly trap: TrapKind; readonly lane: number; readonly x: number }
+  | {
+      readonly kind: 'engine';
+      readonly engine: EngineKind;
+      readonly lane: number;
+      readonly x: number;
+      /** Whose engine it is; the enemy's unless a story gives the player one. */
+      readonly team?: Team;
+    };
+
+/** How close along its lane a unit must stand to a friendly engine to fire it. */
+export const CREW_REACH = 0.14;
+
+/** A siege engine's sheet at a battle's level: tougher and harder-hitting as levels rise. */
+export function engineStats(kind: EngineKind, level: number): UnitBaseStats {
+  const base = ENGINE_CLASSES[kind].baseStats;
+  const grow = (value: number, per: number) => (value ? value + per * (level - 1) : 0);
+  return {
+    ...base,
+    maxHp: base.maxHp + 30 * (level - 1),
+    attack: grow(base.attack, 6),
+    magicAttack: grow(base.magicAttack, 6),
+    defense: base.defense + 3 * (level - 1),
+    magicDefense: base.magicDefense + 3 * (level - 1),
+  };
+}
+
+/** The standing engines of `unit`'s side it is close enough to fire. */
+export function enginesBeside(unit: UnitInstance, units: readonly UnitInstance[]): UnitInstance[] {
+  if (unit.isObject) return [];
+  return units.filter(
+    (other) =>
+      other.classDef.engine &&
+      other.isAlive &&
+      other.team === unit.team &&
+      other.lane === unit.lane &&
+      Math.abs(other.positionX - unit.positionX) <= CREW_REACH + 1e-9,
+  );
+}
 
 /** A live trap on the field. It belongs to the side that set it and springs on the other. */
 export interface FieldTrap {
@@ -133,7 +171,14 @@ export function placementSpot(
 /** Validates a saved object placement, or null. */
 export function parseObjectSpec(value: unknown): FieldObjectSpec | null {
   if (!value || typeof value !== 'object') return null;
-  const raw = value as { kind?: unknown; trap?: unknown; lane?: unknown; x?: unknown };
+  const raw = value as {
+    kind?: unknown;
+    trap?: unknown;
+    engine?: unknown;
+    team?: unknown;
+    lane?: unknown;
+    x?: unknown;
+  };
   if (
     !Number.isInteger(raw.lane) ||
     (raw.lane as number) < 0 ||
@@ -147,6 +192,10 @@ export function parseObjectSpec(value: unknown): FieldObjectSpec | null {
   if (raw.kind === 'barricade') return { kind: 'barricade', lane, x: raw.x };
   if (raw.kind === 'trap' && (raw.trap === 'spikes' || raw.trap === 'snare')) {
     return { kind: 'trap', trap: raw.trap, lane, x: raw.x };
+  }
+  if (raw.kind === 'engine' && typeof raw.engine === 'string' && raw.engine in ENGINE_CLASSES) {
+    const team = raw.team === 'player' ? 'player' : 'enemy';
+    return { kind: 'engine', engine: raw.engine as EngineKind, lane, x: raw.x, team };
   }
   return null;
 }

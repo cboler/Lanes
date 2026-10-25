@@ -993,6 +993,11 @@
   }
 }
 
+.skill-btn.engine-skill {
+  border-color: #c08a3e;
+  background: linear-gradient(180deg, rgba(92, 60, 24, 0.95), rgba(36, 24, 10, 0.95));
+}
+
 .hotkey-badge {
   display: grid;
   width: 20px;

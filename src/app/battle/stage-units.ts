@@ -6,7 +6,9 @@ import {
   type CharacterKit,
 } from './stage-characters';
 import type { Effects } from './stage-effects';
-import { createBarricade } from './stage-objects';
+import { createBarricade, createEngine } from './stage-objects';
+
+const ENGINE_IDS = ['ballista', 'catapult', 'sparkcoil'];
 import { HEAD_HEIGHT, laneZ, worldX } from './stage-layout';
 import type { Particles } from './stage-particles';
 import type { StageContext, StageUnit } from './stage-types';
@@ -65,11 +67,13 @@ export async function createUnits(
   );
 
   const create = (unit: StageUnit): UnitView => {
-    // A barricade is built from primitives; everyone else is a rigged model.
+    // Objects are built from primitives; everyone else is a rigged model.
     const character =
       unit.classId === 'barricade'
         ? createBarricade()
-        : kit.create(unit.classId, unit.team, random());
+        : ENGINE_IDS.includes(unit.classId)
+          ? createEngine(unit.classId, unit.team)
+          : kit.create(unit.classId, unit.team, random());
     const shadow = new THREE.Mesh(flatPlane, basic({ map: shadowMap }));
     shadow.scale.set(1.5, 1, 0.55);
     shadow.position.y = 0.02;

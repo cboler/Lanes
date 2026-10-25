@@ -542,6 +542,23 @@
               <span class="cost-badge">{{ ability.actionCost }}</span>
             </button>
           }
+          @for (entry of battle.engineAbilities(); track entry.ability.id; let idx = $index) {
+            <button
+              type="button"
+              class="skill-btn engine-skill"
+              [id]="'ability-btn-' + entry.ability.id"
+              [class.selected]="battle.selectedAbilityId() === entry.ability.id"
+              [disabled]="active.actionGauge.current < entry.ability.actionCost || !!battle.aim()"
+              [title]="entry.source.name + ': ' + entry.ability.description"
+              (click)="onSelectAbility(entry.ability)"
+            >
+              <span class="hotkey-badge" aria-hidden="true">{{
+                active.abilities.length + idx + 1
+              }}</span>
+              <span class="skill-name">⚙ {{ entry.ability.name }}</span>
+              <span class="cost-badge">{{ entry.ability.actionCost }}</span>
+            </button>
+          }
         </div>
 
         <div class="turn-controls">

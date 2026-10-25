@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_CLASSES } from '../core/models/unit-class.model';
+import { ENGINE_CLASSES, ALL_CLASSES } from '../core/models/unit-class.model';
 import { DEFAULT_LOOK, LOOKS, RECIPES, type Recipe, type Time } from './stage-looks';
 
 // Mirrors the engine: the delay before hits land is 0.42 s at normal speed.
@@ -8,7 +8,7 @@ const resolve = (time: Time | undefined, speed: number) =>
 
 describe('skill looks', () => {
   it('styles every skill in the game', () => {
-    const skills = ALL_CLASSES.flatMap((unitClass) =>
+    const skills = [...ALL_CLASSES, ...Object.values(ENGINE_CLASSES)].flatMap((unitClass) =>
       [...unitClass.abilities, ...unitClass.advancedAbilities].map((a) => a.id),
     );
     expect(skills.length).toBeGreaterThan(0);
@@ -17,7 +17,9 @@ describe('skill looks', () => {
 
   it('has no look for a skill that does not exist', () => {
     const skills = new Set(
-      ALL_CLASSES.flatMap((u) => [...u.abilities, ...u.advancedAbilities].map((a) => a.id)),
+      [...ALL_CLASSES, ...Object.values(ENGINE_CLASSES)].flatMap((u) =>
+        [...u.abilities, ...u.advancedAbilities].map((a) => a.id),
+      ),
     );
     expect(Object.keys(LOOKS).filter((id) => !skills.has(id))).toEqual([]);
   });

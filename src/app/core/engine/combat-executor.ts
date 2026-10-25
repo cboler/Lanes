@@ -36,7 +36,13 @@ export class CombatExecutor {
     ability: AbilityDefinition,
     allUnits: readonly UnitInstance[],
   ): UnitInstance[] {
-    const targets = this.inScope(attacker, ability, allUnits);
+    let targets = this.inScope(attacker, ability, allUnits);
+    // Some blows only carry so far along the lane (a Sparkcoil's lightning).
+    if (ability.range !== undefined) {
+      targets = targets.filter(
+        (target) => Math.abs(target.positionX - attacker.positionX) <= ability.range! + 1e-9,
+      );
+    }
     // A melee weapon reaches only so far along the lane: close in, or the skill has no target.
     return needsReach(attacker, ability)
       ? targets.filter((target) => inReach(attacker, target))
@@ -186,6 +192,19 @@ export class CombatExecutor {
 
     const effects: TargetEffect[] = [];
     const targetsToAffect = new Set<UnitInstance>(selectedTargets.filter((t) => t.isAlive));
+
+    // A lane splash (a catapult stone) lands on every enemy in the chosen target's lane.
+    if (ability.splash === 'lane') {
+      for (const unit of allBattlefieldUnits) {
+        if (
+          unit.isAlive &&
+          unit.team !== attacker.team &&
+          selectedTargets.some((target) => target.lane === unit.lane)
+        ) {
+          targetsToAffect.add(unit);
+        }
+      }
+    }
 
     // Handle friendly fire inclusions if ability specifies it
     if (ability.friendlyFire) {

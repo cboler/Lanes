@@ -104,3 +104,56 @@ describe('contract objects', () => {
     expect(placementSpot(fighter, 'snare', [fighter], [])).toBeNull();
   });
 });
+
+describe('siege engines', () => {
+  it('can be fired by a unit of their side beside them in their lane', async () => {
+    const { enginesBeside, engineStats, parseObjectSpec } = await import('./field-object.model');
+    const { ENGINE_CLASSES } = await import('./unit-class.model');
+    const ballista = new UnitInstance(ENGINE_CLASSES.ballista, 'Ballista', 'player', 1, 0.2);
+    const crew = new UnitInstance(FIGHTER_CLASS, 'Crew', 'player', 1, 0.3);
+    const foe = new UnitInstance(FIGHTER_CLASS, 'Foe', 'enemy', 1, 0.3);
+    expect(enginesBeside(crew, [ballista, crew, foe])).toEqual([ballista]);
+    expect(enginesBeside(foe, [ballista, crew, foe])).toEqual([]);
+    crew.positionX = 0.4;
+    expect(enginesBeside(crew, [ballista, crew])).toEqual([]);
+    crew.positionX = 0.3;
+    crew.lane = 2;
+    expect(enginesBeside(crew, [ballista, crew])).toEqual([]);
+    expect(engineStats('ballista', 5).attack).toBeGreaterThan(engineStats('ballista', 1).attack);
+    expect(engineStats('sparkcoil', 3).attack).toBe(0);
+    expect(parseObjectSpec({ kind: 'engine', engine: 'catapult', lane: 2, x: 0.8 })).toEqual({
+      kind: 'engine',
+      engine: 'catapult',
+      lane: 2,
+      x: 0.8,
+      team: 'enemy',
+    });
+    expect(parseObjectSpec({ kind: 'engine', engine: 'trebuchet', lane: 2, x: 0.8 })).toBeNull();
+  });
+
+  it('strike with their own reach: a catapult splashes a lane, a sparkcoil only nearby', async () => {
+    const { ENGINE_CLASSES } = await import('./unit-class.model');
+    const catapult = new UnitInstance(ENGINE_CLASSES.catapult, 'Catapult', 'player', 0, 0.1);
+    const a = new UnitInstance(FIGHTER_CLASS, 'A', 'enemy', 2, 0.7);
+    const b = new UnitInstance(FIGHTER_CLASS, 'B', 'enemy', 2, 0.85);
+    const c = new UnitInstance(FIGHTER_CLASS, 'C', 'enemy', 1, 0.7);
+    const stone = ENGINE_CLASSES.catapult.abilities[0];
+    const result = CombatExecutor.execute(
+      catapult,
+      stone,
+      [a],
+      [catapult, a, b, c],
+      undefined,
+      false,
+    );
+    expect(result.effects.map((e) => e.target.name).sort()).toEqual(['A', 'B']);
+    const coil = new UnitInstance(ENGINE_CLASSES.sparkcoil, 'Coil', 'player', 1, 0.3);
+    const shock = ENGINE_CLASSES.sparkcoil.abilities[0];
+    c.positionX = 0.6;
+    expect(CombatExecutor.getValidTargets(coil, shock, [coil, c]).map((u) => u.name)).toEqual([
+      'C',
+    ]);
+    c.positionX = 0.9;
+    expect(CombatExecutor.getValidTargets(coil, shock, [coil, c])).toEqual([]);
+  });
+});

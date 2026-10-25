@@ -41,12 +41,14 @@ import {
   FieldTrap,
   TRAP_NAMES,
   barricadeStats,
+  engineStats,
+  enginesBeside,
   makeTrap,
   placementSpot,
   springTrap,
   trapsCrossed,
 } from '../models/field-object.model';
-import { BARRICADE_CLASS } from '../models/unit-class.model';
+import { BARRICADE_CLASS, ENGINE_CLASSES } from '../models/unit-class.model';
 import { knownAbilities } from '../models/skills.model';
 import {
   Bonds,
@@ -315,18 +317,48 @@ export class BattleStateService {
     );
   });
 
-  public readonly selectedAbility = computed<AbilityDefinition | null>(() => {
+  /**
+   * What a unit can use now: its own skills, then those of each friendly siege engine it
+   * stands beside. `source` is who the blow comes from: the unit, or the engine it fires.
+   */
+  public usableAbilities(
+    unit: UnitInstance,
+  ): { ability: AbilityDefinition; source: UnitInstance }[] {
+    return [
+      ...unit.abilities.map((ability) => ({ ability, source: unit })),
+      ...enginesBeside(unit, this.units()).flatMap((engine) =>
+        engine.abilities.map((ability) => ({ ability, source: engine })),
+      ),
+    ];
+  }
+
+  /** The engines' skills within the active unit's reach. */
+  public readonly engineAbilities = computed(() => {
+    const unit = this.activeUnit();
+    return unit ? this.usableAbilities(unit).filter((entry) => entry.source !== unit) : [];
+  });
+
+  private selectedEntry = computed(() => {
     const unit = this.activeUnit();
     const abilityId = this.selectedAbilityId();
     if (!unit || !abilityId) return null;
-    return unit.abilities.find((a) => a.id === abilityId) ?? null;
+    return this.usableAbilities(unit).find((entry) => entry.ability.id === abilityId) ?? null;
   });
 
+  public readonly selectedAbility = computed<AbilityDefinition | null>(
+    () => this.selectedEntry()?.ability ?? null,
+  );
+
+  /** Who the selected skill's blow comes from: the active unit, or the engine it fires. */
+  public readonly abilitySource = computed<UnitInstance | null>(
+    () => this.selectedEntry()?.source ?? this.activeUnit(),
+  );
+
   public readonly validTargets = computed<UnitInstance[]>(() => {
-    const unit = this.activeUnit();
+    const source = this.abilitySource();
     const ability = this.selectedAbility();
-    if (!unit || !ability) return [];
-    return CombatExecutor.getValidTargets(unit, ability, this.units());
+    if (!source || !ability) return [];
+    return CombatExecutor.getValidTargets(source, ability, this.units());
   });
 
   /** Allies the selected area skill would also hit. */
@@ -477,6 +509,20 @@ export class BattleStateService {
             100,
             `enemy_barricade_${index}`,
             barricadeStats(activeContract!.level),
+          ),
+        );
+      } else if (spec.kind === 'engine') {
+        const team = spec.team ?? 'enemy';
+        newUnits.push(
+          new UnitInstance(
+            ENGINE_CLASSES[spec.engine],
+            ENGINE_CLASSES[spec.engine].name,
+            team,
+            spec.lane,
+            spec.x,
+            100,
+            `${team}_${spec.engine}_${index}`,
+            engineStats(spec.engine, activeContract!.level),
           ),
         );
       } else {
@@ -718,7 +764,9 @@ export class BattleStateService {
     const attacker = this.activeUnit();
     const ability = this.selectedAbility();
     if (!attacker || !ability || !this.canAct(false)) return false;
-    const kind = this.timingEnabled() ? executionKind(attacker, ability) : 'none';
+    // An engine is aimed like a shot, from where the engine stands.
+    const source = this.abilitySource() ?? attacker;
+    const kind = this.timingEnabled() ? executionKind(source, ability) : 'none';
     if (kind !== 'aim') {
       if (!this.executeSelectedAbility(targetOverride)) return false;
       if (kind === 'combo') this.openCombo(attacker, ability, 1);
@@ -734,7 +782,7 @@ export class BattleStateService {
     this.aim.set({
       abilityId: ability.id,
       targetIds: targets.map((t) => t.id),
-      center: aimZoneCenter(attacker, targets),
+      center: aimZoneCenter(source, targets),
       sweepMs,
       startedAt: performance.now(),
     });
@@ -833,12 +881,23 @@ export class BattleStateService {
     if (ability.place) {
       if (!this.placeObject(attacker, ability)) return false;
     } else {
-      const result = CombatExecutor.execute(attacker, ability, targets, this.units(), grade);
+      // Firing an engine: the engine strikes, the crew member beside it pays the AP.
+      const source = this.abilitySource() ?? attacker;
+      const crewed = source !== attacker;
+      if (crewed && attacker.actionGauge.current < ability.actionCost) {
+        this.addLog('⚠️ Insufficient action gauge.');
+        return false;
+      }
+      const result = CombatExecutor.execute(source, ability, targets, this.units(), grade, !crewed);
       if (!result.success) {
         this.addLog(`⚠️ ${result.failureReason}`);
         return false;
       }
-      this.resolveAction(attacker, ability, result.effects, grade);
+      if (crewed) {
+        attacker.actionGauge.trySpend(ability.actionCost);
+        this.addLog(`🏹 ${attacker.name} works the ${source.name}.`);
+      }
+      this.resolveAction(source, ability, result.effects, grade);
     }
 
     // Reset selection
@@ -1257,19 +1316,27 @@ export class BattleStateService {
             Math.abs(a.lane - unit.lane) - Math.abs(b.lane - unit.lane) ||
             Math.abs(a.positionX - unit.positionX) - Math.abs(b.positionX - unit.positionX),
         )[0];
-        if (!enemies.some((u) => u.lane === unit.lane)) {
+        // A unit that can fire an engine at someone stays at its post.
+        const crewing = this.usableAbilities(unit).some(
+          ({ ability, source }) =>
+            source !== unit &&
+            ability.actionCost <= unit.actionGauge.current &&
+            CombatExecutor.getValidTargets(source, ability, this.units()).length > 0,
+        );
+        if (!crewing && !enemies.some((u) => u.lane === unit.lane)) {
           this.switchActiveUnitLane(unit.lane + Math.sign(closest.lane - unit.lane), true);
         }
-        if (unit.classDef.archetype === 'melee') this.closeIn(unit);
-        const choices = unit.abilities
+        if (!crewing && unit.classDef.archetype === 'melee') this.closeIn(unit);
+        // Its own skills, and those of any friendly engine it stands beside.
+        const choices = this.usableAbilities(unit)
           .filter(
-            (a) =>
+            ({ ability: a }) =>
               a.damageType !== 'healing' &&
               a.actionCost <= unit.actionGauge.current &&
               a.target.includes('enem'),
           )
-          .flatMap((ability) => {
-            const targets = CombatExecutor.getValidTargets(unit, ability, this.units());
+          .flatMap(({ ability, source }) => {
+            const targets = CombatExecutor.getValidTargets(source, ability, this.units());
             const target = [...targets].sort(
               (a, b) =>
                 Number(a.isObject) - Number(b.isObject) ||
@@ -1277,8 +1344,15 @@ export class BattleStateService {
             )[0];
             if (!target) return [];
             const area = ability.target === 'all-enemies' || ability.target === 'same-lane-enemies';
-            let score = (area ? targets : [target]).reduce((sum, t) => {
-              const damage = DamageCalculator.calculateWithDefense(unit, t, ability);
+            const struck = area
+              ? targets
+              : ability.splash === 'lane'
+                ? this.units().filter(
+                    (u) => u.isAlive && u.team !== source.team && u.lane === target.lane,
+                  )
+                : [target];
+            let score = struck.reduce((sum, t) => {
+              const damage = DamageCalculator.calculateWithDefense(source, t, ability);
               // Breaking a barricade is worth less than hurting a fighter.
               if (t.isObject) return sum + Math.min(t.currentHp, damage) * 0.4;
               // What the skill leaves behind (a stun, poison, a debuff) counts as well.

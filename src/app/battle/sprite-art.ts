@@ -9,6 +9,25 @@ const SPRITE_VIEWBOX = { x: -6, y: -8, width: 76, height: 84 };
 type Pick = (player: string, enemy: string) => string;
 
 const ART: Record<string, (c: Pick) => string> = {
+  ballista: () => `
+    <path d="M30 66 L34 40 L38 66 Z" fill="#4a2f14" stroke="#2b1a0a" stroke-width="2"/>
+    <rect x="8" y="34" width="52" height="7" rx="2" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>
+    <path d="M44 22 Q52 37 44 52" fill="none" stroke="#3b2208" stroke-width="4"/>
+    <line x1="10" y1="37" x2="66" y2="37" stroke="#94a3b8" stroke-width="2"/>
+    <path d="M66 33 L72 37 L66 41 Z" fill="#94a3b8"/>`,
+  catapult: () => `
+    <rect x="6" y="56" width="54" height="9" rx="2" fill="#4a2f14" stroke="#2b1a0a" stroke-width="2"/>
+    <rect x="28" y="30" width="7" height="28" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>
+    <line x1="32" y1="34" x2="6" y2="20" stroke="#7c4a1e" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="6" cy="18" r="6" fill="#8b8f99" stroke="#3b2208" stroke-width="2"/>`,
+  sparkcoil: () => `
+    <ellipse cx="32" cy="62" rx="18" ry="5" fill="#3f2a15" stroke="#2b1a0a" stroke-width="2"/>
+    <rect x="30" y="18" width="4" height="44" fill="#8b8f99"/>
+    <ellipse cx="32" cy="52" rx="13" ry="4" fill="none" stroke="#c8733a" stroke-width="3"/>
+    <ellipse cx="32" cy="42" rx="11" ry="3.5" fill="none" stroke="#c8733a" stroke-width="3"/>
+    <ellipse cx="32" cy="33" rx="9" ry="3" fill="none" stroke="#c8733a" stroke-width="3"/>
+    <circle cx="32" cy="16" r="6" fill="#9fd4ff" stroke="#c8733a" stroke-width="2"/>`,
+
   barricade: () => `
     <rect x="6" y="40" width="54" height="7" rx="2" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>
     <rect x="6" y="54" width="54" height="7" rx="2" fill="#7c4a1e" stroke="#3b2208" stroke-width="2"/>

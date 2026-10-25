@@ -314,6 +314,10 @@ export const LOOKS: Record<string, SkillLook> = {
   // Skills that set an object down glow on their user as the object appears.
   raise_barricade: { delivery: 'buff', color: 0xc8a165 },
   snare_trap: { delivery: 'buff', color: 0x9be564 },
+  // Siege engines.
+  ballista_bolt: { delivery: 'snipe', color: 0xfff2c4 },
+  catapult_stone: { delivery: 'meteor', color: 0xb8a68a, burst: 'explosion' },
+  sparkcoil_shock: { delivery: 'pillar', color: 0x9fd4ff },
 };
 
 /** What an unlisted skill gets. */
