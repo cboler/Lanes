@@ -387,6 +387,12 @@
 }
 
 /* The selected skill's forecast on each target, and HP numbers where attention is. */
+.preview-shield {
+  margin-left: 2px;
+  font-style: normal;
+  color: #cfe6ff;
+}
+
 .preview-badge {
   padding: 0 5px;
   border-radius: var(--radius-full);

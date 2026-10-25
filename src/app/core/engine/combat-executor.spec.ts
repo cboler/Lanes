@@ -119,10 +119,12 @@ describe('CombatExecutor', () => {
     const enemy = new UnitInstance(FIGHTER_CLASS, 'Defender', 'enemy');
     enemy.actionGauge.trySpend(95);
     expect(enemy.enterGuard()).toBe(5);
+    // The bash nets 8 through armour; the defender's shield blocks 2 of it, Guard 5 more.
     const result = CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]);
-    expect(result.effects[0].amount).toBe(3);
+    expect(result.effects[0].blocked).toBe(2);
+    expect(result.effects[0].amount).toBe(1);
     expect(result.effects[0].guardAbsorbed).toBe(5);
-    expect(enemy.currentHp).toBe(enemy.maxHp - 3);
+    expect(enemy.currentHp).toBe(enemy.maxHp - 1);
     expect(enemy.guardPoints).toBe(0);
   });
 
@@ -133,7 +135,7 @@ describe('CombatExecutor', () => {
     const result = CombatExecutor.execute(fighter, FIGHTER_CLASS.abilities[0], [enemy]);
     expect(result.success).toBe(true);
     expect(result.effects[0].amount).toBe(0);
-    expect(result.effects[0].guardAbsorbed).toBe(8);
+    expect(result.effects[0].guardAbsorbed).toBe(6);
     expect(enemy.currentHp).toBe(enemy.maxHp);
     expect(fighter.actionGauge.current).toBe(80);
   });

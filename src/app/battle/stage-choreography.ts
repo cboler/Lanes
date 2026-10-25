@@ -105,12 +105,24 @@ export function createChoreography(
       effects.shockwave(target.group.position, look.color, 1.4, 0.6 * speed);
       return;
     }
-    target.flash = 0.7;
-    target.character.act('hit', 0.11);
+    // A shield that takes the blow flares, throws sparks, and keeps its bearer on its feet.
+    const raise = (bearer: UnitView) => {
+      bearer.shield.visible = true;
+      bearer.shield.material.opacity = 1;
+      const rim = bearer.shield.getWorldPosition(new THREE.Vector3());
+      particles.burst(rim, 0xfff1c0, 14, 3, 0.25);
+      effects.shockwave(rim, 0xcfe6ff, 0.7, 0.25 * speed);
+    };
+    const braced = !!effect.blocked && !effect.wasDefeated;
+    target.flash = braced ? 0.3 : 0.7;
+    target.character.act('hit', braced ? 0.05 : 0.11);
     const away =
       Math.sign(target.group.position.x - attacker.group.position.x) || -facing(target.team);
-    target.knock = away * (effect.wasDefeated ? 0.55 : 0.28);
-    particles.burst(at, look.color, 16, 3.2);
+    target.knock = away * (effect.wasDefeated ? 0.55 : braced ? 0.1 : 0.28);
+    particles.burst(at, look.color, braced ? 6 : 16, 3.2);
+    if (effect.blocked) raise(target);
+    const cover = effect.coveredBy ? views.get(effect.coveredBy) : undefined;
+    if (cover) raise(cover);
     if (effect.guardAbsorbed > 0) {
       target.shield.visible = true;
       target.shield.material.opacity = 1;

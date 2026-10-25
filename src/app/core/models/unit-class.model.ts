@@ -17,6 +17,8 @@ export interface UnitClassDefinition {
   readonly object?: true;
   /** A siege engine: a unit of its side standing beside it can fire its ability. */
   readonly engine?: true;
+  /** Carries a shield: blocks part of frontal physical hits and, on Guard, covers lane-mates behind. */
+  readonly shield?: true;
 }
 
 /**
@@ -146,9 +148,11 @@ export const ENGINE_CLASSES: Record<EngineKind, UnitClassDefinition> = {
 export const FIGHTER_CLASS: UnitClassDefinition = {
   id: 'fighter',
   name: 'Fighter',
-  description: 'A heavily-armoured warrior who holds the front line and draws enemy fire.',
+  description:
+    'A heavily-armoured warrior who holds the front line. Its shield blocks 40% of arrows and 20% of blades that come from the front, and on Guard it covers lane-mates behind it from missiles.',
   role: 'tank',
   archetype: 'melee',
+  shield: true,
   baseStats: {
     maxHp: 180,
     attack: 65,

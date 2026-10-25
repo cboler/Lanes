@@ -15,9 +15,9 @@ describe('DamageCalculator', () => {
     const bash: AbilityDefinition = FIGHTER_CLASS.abilities[0]; // Shield bash, 0.9 power
     // fighter.effectiveAttack = 65, 65 * 0.9 = 58.5 -> floor 58
     // enemyFighter defense = 50
-    // net = 58 - 50 = 8
+    // net = 58 - 50 = 8, and the enemy's shield blocks a fifth of a frontal blade: 8 - 2 = 6
     const damage = DamageCalculator.calculateWithDefense(fighter, enemyFighter, bash);
-    expect(damage).toBe(8);
+    expect(damage).toBe(6);
   });
 
   it('ensures minimum 1 damage even against high defense', () => {
@@ -66,6 +66,7 @@ describe('DamageCalculator', () => {
           {
             ...FIGHTER_CLASS,
             archetype: to,
+            shield: undefined,
             baseStats: { ...FIGHTER_CLASS.baseStats, defense: 20 },
           },
           'Target',

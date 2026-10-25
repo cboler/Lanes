@@ -22,6 +22,7 @@ export type Cue =
   | 'crit'
   | 'miss'
   | 'guard'
+  | 'block'
   | 'heal'
   | 'buff'
   | 'fall'
@@ -213,6 +214,13 @@ const CUES: Record<Cue, (v: Voice) => void> = {
   guard: (v) => {
     v.tone(1250, { length: 0.25, peak: 0.16, type: 'square' });
     v.tone(1870, { length: 0.2, peak: 0.2, type: 'triangle' });
+  },
+  // A shield taking the blow: a dull wooden thud under a short ring of the iron rim.
+  block: (v) => {
+    v.tone(210, { length: 0.12, peak: 0.4, type: 'triangle', slideTo: 120 });
+    v.hiss(2400, { length: 0.06, peak: 0.3, q: 3 });
+    v.tone(2650, { start: 0.01, length: 0.16, peak: 0.07, type: 'square', slideTo: 2500 });
+    v.tone(3970, { start: 0.01, length: 0.12, peak: 0.05, type: 'sine' });
   },
   heal: (v) => {
     for (const [i, f] of [784, 988, 1175].entries()) {

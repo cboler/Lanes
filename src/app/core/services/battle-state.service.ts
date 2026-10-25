@@ -95,6 +95,10 @@ export interface BattleAction {
     readonly targetId: string;
     readonly isHealing: boolean;
     readonly guardAbsorbed: number;
+    /** Stopped by the target's own shield. */
+    readonly blocked?: number;
+    /** The guarding shield-bearer who covered the target, if one did. */
+    readonly coveredBy?: string;
     readonly wasDefeated: boolean;
     readonly isFriendlyFire: boolean;
     readonly missed: boolean;
@@ -1085,6 +1089,8 @@ export class BattleStateService {
         targetId: effect.target.id,
         isHealing: effect.isHealing,
         guardAbsorbed: effect.guardAbsorbed,
+        blocked: effect.blocked,
+        coveredBy: effect.coveredBy,
         wasDefeated: effect.wasDefeated,
         isFriendlyFire: effect.isFriendlyFire,
         missed: effect.missed,
@@ -1179,10 +1185,11 @@ export class BattleStateService {
           : eff.isHealing
             ? `+${eff.amount} HP`
             : eff.guardAbsorbed > 0
-              ? `-${eff.amount} HP · ${eff.guardAbsorbed} blocked`
+              ? `-${eff.amount} HP · ${eff.guardAbsorbed} guarded`
               : `-${eff.amount} HP`;
       const shove = eff.crash ? `SLAM -${eff.crash}` : eff.pushed ? 'PUSHED' : '';
-      const amountText = [numbers, status, shove].filter(Boolean).join(' · ');
+      const shield = eff.blocked ? 'BLOCK' : eff.covered ? 'COVERED' : '';
+      const amountText = [shield, numbers, status, shove].filter(Boolean).join(' · ');
       const effectText =
         grade === 'critical'
           ? `CRIT ${amountText}`
@@ -1207,6 +1214,15 @@ export class BattleStateService {
         grade === 'critical',
       );
 
+      if (eff.blocked) {
+        this.addLog(`  ⛨ ${eff.target.name}'s shield blocks ${eff.blocked} damage.`);
+      }
+      if (eff.covered) {
+        const cover = this.units().find((u) => u.id === eff.coveredBy);
+        this.addLog(
+          `  ⛨ ${cover?.name ?? 'A shield'} covers ${eff.target.name}, stopping ${eff.covered} damage.`,
+        );
+      }
       if (eff.guardAbsorbed > 0) {
         this.addLog(`  🛡️ ${eff.target.name}'s Guard absorbed ${eff.guardAbsorbed} damage.`);
       }
@@ -1360,7 +1376,13 @@ export class BattleStateService {
                   )
                 : [target];
             let score = struck.reduce((sum, t) => {
-              const damage = DamageCalculator.calculateWithDefense(source, t, ability);
+              const damage = DamageCalculator.calculateWithDefense(
+                source,
+                t,
+                ability,
+                1,
+                this.units(),
+              );
               // Breaking a barricade is worth less than hurting a fighter.
               if (t.isObject) return sum + Math.min(t.currentHp, damage) * 0.4;
               // What the skill leaves behind (a stun, poison, a debuff) counts as well.
@@ -1381,7 +1403,7 @@ export class BattleStateService {
                     sum +
                     Math.min(
                       a.currentHp + a.guardPoints,
-                      DamageCalculator.calculateWithDefense(unit, a, ability),
+                      DamageCalculator.calculateWithDefense(unit, a, ability, 1, this.units()),
                     ),
                   0,
                 );
@@ -1439,7 +1461,7 @@ export class BattleStateService {
     const lethal = assistCandidates(unit, this.units()).find(
       ({ ally, ability, targets }) =>
         ability.target.startsWith('single-') &&
-        DamageCalculator.calculateWithDefense(ally, targets[0], ability) >=
+        DamageCalculator.calculateWithDefense(ally, targets[0], ability, 1, this.units()) >=
           targets[0].currentHp + targets[0].guardPoints,
     );
     return !!lethal && this.callAssist(lethal.ally.id, true);

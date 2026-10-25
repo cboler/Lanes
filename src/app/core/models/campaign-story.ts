@@ -107,6 +107,11 @@ export const CAMPAIGN: readonly Chapter[] = [
             text: 'Their lancer has the longest reach on the field, and their cleric will mend whatever you break. Kill the healer, or you will be cutting the same wolf twice.',
           },
           {
+            speaker: 'Guildmaster Hollis',
+            portrait: 'fighter',
+            text: 'Their archer will test your shields. A Fighter turns aside much of any blow from the front, and a Fighter on Guard shelters whoever stands behind it in the lane. Arrows from behind find no shield, on either side.',
+          },
+          {
             speaker: '{leader}',
             portrait: 'leader',
             text: 'A lane over is still a lane over. We go around.',

@@ -662,6 +662,9 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
       return;
     }
     this.sound.play(action.grade === 'critical' ? 'crit' : 'hit', impact);
+    if (effects.some((effect) => effect.blocked || effect.coveredBy)) {
+      this.sound.play('block', impact);
+    }
     if (effects.some((effect) => effect.guardAbsorbed > 0)) this.sound.play('guard', impact);
     if (effects.some((effect) => effect.wasDefeated)) this.sound.play('fall', impact + 250);
   }
@@ -811,20 +814,26 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
    * What the selected skill would do to this target at normal power: the HP it takes
    * (after Guard), "KO" when that fells it, or the HP it heals. Nothing for pure buffs.
    */
-  protected preview(unit: UnitInstance): { text: string; heal: boolean; ko: boolean } | null {
+  protected preview(
+    unit: UnitInstance,
+  ): { text: string; heal: boolean; ko: boolean; shielded: boolean } | null {
     const source = this.battle.abilitySource();
     const ability = this.battle.selectedAbility();
     if (!source || !ability || ability.powerMultiplier === 0 || !this.isTargetable(unit)) {
       return null;
     }
-    const amount = DamageCalculator.calculateWithDefense(source, unit, ability);
+    const blow = DamageCalculator.resolve(source, unit, ability, 1, this.battle.units());
+    const amount = blow.damage;
     if (ability.damageType === 'healing') {
-      return { text: `+${Math.min(amount, unit.maxHp - unit.currentHp)}`, heal: true, ko: false };
+      const text = `+${Math.min(amount, unit.maxHp - unit.currentHp)}`;
+      return { text, heal: true, ko: false, shielded: false };
     }
+    // A shield in the way is worth knowing before the shot: it may pay to flank.
+    const shielded = blow.blocked + blow.covered > 0;
     const lost = Math.max(0, amount - unit.guardPoints);
     return lost >= unit.currentHp
-      ? { text: 'KO', heal: false, ko: true }
-      : { text: `−${lost}`, heal: false, ko: false };
+      ? { text: 'KO', heal: false, ko: true, shielded }
+      : { text: `−${lost}`, heal: false, ko: false, shielded };
   }
 
   /** The Comrades bonus a unit has right now from bonded partners in its lane, if any. */

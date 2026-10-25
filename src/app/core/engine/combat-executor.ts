@@ -9,6 +9,11 @@ export interface TargetEffect {
   readonly target: UnitInstance;
   readonly amount: number;
   readonly guardAbsorbed: number;
+  /** Damage the target's own shield blocked. */
+  readonly blocked?: number;
+  /** Damage a guarding lane-mate's shield took off, and that lane-mate's id. */
+  readonly covered?: number;
+  readonly coveredBy?: string;
   readonly statusApplied?: StatusEffectType;
   readonly isHealing: boolean;
   readonly wasDefeated: boolean;
@@ -244,7 +249,14 @@ export class CombatExecutor {
           missed: false,
         });
       } else {
-        const damage = DamageCalculator.calculateWithDefense(attacker, target, ability, power);
+        const blow = DamageCalculator.resolve(
+          attacker,
+          target,
+          ability,
+          power,
+          allBattlefieldUnits,
+        );
+        const damage = blow.damage;
         const wasAlive = target.isAlive;
         const guardBefore = target.guardPoints;
         const amount = target.takeDamage(damage);
@@ -254,6 +266,9 @@ export class CombatExecutor {
           target,
           amount,
           guardAbsorbed: guardBefore - target.guardPoints,
+          blocked: blow.blocked || undefined,
+          covered: blow.covered || undefined,
+          coveredBy: blow.coveredBy?.id,
           statusApplied: this.applyStatus(ability, target),
           isHealing: false,
           wasDefeated,

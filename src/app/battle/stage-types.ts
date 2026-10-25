@@ -44,6 +44,10 @@ export interface StageAction {
     readonly targetId: string;
     readonly isHealing: boolean;
     readonly guardAbsorbed: number;
+    /** Damage the target's own shield blocked: it braces rather than reels. */
+    readonly blocked?: number;
+    /** The guarding shield-bearer who covered the target: its shield flares. */
+    readonly coveredBy?: string;
     readonly wasDefeated: boolean;
     /** The shot landed beside the target: it kicks up dirt and nobody flinches. */
     readonly missed?: boolean;

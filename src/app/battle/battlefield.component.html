@@ -210,8 +210,12 @@
                     class="preview-badge"
                     [class.heal]="forecast.heal"
                     [class.ko]="forecast.ko"
-                    >{{ forecast.text }}</span
-                  >
+                    [attr.title]="forecast.shielded ? 'A shield stands in the way' : null"
+                    >{{ forecast.text }}
+                    @if (forecast.shielded) {
+                      <i class="preview-shield" aria-label="shielded">⛨</i>
+                    }
+                  </span>
                 }
                 <span class="hp-num">{{ unit.currentHp }} / {{ unit.maxHp }}</span>
               </span>
