@@ -36,7 +36,7 @@
   }
 
   <h2 class="section-heading">
-    Your mercenaries ({{ roster.mercenaries().length }}/{{ rosterLimit }})
+    Your mercenaries ({{ roster.mercenaries().length }}/{{ rosterLimit() }})
   </h2>
   <div class="roster-grid">
     @for (merc of roster.mercenaries(); track merc.id) {
@@ -332,7 +332,7 @@
         New recruits ({{ refreshCost }} gold)
       </button>
     </div>
-    @if (roster.mercenaries().length >= rosterLimit) {
+    @if (roster.mercenaries().length >= rosterLimit()) {
       <p class="roster-status">The roster is full. Dismiss someone to make room.</p>
     }
     <div class="roster-grid">

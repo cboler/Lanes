@@ -22,7 +22,6 @@ import {
   APTITUDE_RATIO,
   LEVEL_CAP,
   REFRESH_COST,
-  ROSTER_LIMIT,
   expToNext,
 } from '../core/models/progression.model';
 import {
@@ -51,7 +50,7 @@ export class RosterComponent {
   protected readonly primaryStats = PRIMARY_STATS;
   protected readonly labels = STAT_LABELS;
   protected readonly squadLimit = SQUAD_LIMIT;
-  protected readonly rosterLimit = ROSTER_LIMIT;
+  protected readonly rosterLimit = this.roster.rosterLimit;
   protected readonly refreshCost = REFRESH_COST;
   /** The mercenary whose Dismiss button is waiting for a second press. */
   protected readonly confirmingDismiss = signal<string | null>(null);

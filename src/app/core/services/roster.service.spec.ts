@@ -321,4 +321,19 @@ describe('RosterService', () => {
     expect(again.unequip(fighter.id, 'weapon')).toBe(true);
     expect(again.armory()).toHaveLength(1);
   });
+
+  it('builds facilities with gold, and their effects apply', () => {
+    const service = TestBed.inject(RosterService);
+    service.gold.set(5000);
+    expect(service.rosterLimit()).toBe(12);
+    expect(service.upgradeFacility('barracks')).toBe(true);
+    expect(service.rosterLimit()).toBe(14);
+    expect(service.gold()).toBe(4600);
+    expect(service.upgradeFacility('smithy')).toBe(true);
+    expect(service.reforgePrice({ uid: 'x', base: 'sword-1', plus: 0 })).toBe(54);
+    service.gold.set(10);
+    expect(service.upgradeFacility('training')).toBe(false);
+    TestBed.resetTestingModule();
+    expect(TestBed.inject(RosterService).facilities()).toEqual({ barracks: 1, smithy: 1 });
+  });
 });

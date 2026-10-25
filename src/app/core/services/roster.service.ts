@@ -11,7 +11,6 @@ import {
   BattleReport,
   BattleRewards,
   REFRESH_COST,
-  ROSTER_LIMIT,
   STARTING_GOLD,
   battleExp,
   battleGold,
@@ -24,6 +23,16 @@ import {
 import { getClassDefinition } from '../models/unit-class.model';
 import { canEquipSupport, patternSkill } from '../models/skills.model';
 import { Bonds, applyBondGains, bondGains, bondKey, parseBonds } from '../models/bond.model';
+import {
+  Facilities,
+  FacilityId,
+  expMultiplier,
+  facilityLevel,
+  parseFacilities,
+  reforgeMultiplier,
+  rosterLimit,
+  upgradeCost,
+} from '../models/facility.model';
 import {
   Piece,
   Slot,
@@ -64,6 +73,8 @@ interface SavedRoster {
   bonds?: Bonds;
   /** Equipment not worn by anyone; saves from before equipment have none. */
   armory?: Piece[];
+  /** Guild facility levels; saves from before facilities have none. */
+  facilities?: Facilities;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -79,6 +90,9 @@ export class RosterService {
   public readonly items = signal<Inventory>({});
   public readonly bonds = signal<Bonds>({});
   public readonly armory = signal<Piece[]>([]);
+  public readonly facilities = signal<Facilities>({});
+  /** How many mercenaries the roster holds, which the Barracks raise. */
+  public readonly rosterLimit = computed(() => rosterLimit(this.facilities()));
   /** The squad's average level, which opens the armoury's better tiers. */
   public readonly squadLevel = computed(() => {
     const squad = this.squad();
@@ -105,6 +119,7 @@ export class RosterService {
     this.items.set(saved.items ?? {});
     this.bonds.set(saved.bonds ?? {});
     this.armory.set(saved.armory ?? []);
+    this.facilities.set(saved.facilities ?? {});
     if (!this.warning()) this.persist();
   }
 
@@ -128,7 +143,7 @@ export class RosterService {
   }
 
   public canHire(merc: Mercenary): boolean {
-    return this.mercenaries().length < ROSTER_LIMIT && this.gold() >= hireCost(merc);
+    return this.mercenaries().length < this.rosterLimit() && this.gold() >= hireCost(merc);
   }
 
   /** Moves a recruit into the roster for its price. Its board slot stays empty until a refresh. */
@@ -225,7 +240,7 @@ export class RosterService {
   /** Reforges a piece one step, wherever it is. */
   public reforge(uid: string): boolean {
     const owned = this.pieces().find((entry) => entry.piece.uid === uid);
-    const cost = owned && reforgeCost(owned.piece);
+    const cost = owned && this.reforgePrice(owned.piece);
     if (!owned || cost === null || cost === undefined || this.gold() < cost) return false;
     const better = { ...owned.piece, plus: owned.piece.plus + 1 };
     this.gold.update((gold) => gold - cost);
@@ -235,6 +250,22 @@ export class RosterService {
     } else {
       this.armory.update((list) => list.map((p) => (p.uid === uid ? better : p)));
     }
+    this.persist();
+    return true;
+  }
+
+  /** What reforging a piece costs here, with the Smithy's discount; null at +5. */
+  public reforgePrice(piece: Piece): number | null {
+    const cost = reforgeCost(piece);
+    return cost === null ? null : Math.round(cost * reforgeMultiplier(this.facilities()));
+  }
+
+  /** Builds a facility's next level, if the purse allows. */
+  public upgradeFacility(id: FacilityId): boolean {
+    const cost = upgradeCost(this.facilities(), id);
+    if (cost === null || this.gold() < cost) return false;
+    this.gold.update((gold) => gold - cost);
+    this.facilities.update((f) => ({ ...f, [id]: facilityLevel(f, id) + 1 }));
     this.persist();
     return true;
   }
@@ -303,7 +334,7 @@ export class RosterService {
     const mercenaries = report.mercenaries.flatMap(({ id, survived }) => {
       const merc = this.mercenaries().find((m) => m.id === id);
       if (!merc) return [];
-      const exp = battleExp(report, merc, survived);
+      const exp = Math.round(battleExp(report, merc, survived) * expMultiplier(this.facilities()));
       const next = gainExp(merc, exp);
       this.replace(next);
       const learned = merc.pattern
@@ -429,7 +460,8 @@ export class RosterService {
         throw new Error('Unrecognized roster format.');
       }
       const mercenaries = this.parseList(raw.mercenaries);
-      if (!mercenaries?.length || mercenaries.length > ROSTER_LIMIT) {
+      // The Barracks can raise the limit; check against the largest it can be.
+      if (!mercenaries?.length || mercenaries.length > rosterLimit({ barracks: 3 })) {
         throw new Error('Invalid mercenaries.');
       }
       const squadIds = [
@@ -462,6 +494,7 @@ export class RosterService {
           raw.bonds,
           mercenaries.map((m) => m.id),
         ),
+        facilities: parseFacilities(raw.facilities),
         armory: (Array.isArray(raw.armory) ? raw.armory : [])
           .map(parsePiece)
           .filter((piece): piece is Piece => !!piece),
@@ -493,6 +526,7 @@ export class RosterService {
       items: this.items(),
       bonds: this.bonds(),
       armory: this.armory(),
+      facilities: this.facilities(),
     };
     try {
       const storage = this.document.defaultView?.localStorage;

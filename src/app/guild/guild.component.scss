@@ -283,3 +283,15 @@ h2 {
     min-height: 44px;
   }
 }
+
+.facility-level {
+  float: right;
+  font-size: var(--font-size-xs);
+  color: #ffd36a;
+}
+
+.facilities button {
+  height: auto;
+  padding-block: var(--space-2);
+  white-space: normal;
+}

@@ -3,14 +3,21 @@ import { Router, RouterLink } from '@angular/router';
 import { Contract, TIERS } from '../core/models/contract.model';
 import { SCRIBE_COST, SCROLLS, ScrollId } from '../core/models/item.model';
 import {
+  FACILITIES,
+  FacilityId,
+  MAX_FACILITY_LEVEL,
+  facilityLevel,
+  upgradeCost,
+} from '../core/models/facility.model';
+import {
   EQUIPMENT,
   EquipmentDefinition,
+  Piece,
   MAX_PLUS,
   TIER_LEVEL,
   describeBonus,
   pieceBonus,
   pieceName,
-  reforgeCost,
   sellValue,
   wearers,
 } from '../core/models/equipment.model';
@@ -55,7 +62,17 @@ export class GuildComponent {
   protected readonly wearers = wearers;
   protected readonly pieceName = pieceName;
   protected readonly pieceBonus = pieceBonus;
-  protected readonly reforgeCost = reforgeCost;
+  protected readonly reforgeCost = (piece: Piece) => this.roster.reforgePrice(piece);
+  protected readonly facilities = FACILITIES;
+  protected readonly maxFacility = MAX_FACILITY_LEVEL;
+
+  protected facilityLevel(id: FacilityId): number {
+    return facilityLevel(this.roster.facilities(), id);
+  }
+
+  protected facilityCost(id: FacilityId): number | null {
+    return upgradeCost(this.roster.facilities(), id);
+  }
   protected readonly sellValue = sellValue;
 
   protected unlocked(item: EquipmentDefinition): boolean {

@@ -110,6 +110,43 @@
     </div>
   </section>
 
+  <section class="guild-store facilities" aria-labelledby="facilities-title">
+    <h2 id="facilities-title">Company facilities</h2>
+    <p>Build up your wing of the guild hall. Each level lasts for good.</p>
+    <div class="store-grid">
+      @for (place of facilities; track place.id) {
+        <article class="store-item" [attr.data-facility]="place.id">
+          <h3>
+            {{ place.name }}
+            <span class="facility-level">{{ facilityLevel(place.id) }}/{{ maxFacility }}</span>
+          </h3>
+          <p>{{ place.description }}</p>
+          <p class="owned">
+            @if (facilityLevel(place.id)) {
+              Now: {{ place.effect(facilityLevel(place.id)) }}
+            } @else {
+              Not built yet
+            }
+          </p>
+          @if (facilityCost(place.id); as cost) {
+            <button
+              type="button"
+              class="tactical-btn primary"
+              [id]="'upgrade-' + place.id"
+              [disabled]="roster.gold() < cost"
+              [attr.aria-label]="'Upgrade ' + place.name + ' for ' + cost + ' gold'"
+              (click)="roster.upgradeFacility(place.id)"
+            >
+              Next: {{ place.effect(facilityLevel(place.id) + 1) }} · {{ cost }} gold
+            </button>
+          } @else {
+            <p class="locked-note">Fully built</p>
+          }
+        </article>
+      }
+    </div>
+  </section>
+
   <section class="guild-store armoury" aria-labelledby="armoury-title">
     <h2 id="armoury-title">Armoury</h2>
     <p>
