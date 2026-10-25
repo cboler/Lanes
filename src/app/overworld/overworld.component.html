@@ -313,8 +313,11 @@
             ><img [src]="'assets/units/' + merc.classId + '.jpg'" alt="" /><span>{{
               merc.name
             }}</span
-            ><small>Lv. {{ merc.level }}</small></a
-          >
+            ><small>Lv. {{ merc.level }}</small>
+            @if (merc.statPoints > 0) {
+              <b class="points-badge" title="Stat points to spend">+{{ merc.statPoints }}</b>
+            }
+          </a>
         }
       </div>
     </section>

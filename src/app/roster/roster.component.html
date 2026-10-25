@@ -19,6 +19,22 @@
     <p class="roster-status" role="status">{{ roster.warning() }}</p>
   }
 
+  @if (roster.unspent().length) {
+    <p class="roster-status unspent-note" role="status">
+      {{ roster.unspent().length }}
+      {{ roster.unspent().length === 1 ? 'mercenary has' : 'mercenaries have' }} stat points to
+      spend. Use + on a stat, or let each invest in their class's strengths.
+      <button
+        type="button"
+        class="tactical-btn primary"
+        id="auto-invest-all-btn"
+        (click)="roster.autoInvest()"
+      >
+        Auto-invest all
+      </button>
+    </p>
+  }
+
   <h2 class="section-heading">
     Your mercenaries ({{ roster.mercenaries().length }}/{{ rosterLimit }})
   </h2>
@@ -44,7 +60,17 @@
         </div>
         <p class="exp-label">{{ expLabel(merc) }}</p>
         @if (merc.statPoints > 0) {
-          <p class="points-note">{{ merc.statPoints }} stat points to invest</p>
+          <p class="points-note">
+            {{ merc.statPoints }} stat points to invest
+            <button
+              type="button"
+              class="auto-invest-btn"
+              [attr.aria-label]="'Auto-invest points for ' + merc.name + ' by class focus'"
+              (click)="roster.autoInvest(merc.id)"
+            >
+              Auto
+            </button>
+          </p>
         }
         <dl class="stat-sheet" [class.investing]="merc.statPoints > 0">
           @for (stat of primaryStats; track stat) {

@@ -81,3 +81,20 @@ describe('progression', () => {
     expect(recruits.some((r) => r.name === 'Aldric')).toBe(false);
   });
 });
+
+describe('auto-invest', () => {
+  it('spends every waiting point on the class focus, round-robin', async () => {
+    const { autoInvest, gainExp } = await import('./progression.model');
+    const { generateMercenary, seededRandom, CLASS_FOCUS } = await import('./mercenary.model');
+    const merc = gainExp(generateMercenary('archer', seededRandom(9)), 400);
+    expect(merc.statPoints).toBeGreaterThan(0);
+    const spent = autoInvest(merc);
+    expect(spent.statPoints).toBe(0);
+    const focus = CLASS_FOCUS['archer'];
+    const total = focus.reduce((sum, stat) => sum + spent.invested[stat], 0);
+    expect(total).toBe(merc.statPoints);
+    // Spread evenly: no focus stat is more than one point ahead of another.
+    const counts = focus.map((stat) => spent.invested[stat]);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+  });
+});

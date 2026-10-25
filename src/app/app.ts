@@ -12,6 +12,7 @@ import { RouterOutlet, RouterLink, Router, NavigationEnd } from '@angular/router
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GamepadService } from './core/services/gamepad.service';
 import { BattleStateService } from './core/services/battle-state.service';
+import { RosterService } from './core/services/roster.service';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -27,6 +28,7 @@ interface BeforeInstallPromptEvent extends Event {
 })
 export class App implements OnInit, OnDestroy {
   protected readonly gamepad = inject(GamepadService);
+  protected readonly roster = inject(RosterService);
   private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
   private readonly battle = inject(BattleStateService);

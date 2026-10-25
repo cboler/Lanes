@@ -1,11 +1,5 @@
-import {
-  CLASS_FOCUS,
-  Mercenary,
-  Random,
-  generateMercenary,
-  parseMercenary,
-} from './mercenary.model';
-import { gainExp, expToNext, investPoint } from './progression.model';
+import { Mercenary, Random, generateMercenary, parseMercenary } from './mercenary.model';
+import { autoInvest, gainExp, expToNext } from './progression.model';
 import { ALL_CLASSES } from './unit-class.model';
 import { FieldObjectSpec, TrapKind, parseObjectSpec } from './field-object.model';
 import { SCROLLS, ScrollId } from './item.model';
@@ -85,13 +79,10 @@ const ENEMY_NAMES = [
  * class's focus stats in turn, so enemy veterans grow the way a player's would.
  */
 export function veteran(classId: string, level: number, random: Random): Mercenary {
-  let merc = generateMercenary(classId, random);
+  const merc = generateMercenary(classId, random);
   let exp = 0;
   for (let l = 1; l < level; l++) exp += expToNext(l);
-  merc = gainExp(merc, exp);
-  const focus = CLASS_FOCUS[classId] ?? ['str'];
-  for (let i = 0; merc.statPoints > 0; i++) merc = investPoint(merc, focus[i % focus.length])!;
-  return merc;
+  return autoInvest(gainExp(merc, exp));
 }
 
 /** A contract of `tier` for a squad of `partyLevel`. Every band has a frontliner first. */

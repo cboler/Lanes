@@ -112,3 +112,20 @@ test('buys a Tactics Scroll at the guild store and raises an aptitude on the ros
     page.locator('.merc-card').filter({ hasText: 'Aldric' }).locator('.stat-row .grade').first(),
   ).toHaveText('B');
 });
+
+test('a levelled mercenary can auto-invest by class focus, flagged on the map', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const raw = JSON.parse(localStorage.getItem('lanes.roster.v1')!);
+    raw.mercenaries[0].statPoints = 5;
+    localStorage.setItem('lanes.roster.v1', JSON.stringify(raw));
+  });
+  await page.goto('/');
+  await expect(page.locator('.portrait .points-badge').first()).toHaveText('+5');
+  await page.goto('/roster');
+  await expect(page.locator('.unspent-note')).toContainText('1 mercenary has stat points');
+  await page.locator('#auto-invest-all-btn').click();
+  await expect(page.locator('.unspent-note')).toHaveCount(0);
+  await expect(page.locator('.points-note')).toHaveCount(0);
+});

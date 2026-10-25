@@ -1,5 +1,6 @@
 import { ALL_CLASSES } from './unit-class.model';
 import {
+  CLASS_FOCUS,
   GRADES,
   Grade,
   Mercenary,
@@ -95,6 +96,16 @@ export function investPoint(merc: Mercenary, stat: PrimaryStat): Mercenary | nul
   next.statPoints -= 1;
   next.invested[stat] += 1;
   next.stats[stat] += next.invested[stat] % APTITUDE_RATIO[next.aptitudes[stat]] === 0 ? 2 : 1;
+  return next;
+}
+
+/** Spends every waiting stat point on the class's focus stats in turn, as veterans do. */
+export function autoInvest(merc: Mercenary): Mercenary {
+  const focus = CLASS_FOCUS[merc.classId] ?? ['str'];
+  let next = merc;
+  // Continue the rotation from the points already invested, so repeated calls stay even.
+  let turn = PRIMARY_STATS.reduce((sum, stat) => sum + merc.invested[stat], 0);
+  while (next.statPoints > 0) next = investPoint(next, focus[turn++ % focus.length])!;
   return next;
 }
 

@@ -296,3 +296,22 @@
   font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
+
+.auto-invest-btn {
+  min-height: 28px;
+  margin-left: 6px;
+  padding: 0 10px;
+  border: 1px solid #7dffb2;
+  border-radius: var(--radius-sm);
+  background: #12261c;
+  color: #7dffb2;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.unspent-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}

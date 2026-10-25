@@ -596,6 +596,18 @@ h2 {
   background: #18221c;
   box-shadow: 2px 3px 5px #0005;
 }
+.points-badge {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  z-index: 1;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #1f6b3d;
+  color: #d8ffe6;
+  font-size: 0.66rem;
+  box-shadow: 0 0 6px #7dffb2aa;
+}
 .portrait img {
   width: 100%;
   height: 100%;

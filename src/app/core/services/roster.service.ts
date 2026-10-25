@@ -18,6 +18,7 @@ import {
   gainExp,
   generateRecruits,
   hireCost,
+  autoInvest,
   investPoint,
 } from '../models/progression.model';
 import { getClassDefinition } from '../models/unit-class.model';
@@ -149,6 +150,21 @@ export class RosterService {
     }
     this.persist();
     return true;
+  }
+
+  /** Mercenaries with stat points waiting to be spent. */
+  public readonly unspent = computed(() =>
+    this.mercenaries().filter((merc) => merc.statPoints > 0),
+  );
+
+  /** Spends a mercenary's waiting points on its class's focus stats. */
+  public autoInvest(id?: string): void {
+    this.mercenaries.update((list) =>
+      list.map((merc) =>
+        (!id || merc.id === id) && merc.statPoints > 0 ? autoInvest(merc) : merc,
+      ),
+    );
+    this.persist();
   }
 
   public invest(id: string, stat: PrimaryStat): boolean {

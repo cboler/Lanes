@@ -67,7 +67,13 @@
       ><span>Return to the journey<small>Continue from your current position</small></span></a
     >
     <a routerLink="/roster" id="nav-link-roster" (click)="closeCompany()"
-      ><b>♟</b><span>Roster<small>Hire and develop your mercenaries</small></span></a
+      ><b>♟</b
+      ><span
+        >Roster<small>Hire and develop your mercenaries</small>
+        @if (roster.unspent().length) {
+          <em class="menu-badge">{{ roster.unspent().length }} ready to level</em>
+        }
+      </span></a
     >
     <a routerLink="/squad" id="nav-link-squad" (click)="closeCompany()"
       ><b>⚔</b><span>War Room<small>Choose the squad you take into battle</small></span></a
