@@ -46,7 +46,7 @@ describe('CampaignService', () => {
     const gold = roster.gold();
 
     const reward = campaign.complete(first.id, 'report-1');
-    expect(reward).toEqual({ missionId: first.id, gold: first.reward.gold, items: [] });
+    expect(reward).toEqual({ missionId: first.id, gold: first.reward.gold, items: [], gear: [] });
     expect(roster.gold()).toBe(gold + first.reward.gold);
     // Asking again for the same battle shows the same reward without paying it twice.
     expect(campaign.complete(first.id, 'report-1')).toEqual(reward);
@@ -67,6 +67,8 @@ describe('CampaignService', () => {
     const reward = campaign.complete(second.id, 'b')!;
     expect(reward.items).toEqual(second.reward.items);
     for (const item of second.reward.items!) expect(roster.count(item)).toBeGreaterThan(0);
+    expect(reward.gear).toEqual(second.reward.gear);
+    expect(roster.armory().map((p) => p.base)).toEqual(second.reward.gear);
   });
 
   it('starts over if the saved progress is unreadable', () => {

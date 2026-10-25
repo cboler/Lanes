@@ -13,6 +13,7 @@ import { chapterCleared, chapterOf, findMission, missionContract } from '../mode
 import { Contract, TIERS, generateContract, parseContract } from '../models/contract.model';
 import { seededRandom } from '../models/mercenary.model';
 import { marchRecovery } from '../models/facility.model';
+import { equipment } from '../models/equipment.model';
 import { RosterService } from './roster.service';
 import { GuildService } from './guild.service';
 import { CampaignService } from './campaign.service';
@@ -139,13 +140,19 @@ export class OverworldService {
   private settle(): void {
     const state = this.state();
     const node = nodeAt(state.position);
-    if (!state.encounter && (node.gold || node.item) && !state.collected.includes(node.id)) {
+    if (
+      !state.encounter &&
+      (node.gold || node.item || node.gear) &&
+      !state.collected.includes(node.id)
+    ) {
       this.state.update((s) => ({ ...s, collected: [...s.collected, node.id] }));
-      this.roster.grant(node.gold ?? 0, node.item ? [node.item] : []);
+      this.roster.grant(node.gold ?? 0, node.item ? [node.item] : [], node.gear ? [node.gear] : []);
       this.message.set(
         node.gold
           ? `Found ${node.gold} gold in ${node.name}.`
-          : `Recovered a ${node.item === 'tactics' ? 'Tactics' : 'Charm'} Scroll at ${node.name}.`,
+          : node.gear
+            ? `Found ${equipment(node.gear)?.name ?? 'equipment'} at ${node.name}. It waits in the armoury.`
+            : `Recovered a ${node.item === 'tactics' ? 'Tactics' : 'Charm'} Scroll at ${node.name}.`,
       );
     }
     if (!state.encounter && node.kind === 'goal' && !state.complete) {

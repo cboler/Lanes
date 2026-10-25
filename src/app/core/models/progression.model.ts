@@ -73,6 +73,17 @@ export interface BattleRewards {
   readonly mercenaries: readonly MercenaryReward[];
   /** Pairs whose bond reached a new rank, by name. */
   readonly bonds?: readonly { readonly names: readonly [string, string]; readonly title: string }[];
+  /** Equipment taken from the field, by name; it waits in the armoury. */
+  readonly loot?: readonly string[];
+}
+
+/**
+ * Odds a won battle leaves a piece of equipment: contracts, map patrols and story
+ * missions only (skirmishes and practice drop nothing), better the more foes fell.
+ */
+export function dropChance(report: BattleReport): number {
+  if (report.outcome !== 'victory' || (!report.contractId && !report.missionId)) return 0;
+  return Math.min(0.6, 0.2 + 0.05 * report.enemiesDefeated);
 }
 
 export function battleGold(report: BattleReport): number {

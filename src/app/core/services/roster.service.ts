@@ -5,6 +5,7 @@ import {
   PrimaryStat,
   Random,
   generateStarterRoster,
+  hashSeed,
   parseMercenary,
   seededRandom,
 } from '../models/mercenary.model';
@@ -12,6 +13,7 @@ import {
   BattleReport,
   BattleRewards,
   FALLEN_WEAR,
+  dropChance,
   wearsSquad,
   REFRESH_COST,
   STARTING_GOLD,
@@ -45,6 +47,7 @@ import {
   equipment,
   parsePiece,
   reforgeCost,
+  rollDrop,
   sellValue,
 } from '../models/equipment.model';
 import {
@@ -199,10 +202,15 @@ export class RosterService {
       return false;
     }
     this.gold.update((gold) => gold - item.price);
-    const uid = `piece_${Math.floor(this.random() * 0xffffffff).toString(36)}${Date.now().toString(36)}`;
-    this.armory.update((list) => [...list, { uid, base: id, plus: 0 }]);
+    this.addPiece(id);
     this.persist();
     return true;
+  }
+
+  /** A new, unforged piece in the armoury. */
+  private addPiece(base: string): void {
+    const uid = `piece_${Math.floor(this.random() * 0xffffffff).toString(36)}${Date.now().toString(36)}`;
+    this.armory.update((list) => [...list, { uid, base, plus: 0 }]);
   }
 
   /** Puts a piece from the armoury on a mercenary; whatever it replaces goes back. */
@@ -366,7 +374,19 @@ export class RosterService {
     const grown = applyBondGains(this.bonds(), bondGains(report));
     this.bonds.set(grown.bonds);
     const nameOf = (id: string) => this.mercenaries().find((m) => m.id === id)?.name ?? '?';
+    // Spoils are rolled from the report, so the same battle always leaves the same piece.
+    const classes = report.mercenaries.flatMap(
+      ({ id }) => this.mercenaries().find((m) => m.id === id)?.classId ?? [],
+    );
+    const drop = rollDrop(
+      seededRandom(hashSeed(`loot:${report.id}`)),
+      dropChance(report),
+      this.squadLevel(),
+      classes,
+    );
+    if (drop) this.addPiece(drop);
     const rewards: BattleRewards = {
+      loot: drop ? [equipment(drop)!.name] : [],
       gold: battleGold(report),
       mercenaries,
       bonds: grown.rankUps.map((up) => ({
@@ -411,10 +431,11 @@ export class RosterService {
     return true;
   }
 
-  /** Pays gold and items from outside battle, such as a story reward or a bounty. */
-  public grant(gold: number, items: readonly ItemId[] = []): void {
+  /** Pays gold, items and equipment from outside battle, such as a story reward or a cache. */
+  public grant(gold: number, items: readonly ItemId[] = [], gear: readonly string[] = []): void {
     this.gold.update((purse) => purse + gold);
     this.items.update((inventory) => addItems(inventory, items));
+    for (const base of gear) if (equipment(base)) this.addPiece(base);
     this.persist();
   }
 

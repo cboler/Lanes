@@ -26,6 +26,7 @@ import { BattleStateService } from '../core/services/battle-state.service';
 import { GamepadService } from '../core/services/gamepad.service';
 import { TIERS } from '../core/models/contract.model';
 import { itemName } from '../core/models/item.model';
+import { equipment } from '../core/models/equipment.model';
 import { Mission, StoryLine, tellLine } from '../core/models/campaign.model';
 import { getClassDefinition } from '../core/models/unit-class.model';
 
@@ -93,7 +94,7 @@ export class OverworldComponent implements OnDestroy {
     () => this.world.contract(this.inspectedPatrol())?.enemies ?? [],
   );
   protected readonly cacheCount = computed(
-    () => this.nodes().filter((node) => node.gold || node.item).length,
+    () => this.nodes().filter((node) => node.gold || node.item || node.gear).length,
   );
   protected readonly tiers = TIERS;
   protected readonly patrolCount = computed(() => this.world.region().patrols.length);
@@ -104,6 +105,7 @@ export class OverworldComponent implements OnDestroy {
     this.recovered().reduce((sum, node) => sum + (node.gold ?? 0), 0),
   );
   protected readonly itemName = itemName;
+  protected readonly gearName = (id: string) => equipment(id)?.name ?? id;
   protected readonly selected = signal('trail');
   protected readonly selectedNode = computed(() => nodeAt(this.selected()));
   protected readonly pendingBattle = computed(
@@ -171,7 +173,9 @@ export class OverworldComponent implements OnDestroy {
         ? ` · ${node.gold} gold`
         : node.item
           ? ` · ${node.item === 'tactics' ? 'Tactics' : 'Charm'} Scroll`
-          : ''
+          : node.gear
+            ? ` · ${equipment(node.gear)?.name ?? 'equipment'}`
+            : ''
       : ' · collected';
     return `${node.name}${loot}${node.kind === 'goal' ? ' · expedition objective' : ''}`;
   }

@@ -18,6 +18,7 @@ export interface MissionReward {
   readonly missionId: string;
   readonly gold: number;
   readonly items: readonly ItemId[];
+  readonly gear: readonly string[];
 }
 
 /** Campaign progress, saved on this device. */
@@ -64,8 +65,13 @@ export class CampaignService {
     let reward: MissionReward | null = null;
     if (mission && !this.isCleared(missionId)) {
       this.cleared.update((list) => [...list, missionId]);
-      reward = { missionId, gold: mission.reward.gold, items: mission.reward.items ?? [] };
-      this.roster.grant(reward.gold, reward.items);
+      reward = {
+        missionId,
+        gold: mission.reward.gold,
+        items: mission.reward.items ?? [],
+        gear: mission.reward.gear ?? [],
+      };
+      this.roster.grant(reward.gold, reward.items, reward.gear);
       this.persist();
     }
     this.paid.set(reportId, reward);

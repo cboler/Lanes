@@ -4,12 +4,16 @@ import {
   applyEquipment,
   canWear,
   equipment,
+  openTier,
   parseEquipped,
   pieceBonus,
   pieceName,
   reforgeCost,
+  rollDrop,
   sellValue,
 } from './equipment.model';
+import { REGIONS } from './overworld-regions';
+import { allMissions } from './campaign.model';
 import { deriveCombatStats, generateMercenary, seededRandom } from './mercenary.model';
 import { FIGHTER_CLASS } from './unit-class.model';
 
@@ -70,5 +74,29 @@ describe('equipment', () => {
     expect(parseEquipped({ weapon: { uid: 'a', base: 'sword-1', plus: 3 } }, 'fighter')).toEqual({
       weapon: { uid: 'a', base: 'sword-1', plus: 3 },
     });
+  });
+
+  it('drops pieces the squad can use, of the open tier or the next one up', () => {
+    expect([1, 3, 4, 7, 8, 30].map(openTier)).toEqual([1, 1, 2, 2, 3, 3]);
+    expect(rollDrop(() => 0, 0, 5, ['fighter'])).toBeNull();
+    expect(rollDrop(() => 0.99, 0.5, 5, ['fighter'])).toBeNull();
+    const random = seededRandom(7);
+    const tiers = new Set<number>();
+    for (let i = 0; i < 200; i++) {
+      const id = rollDrop(random, 1, 4, ['archer']);
+      const item = equipment(id!)!;
+      expect(canWear('archer', item)).toBe(true);
+      tiers.add(item.tier);
+    }
+    expect([...tiers].sort()).toEqual([2, 3]);
+  });
+
+  it('only names real equipment on the map and in story rewards', () => {
+    const gear = [
+      ...REGIONS.flatMap((region) => region.nodes.flatMap((node) => node.gear ?? [])),
+      ...allMissions().flatMap((mission) => mission.reward.gear ?? []),
+    ];
+    expect(gear.length).toBeGreaterThan(5);
+    for (const id of gear) expect(equipment(id), id).toBeDefined();
   });
 });

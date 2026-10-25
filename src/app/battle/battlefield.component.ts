@@ -36,6 +36,7 @@ import { CampaignService, MissionReward } from '../core/services/campaign.servic
 import { OverworldService } from '../core/services/overworld.service';
 import { Contract, TIERS } from '../core/models/contract.model';
 import { ItemId, itemName } from '../core/models/item.model';
+import { equipment } from '../core/models/equipment.model';
 import { FieldTrap, TRAP_NAMES } from '../core/models/field-object.model';
 import { BattleRewards } from '../core/models/progression.model';
 import { StatusEffectType } from '../core/models/status-effect.model';
@@ -759,6 +760,10 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected callAssist(allyId: string): void {
     this.assistOpen.set(false);
     this.battle.callAssist(allyId);
+  }
+
+  protected gearName(id: string): string {
+    return equipment(id)?.name ?? id;
   }
 
   protected itemName(item: ItemId): string {

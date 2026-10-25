@@ -8,6 +8,7 @@ import {
   STARTING_GOLD,
   hireCost,
 } from '../models/progression.model';
+import { equipment } from '../models/equipment.model';
 
 describe('RosterService', () => {
   const values = new Map<string, string>();
@@ -370,5 +371,35 @@ describe('RosterService', () => {
     expect(service.rest()).toBe(true);
     expect(wear()).toEqual([0, 0, 0]);
     expect(service.restCost()).toBe(0);
+  });
+
+  it('takes the same spoils from the same battle into the armoury, and grants gear', () => {
+    const service = TestBed.inject(RosterService);
+    const squad = service.squad();
+    const report = (id: string) => ({
+      id,
+      outcome: 'victory' as const,
+      enemiesDefeated: 8,
+      contractId: 'contract_x',
+      mercenaries: squad.map((m) => ({ id: m.id, survived: true })),
+    });
+    let looted = '';
+    for (let i = 0; i < 40 && !looted; i++) {
+      const before = service.armory().length;
+      const rewards = service.claimRewards(report(`fight-${i}`));
+      expect(service.armory().length - before).toBe(rewards.loot!.length);
+      if (rewards.loot!.length) looted = `fight-${i}`;
+    }
+    expect(looted).not.toBe('');
+    const piece = service.armory().at(-1)!;
+    const classes = squad.map((m) => m.classId);
+    const item = equipment(piece.base)!;
+    expect(!item.classes || item.classes.some((c) => classes.includes(c))).toBe(true);
+    // A skirmish leaves nothing.
+    const skirmish = { ...report('skirmish'), contractId: undefined };
+    expect(service.claimRewards(skirmish).loot).toEqual([]);
+    service.grant(0, [], ['vigil-crest', 'no-such-thing']);
+    expect(service.armory().at(-1)!.base).toBe('vigil-crest');
+    expect(service.armory().filter((p) => p.base === 'no-such-thing')).toEqual([]);
   });
 });

@@ -23,9 +23,11 @@ export interface MapNode {
   readonly name: string;
   readonly x: number;
   readonly y: number;
-  readonly kind?: 'camp' | 'goal' | 'gold' | 'chest';
+  readonly kind?: 'camp' | 'goal' | 'gold' | 'chest' | 'gear';
   readonly gold?: number;
   readonly item?: ItemId;
+  /** An equipment id left on the road. */
+  readonly gear?: string;
 }
 
 // The boards themselves live in overworld-regions.ts; Thornwatch is the default here.

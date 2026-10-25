@@ -1,4 +1,5 @@
 import type { UnitBaseStats } from './stats.model';
+import type { Random } from './mercenary.model';
 
 /*
  * Equipment and the forge (Grand Kingdom's equipment system, spec table 4.1.1). Each
@@ -221,4 +222,32 @@ export function wearers(item: EquipmentDefinition): string {
   return item.classes
     ? item.classes.map((id) => id[0].toUpperCase() + id.slice(1)).join(', ')
     : 'Anyone';
+}
+
+/** The best tier the guild armoury sells at a squad level. */
+export function openTier(squadLevel: number): 1 | 2 | 3 {
+  return squadLevel >= TIER_LEVEL[3] ? 3 : squadLevel >= TIER_LEVEL[2] ? 2 : 1;
+}
+
+/** Odds that a piece one tier above the armoury's best drops instead. */
+export const RARE_DROP = 0.2;
+
+/**
+ * Battle spoils: with the given chance, a piece some class that fought can use, of the
+ * armoury's best open tier, or now and then the tier above it. Null when nothing drops.
+ */
+export function rollDrop(
+  random: Random,
+  chance: number,
+  squadLevel: number,
+  classIds: readonly string[],
+): string | null {
+  if (chance <= 0 || random() >= chance) return null;
+  let tier = openTier(squadLevel);
+  if (tier < 3 && random() < RARE_DROP) tier = (tier + 1) as 2 | 3;
+  const pool = EQUIPMENT.filter(
+    (item) =>
+      item.tier === tier && (!item.classes || item.classes.some((c) => classIds.includes(c))),
+  );
+  return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
 }

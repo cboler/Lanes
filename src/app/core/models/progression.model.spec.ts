@@ -7,6 +7,7 @@ import {
   RECRUIT_COUNT,
   battleExp,
   battleGold,
+  dropChance,
   expToNext,
   gainExp,
   generateRecruits,
@@ -96,5 +97,15 @@ describe('auto-invest', () => {
     // Spread evenly: no focus stat is more than one point ahead of another.
     const counts = focus.map((stat) => spent.invested[stat]);
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('dropChance', () => {
+  const won = { id: 'r', outcome: 'victory' as const, enemiesDefeated: 4, mercenaries: [] };
+  it('gives contract, map and story wins a chance at equipment, rising with foes felled', () => {
+    expect(dropChance(won)).toBe(0);
+    expect(dropChance({ ...won, outcome: 'defeat', contractId: 'c' })).toBe(0);
+    expect(dropChance({ ...won, contractId: 'c' })).toBeCloseTo(0.4);
+    expect(dropChance({ ...won, missionId: 'm', enemiesDefeated: 20 })).toBe(0.6);
   });
 });

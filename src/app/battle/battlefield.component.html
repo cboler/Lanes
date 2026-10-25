@@ -685,6 +685,14 @@
                 @for (item of story.items; track $index) {
                   · {{ itemName(item) }}
                 }
+                @for (piece of story.gear; track $index) {
+                  · {{ gearName(piece) }}
+                }
+              </p>
+            }
+            @for (piece of paid.loot ?? []; track $index) {
+              <p class="reward-story reward-loot" id="reward-loot">
+                ⚔ Spoils: {{ piece }} · waiting in the armoury
               </p>
             }
             @if (

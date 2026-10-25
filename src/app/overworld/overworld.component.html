@@ -120,6 +120,9 @@
               @if (node.kind === 'chest') {
                 <span class="loot chest-loot" aria-hidden="true">▣</span>
               }
+              @if (node.kind === 'gear') {
+                <span class="loot gear-loot" aria-hidden="true">⚔</span>
+              }
             }
             @if (node.kind === 'goal') {
               <span class="goal-flag" aria-hidden="true">⚑</span>
@@ -409,7 +412,9 @@
               @if (contact(node.id)) {
                 <b class="contact-mark" aria-hidden="true">⚔</b>
               }
-              @if ((node.gold || node.item) && !world.state().collected.includes(node.id)) {
+              @if (
+                (node.gold || node.item || node.gear) && !world.state().collected.includes(node.id)
+              ) {
                 <b aria-hidden="true">◈</b>
               }
             </button>
@@ -611,6 +616,9 @@
             @for (node of recovered(); track node.id) {
               @if (node.item) {
                 <span> · {{ itemName(node.item) }}</span>
+              }
+              @if (node.gear) {
+                <span> · {{ gearName(node.gear) }}</span>
               }
             }
           </p>

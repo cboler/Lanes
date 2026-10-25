@@ -42,7 +42,12 @@ export interface Mission {
   readonly briefing: readonly StoryLine[];
   readonly debrief: readonly StoryLine[];
   /** Paid once, the first time the mission is won, on top of the battle's own pay. */
-  readonly reward: { readonly gold: number; readonly items?: readonly ItemId[] };
+  readonly reward: {
+    readonly gold: number;
+    readonly items?: readonly ItemId[];
+    /** Equipment ids given on the first win. */
+    readonly gear?: readonly string[];
+  };
 }
 
 export interface Chapter {

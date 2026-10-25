@@ -5,6 +5,7 @@ import { RosterService } from './roster.service';
 import { OverworldService } from './overworld.service';
 import { allMissions } from '../models/campaign.model';
 import { CampaignService } from './campaign.service';
+import { REGIONS } from '../models/overworld-regions';
 
 describe('OverworldService', () => {
   const values = new Map<string, string>();
@@ -251,5 +252,21 @@ describe('OverworldService', () => {
     expect(world.rest()).toBe(true);
     expect(roster.mercenaries().every((m) => !m.wear)).toBe(true);
     expect(world.state().turn).toBe(turn + 1);
+  });
+
+  it('finds equipment on the road once, into the armoury', () => {
+    const roster = TestBed.inject(RosterService);
+    const world = TestBed.inject(OverworldService);
+    world.step('trail');
+    expect(world.travelTo('saltmere')).toBe(true);
+    const saltmere = REGIONS.find((r) => r.id === 'saltmere')!;
+    world.state.update((s) => ({ ...s, defeated: saltmere.patrols.map((p) => p.id) }));
+    world.step('s-dunes');
+    world.step('s-cliff');
+    expect(roster.armory().map((p) => p.base)).toEqual(['glaive-2']);
+    expect(world.message()).toContain('Steel Glaive');
+    world.step('s-dunes');
+    world.step('s-cliff');
+    expect(roster.armory()).toHaveLength(1);
   });
 });
