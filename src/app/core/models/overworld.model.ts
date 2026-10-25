@@ -1,10 +1,11 @@
 import { ItemId } from './item.model';
+import { REGIONS, Region, THORNWATCH } from './overworld-regions';
 import { Mission, findMission } from './campaign.model';
 
 export interface MapPatrol {
   readonly id: string;
   readonly name: string;
-  readonly tier: 'easy' | 'normal';
+  readonly tier: 'easy' | 'normal' | 'hard';
   readonly path: readonly string[];
 }
 
@@ -27,109 +28,19 @@ export interface MapNode {
   readonly item?: ItemId;
 }
 
-/** Coordinates share the painted board's space; edges alone decide legal movement. */
-export const MAP_NODES: readonly MapNode[] = [
-  { id: 'camp', name: 'Wayfarer Camp', x: 10, y: 55, kind: 'camp' },
-  { id: 'trail', name: 'Old Cart Track', x: 18, y: 49 },
-  { id: 'fork', name: 'Three Roads', x: 27, y: 47 },
-  { id: 'ford', name: 'Fern Hollow', x: 37, y: 45 },
-  { id: 'bridge', name: 'Stonebridge', x: 47, y: 37 },
-  { id: 'east', name: 'Eastern Bank', x: 57, y: 32 },
-  { id: 'pass', name: 'Watchman’s Rise', x: 68, y: 32 },
-  { id: 'gate', name: 'Broken Gate', x: 78, y: 28 },
-  { id: 'keep', name: 'The Old Watchtower', x: 88, y: 23, kind: 'goal' },
-  { id: 'grove', name: 'Whispering Grove', x: 27, y: 30 },
-  { id: 'cache', name: 'Abandoned Pay Chest', x: 37, y: 22, kind: 'gold', gold: 80 },
-  { id: 'ridge', name: 'Hunter’s Ridge', x: 47, y: 25 },
-  { id: 'lowroad', name: 'The Low Road', x: 30, y: 64 },
-  { id: 'shrine', name: 'Forgotten Shrine', x: 42, y: 73, kind: 'chest', item: 'tactics' },
-  { id: 'meadow', name: 'Amber Meadow', x: 54, y: 69 },
-  { id: 'crossing', name: 'South Crossing', x: 64, y: 57 },
-  { id: 'steps', name: 'Pilgrim’s Steps', x: 68, y: 44 },
-  { id: 'purse', name: 'Smuggler’s Stash', x: 78, y: 64, kind: 'gold', gold: 120 },
-  { id: 'ruins', name: 'Wayside Ruins', x: 86, y: 47, kind: 'chest', item: 'charm' },
-  { id: 'mill', name: 'Old Mill', x: 11, y: 34 },
-  { id: 'logging', name: 'Birchwood Track', x: 18, y: 24 },
-  { id: 'overlook', name: 'Poacher’s Overlook', x: 28, y: 16 },
-  { id: 'northpass', name: 'High Ridge', x: 52, y: 16 },
-  { id: 'pinewatch', name: 'Pinewatch', x: 64, y: 16 },
-  { id: 'lookout', name: 'Signal Cairn', x: 76, y: 15 },
-  { id: 'orchard', name: 'Abandoned Orchard', x: 18, y: 70 },
-  { id: 'marsh', name: 'Reed Marsh', x: 27, y: 83 },
-  { id: 'barrow', name: 'King’s Barrow', x: 40, y: 87, kind: 'gold', gold: 60 },
-];
+// The boards themselves live in overworld-regions.ts; Thornwatch is the default here.
+export const MAP_NODES = THORNWATCH.nodes;
+export const MAP_EDGES = THORNWATCH.edges;
+export const PATROLS = THORNWATCH.patrols;
 
-export const MAP_EDGES: readonly (readonly [string, string])[] = [
-  ['camp', 'trail'],
-  ['trail', 'fork'],
-  ['fork', 'ford'],
-  ['ford', 'bridge'],
-  ['bridge', 'east'],
-  ['east', 'pass'],
-  ['pass', 'gate'],
-  ['gate', 'keep'],
-  ['fork', 'grove'],
-  ['grove', 'cache'],
-  ['cache', 'ridge'],
-  ['ridge', 'east'],
-  ['fork', 'lowroad'],
-  ['lowroad', 'shrine'],
-  ['shrine', 'meadow'],
-  ['meadow', 'crossing'],
-  ['crossing', 'steps'],
-  ['steps', 'pass'],
-  ['crossing', 'purse'],
-  ['purse', 'ruins'],
-  ['ruins', 'gate'],
-  ['camp', 'mill'],
-  ['mill', 'logging'],
-  ['logging', 'overlook'],
-  ['overlook', 'cache'],
-  ['logging', 'grove'],
-  ['trail', 'mill'],
-  ['ridge', 'northpass'],
-  ['northpass', 'pinewatch'],
-  ['pinewatch', 'lookout'],
-  ['lookout', 'gate'],
-  ['camp', 'orchard'],
-  ['orchard', 'marsh'],
-  ['marsh', 'lowroad'],
-  ['marsh', 'barrow'],
-  ['barrow', 'shrine'],
-];
+export function regionById(id: string | undefined): Region {
+  return REGIONS.find((region) => region.id === id) ?? THORNWATCH;
+}
 
-export const PATROLS = [
-  {
-    id: 'wolves',
-    name: 'Grey Wolf Scouts',
-    tier: 'easy',
-    path: ['ford', 'bridge', 'east', 'bridge'],
-  },
-  {
-    id: 'thorns',
-    name: 'Thornwood Patrol',
-    tier: 'normal',
-    path: ['meadow', 'crossing', 'purse', 'crossing'],
-  },
-  {
-    id: 'ravens',
-    name: 'Red Raven Guard',
-    tier: 'normal',
-    path: ['gate', 'pass', 'steps', 'pass'],
-  },
-  {
-    id: 'rangers',
-    name: 'Birchwood Rangers',
-    tier: 'normal',
-    path: ['mill', 'logging', 'overlook', 'cache', 'grove', 'fork', 'trail'],
-  },
-  {
-    id: 'wardens',
-    name: 'Barrow Wardens',
-    tier: 'normal',
-    path: ['lowroad', 'marsh', 'barrow', 'shrine', 'barrow', 'marsh'],
-  },
-] as const;
+/** The region whose board holds a waypoint, or undefined. */
+export function regionOfNode(id: string): Region | undefined {
+  return REGIONS.find((region) => region.nodes.some((node) => node.id === id));
+}
 
 export interface Expedition {
   readonly version: 1;
