@@ -57,6 +57,7 @@ export class RosterComponent {
 
   protected readonly supportSkills = SUPPORT_SKILLS;
   protected readonly scribeCost = SCRIBE_COST;
+  protected readonly round = Math.round;
   protected readonly slots: Slot[] = ['weapon', 'armor', 'accessory'];
   protected readonly slotName = { weapon: 'Weapon', armor: 'Armour', accessory: 'Accessory' };
   protected readonly pieceName = pieceName;

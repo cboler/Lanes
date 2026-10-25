@@ -12,6 +12,7 @@ import { REGIONS, Region } from '../models/overworld-regions';
 import { chapterCleared, chapterOf, findMission, missionContract } from '../models/campaign.model';
 import { Contract, TIERS, generateContract, parseContract } from '../models/contract.model';
 import { seededRandom } from '../models/mercenary.model';
+import { marchRecovery } from '../models/facility.model';
 import { RosterService } from './roster.service';
 import { GuildService } from './guild.service';
 import { CampaignService } from './campaign.service';
@@ -110,12 +111,27 @@ export class OverworldService {
     const next = advanceExpedition(this.state(), destination, this.story());
     if (next === this.state()) return false;
     this.state.set(next);
+    // The road mends a little of what the last battles cost.
+    this.roster.mend(marchRecovery(this.roster.facilities()));
     this.message.set(
       next.encounter
         ? `${this.encounter()!.name} intercept your company!`
         : `Arrived at ${nodeAt(destination).name}. The patrols advance with you.`,
     );
     this.settle();
+    return true;
+  }
+
+  /** The company is at its region's camp, where it can rest. */
+  public readonly atCamp = computed(() => this.state().position === this.region().start);
+
+  /** A night at camp: everyone back to full health for the fee, and one turn passes. */
+  public rest(): boolean {
+    if (!this.atCamp() || this.state().encounter || !this.roster.rest()) return false;
+    this.step(this.state().position);
+    if (!this.state().encounter) {
+      this.message.set('Your company rests at camp and sets out whole. The patrols moved on.');
+    }
     return true;
   }
 

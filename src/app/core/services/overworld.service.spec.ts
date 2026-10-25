@@ -235,4 +235,21 @@ describe('OverworldService', () => {
     expect(world.travelTo('thornwatch')).toBe(true);
     expect(world.state().position).toBe('trail');
   });
+
+  it('mends wounds a little each step and rests them away at camp, passing a turn', () => {
+    const roster = TestBed.inject(RosterService);
+    const world = TestBed.inject(OverworldService);
+    roster.mercenaries.update((list) => list.map((m) => ({ ...m, wear: 0.5 })));
+    world.step('trail');
+    expect(roster.mercenaries()[0].wear).toBeCloseTo(0.45);
+    // Rest only at camp.
+    expect(world.atCamp()).toBe(false);
+    expect(world.rest()).toBe(false);
+    world.step('camp');
+    expect(world.atCamp()).toBe(true);
+    const turn = world.state().turn;
+    expect(world.rest()).toBe(true);
+    expect(roster.mercenaries().every((m) => !m.wear)).toBe(true);
+    expect(world.state().turn).toBe(turn + 1);
+  });
 });

@@ -282,6 +282,15 @@ export class OverworldComponent implements OnDestroy {
     });
   }
 
+  protected readonly round = Math.round;
+
+  /** A night at camp: the company heals, and the patrols take a turn. */
+  protected rest(): void {
+    if (this.moving() || this.pendingBattle() || this.dialog()) return;
+    if (!this.world.rest()) return;
+    if (this.world.encounter()) this.engage();
+  }
+
   /** Sets out for another region, and shows the company where it arrives. */
   protected travelTo(regionId: string): void {
     if (this.moving() || this.pendingBattle() || !this.world.travelTo(regionId)) return;

@@ -35,7 +35,7 @@ import {
   assistCandidates,
   assistGain,
 } from '../engine/assist';
-import { BattleReport } from '../models/progression.model';
+import { BattleReport, wearsSquad } from '../models/progression.model';
 import { Contract } from '../models/contract.model';
 import {
   FieldTrap,
@@ -464,6 +464,14 @@ export class BattleStateService {
       );
       if (merc) this.mercenaryOf.set(unit.id, merc.id);
       if (merc) this.levelOf.set(unit.id, merc.level);
+      // On the overworld, a squad fights with the wounds of its last battles.
+      if (
+        merc?.wear &&
+        activeContract &&
+        wearsSquad({ contractId: activeContract.id, missionId: activeContract.missionId })
+      ) {
+        unit.currentHp = Math.max(1, Math.round(unit.maxHp * (1 - merc.wear)));
+      }
       newUnits.push(unit);
     });
 
@@ -1538,7 +1546,15 @@ export class BattleStateService {
       heals: [...this.healLog],
       mercenaries: this.units().flatMap((unit) => {
         const id = this.mercenaryOf.get(unit.id);
-        return id ? [{ id, survived: unit.isAlive }] : [];
+        return id
+          ? [
+              {
+                id,
+                survived: unit.isAlive,
+                hpLeft: Math.round((unit.currentHp / unit.maxHp) * 100) / 100,
+              },
+            ]
+          : [];
       }),
     });
   }

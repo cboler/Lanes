@@ -37,8 +37,15 @@ export interface BattleReport {
   readonly id: string;
   readonly outcome: 'victory' | 'defeat';
   readonly enemiesDefeated: number;
-  /** The player's roster mercenaries in the battle, and whether each was standing at the end. */
-  readonly mercenaries: readonly { readonly id: string; readonly survived: boolean }[];
+  /**
+   * The player's roster mercenaries in the battle, whether each was standing at the end,
+   * and the share of max HP each had left.
+   */
+  readonly mercenaries: readonly {
+    readonly id: string;
+    readonly survived: boolean;
+    readonly hpLeft?: number;
+  }[];
   /** A contract's reward scale; 1 for a skirmish or practice. */
   readonly rewardMultiplier?: number;
   /** The board contract fought, if any; a victory completes it. */
@@ -133,3 +140,11 @@ export function generateRecruits(random: Random, takenNames: readonly string[]):
   }
   return recruits;
 }
+
+/** Battles on the overworld (patrols and the story) wear a squad down; others do not. */
+export function wearsSquad(report: { contractId?: string; missionId?: string }): boolean {
+  return !!report.missionId || !!report.contractId?.startsWith('overworld:');
+}
+
+/** A fallen mercenary is carried off the field with a quarter of their HP. */
+export const FALLEN_WEAR = 0.75;

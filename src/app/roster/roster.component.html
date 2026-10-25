@@ -59,6 +59,12 @@
           <span class="exp-fill" [style.width.%]="expPercent(merc)"></span>
         </div>
         <p class="exp-label">{{ expLabel(merc) }}</p>
+        @if (merc.wear) {
+          <p class="wear-note">
+            Wounded · {{ 100 - round(merc.wear * 100) }}% HP for the next map battle. Rest at camp
+            to heal.
+          </p>
+        }
         @if (merc.statPoints > 0) {
           <p class="points-note">
             {{ merc.statPoints }} stat points to invest

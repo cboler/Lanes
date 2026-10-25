@@ -34,6 +34,8 @@ const GRADE_BASE: Record<Grade, number> = { F: 8, E: 11, D: 14, C: 17, B: 20, A:
 const NEUTRAL_STAT = 17;
 const STAT_SCALE = 0.02;
 const STARTING_SP = 10;
+/** The most HP a mercenary can be down between battles; nobody marches at zero. */
+export const MAX_WEAR = 0.95;
 
 export type Aptitudes = Record<PrimaryStat, Grade>;
 export type MercenaryStats = Record<PrimaryStat, number> & { sp: number };
@@ -55,6 +57,8 @@ export interface Mercenary {
   supports: string[];
   /** Weapon, armour and accessory; saves from before equipment have none. */
   equipment?: Equipped;
+  /** Share of max HP lost on the road (0 to 0.95), carried between map battles. */
+  wear?: number;
   aptitudes: Aptitudes;
   stats: MercenaryStats;
 }
@@ -273,6 +277,10 @@ export function parseMercenary(value: unknown): Mercenary | null {
   if (!pattern) return null;
   const supports = fitSupports(merc.supports, merc.level!, stats.sp);
   const equipment = parseEquipped(merc.equipment, merc.classId);
+  const wear =
+    typeof merc.wear === 'number' && merc.wear > 0
+      ? Math.round(Math.min(MAX_WEAR, merc.wear) * 100) / 100
+      : 0;
   return {
     id: merc.id,
     name: merc.name,
@@ -284,6 +292,7 @@ export function parseMercenary(value: unknown): Mercenary | null {
     pattern,
     supports,
     ...(Object.keys(equipment).length ? { equipment } : {}),
+    ...(wear ? { wear } : {}),
     aptitudes,
     stats,
   };

@@ -1,5 +1,6 @@
 import { DOCUMENT, Injectable, computed, inject, signal } from '@angular/core';
 import {
+  MAX_WEAR,
   Mercenary,
   PrimaryStat,
   Random,
@@ -10,6 +11,8 @@ import {
 import {
   BattleReport,
   BattleRewards,
+  FALLEN_WEAR,
+  wearsSquad,
   REFRESH_COST,
   STARTING_GOLD,
   battleExp,
@@ -30,6 +33,7 @@ import {
   facilityLevel,
   parseFacilities,
   reforgeMultiplier,
+  restMultiplier,
   rosterLimit,
   upgradeCost,
 } from '../models/facility.model';
@@ -331,9 +335,17 @@ export class RosterService {
   public claimRewards(report: BattleReport): BattleRewards {
     const already = this.paid.get(report.id);
     if (already) return already;
-    const mercenaries = report.mercenaries.flatMap(({ id, survived }) => {
-      const merc = this.mercenaries().find((m) => m.id === id);
-      if (!merc) return [];
+    const wearing = wearsSquad(report);
+    const mercenaries = report.mercenaries.flatMap(({ id, survived, hpLeft }) => {
+      const found = this.mercenaries().find((m) => m.id === id);
+      if (!found) return [];
+      // Map battles leave their wounds for the next one.
+      const merc = wearing
+        ? {
+            ...found,
+            wear: survived ? Math.min(MAX_WEAR, Math.max(0, 1 - (hpLeft ?? 1))) : FALLEN_WEAR,
+          }
+        : found;
       const exp = Math.round(battleExp(report, merc, survived) * expMultiplier(this.facilities()));
       const next = gainExp(merc, exp);
       this.replace(next);
@@ -366,6 +378,37 @@ export class RosterService {
     this.paid.set(report.id, rewards);
     this.persist();
     return rewards;
+  }
+
+  /** Mends a share of every mercenary's lost HP (a step on the road). */
+  public mend(share: number): void {
+    if (!this.mercenaries().some((m) => m.wear)) return;
+    this.mercenaries.update((list) =>
+      list.map((merc) => {
+        if (!merc.wear) return merc;
+        const wear = Math.max(0, Math.round((merc.wear - share) * 100) / 100);
+        const healed = { ...merc };
+        if (wear) healed.wear = wear;
+        else delete healed.wear;
+        return healed;
+      }),
+    );
+    this.persist();
+  }
+
+  /** What resting at camp costs: a little per point of HP lost across the roster. */
+  public readonly restCost = computed(() => {
+    const lost = this.mercenaries().reduce((sum, m) => sum + (m.wear ?? 0), 0);
+    return Math.round(lost * 60 * restMultiplier(this.facilities()));
+  });
+
+  /** Rests the whole company back to full health, for the camp's fee. */
+  public rest(): boolean {
+    const cost = this.restCost();
+    if (!cost || this.gold() < cost) return false;
+    this.gold.update((gold) => gold - cost);
+    this.mend(1);
+    return true;
   }
 
   /** Pays gold and items from outside battle, such as a story reward or a bounty. */

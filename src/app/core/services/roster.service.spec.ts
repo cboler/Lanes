@@ -336,4 +336,39 @@ describe('RosterService', () => {
     TestBed.resetTestingModule();
     expect(TestBed.inject(RosterService).facilities()).toEqual({ barracks: 1, smithy: 1 });
   });
+
+  it('keeps the wounds of map battles, mends them on the road, and rests them away for gold', () => {
+    const service = TestBed.inject(RosterService);
+    const [a, b, c] = service.mercenaries();
+    const fought = (id: string, contractId: string) => ({
+      id,
+      outcome: 'victory' as const,
+      enemiesDefeated: 1,
+      contractId,
+      mercenaries: [
+        { id: a.id, survived: true, hpLeft: 0.4 },
+        { id: b.id, survived: false, hpLeft: 0 },
+        { id: c.id, survived: true, hpLeft: 1 },
+      ],
+    });
+    // A guild contract leaves no lasting wounds.
+    service.claimRewards(fought('guild-fight', 'contract_x'));
+    expect(service.mercenaries().some((m) => m.wear)).toBe(false);
+    service.claimRewards(fought('map-fight', 'overworld:wolves'));
+    const wear = () =>
+      service
+        .mercenaries()
+        .slice(0, 3)
+        .map((m) => m.wear ?? 0);
+    expect(wear()).toEqual([0.6, 0.75, 0]);
+    service.mend(0.1);
+    expect(wear()).toEqual([0.5, 0.65, 0]);
+    expect(service.restCost()).toBe(Math.round(1.15 * 60));
+    service.gold.set(10);
+    expect(service.rest()).toBe(false);
+    service.gold.set(500);
+    expect(service.rest()).toBe(true);
+    expect(wear()).toEqual([0, 0, 0]);
+    expect(service.restCost()).toBe(0);
+  });
 });

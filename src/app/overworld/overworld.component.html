@@ -352,6 +352,13 @@
               merc.name
             }}</span
             ><small>Lv. {{ merc.level }}</small>
+            @if (merc.wear) {
+              <i
+                class="wear-bar"
+                [style.--hp]="1 - merc.wear"
+                [attr.title]="'Wounded: ' + round((1 - merc.wear) * 100) + '% HP'"
+              ></i>
+            }
             @if (merc.statPoints > 0) {
               <b class="points-badge" title="Stat points to spend">+{{ merc.statPoints }}</b>
             }
@@ -449,6 +456,18 @@
             {{ pad.connected() ? 'ⓧ' : '◷' }}
             {{ contact(current().id) ? 'Wait · Battle' : 'Wait a turn' }}
           </button>
+          @if (world.atCamp() && roster.restCost()) {
+            <button
+              type="button"
+              class="wait-btn rest-btn"
+              id="rest-btn"
+              [disabled]="moving() || roster.gold() < roster.restCost()"
+              [attr.aria-label]="'Rest at camp: heal everyone for ' + roster.restCost() + ' gold'"
+              (click)="rest()"
+            >
+              ⛺ Rest · {{ roster.restCost() }} G
+            </button>
+          }
         </div>
       }
     </section>

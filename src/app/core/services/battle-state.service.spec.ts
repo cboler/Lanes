@@ -352,7 +352,7 @@ describe('BattleStateService', () => {
       expect.objectContaining({
         outcome: 'victory',
         enemiesDefeated: 1,
-        mercenaries: [{ id: 'merc_archer', survived: true }],
+        mercenaries: [{ id: 'merc_archer', survived: true, hpLeft: expect.any(Number) }],
       }),
     );
     service.initSkirmish();
@@ -811,6 +811,34 @@ describe('BattleStateService', () => {
     expect(service.executeSelectedAbility(unitA, true)).toBe(true);
     expect(unitA.isAlive).toBe(false);
     expect(unitF.hasEffect('attack-up')).toBe(true);
+  });
+});
+
+describe('BattleStateService wear', () => {
+  let service: BattleStateService;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    service = new BattleStateService();
+  });
+  afterEach(() => {
+    service.suspend();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('starts wounded mercenaries short of full HP in map battles only, and reports what is left', () => {
+    const hurt = { ...defender, wear: 0.5 };
+    const contract = generateContract('easy', 1, seededRandom(4));
+    service.deployContract({ ...contract, id: 'overworld:wolves' }, [hurt]);
+    const unit = service.playerUnits()[0];
+    expect(unit.currentHp).toBe(Math.round(unit.maxHp * 0.5));
+    service.deployContract(contract, [hurt]);
+    expect(service.playerUnits()[0].currentHp).toBe(service.playerUnits()[0].maxHp);
+    for (const foe of service.enemyUnits()) foe.takeDamage(99999);
+    service.endCurrentTurn(true);
+    expect(service.battleReport()?.mercenaries[0]).toEqual(
+      expect.objectContaining({ survived: true, hpLeft: 1 }),
+    );
   });
 });
 
