@@ -447,6 +447,8 @@ test('ranged skills fire from a sweeping cursor, and a cursor left to run out mi
 }) => {
   await page.goto('/battle');
   await expect(page.locator('#timing-toggle-btn')).toHaveAttribute('aria-pressed', 'true');
+  // Read the gauge before aiming: on a slow machine the cursor can run out before a later check.
+  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
   await page.locator('#ability-btn-quick_shot').click();
   await page.locator('.unit-node.selected-target').click();
   await expect(page.locator('.aim-panel')).toBeVisible();
@@ -455,7 +457,6 @@ test('ranged skills fire from a sweeping cursor, and a cursor left to run out mi
   await expect(target).toHaveCount(1);
   const targetId = await target.getAttribute('id');
   const hp = await target.locator('.hp-track').getAttribute('aria-valuenow');
-  await expect(page.locator('#action-gauge')).toHaveAttribute('aria-valuenow', '100');
 
   // Untouched, the cursor runs off the end of the track: the AP is spent and nothing is hit.
   await expect(page.locator('.aim-panel')).toHaveCount(0, { timeout: 4000 });
