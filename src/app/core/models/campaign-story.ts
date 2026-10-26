@@ -427,15 +427,18 @@ export const CAMPAIGN: readonly Chapter[] = [
         id: 'v2-trenches',
         route: ['v-bridge', 'v-trench', 'v-bridge', 'v-mill'],
         title: 'Through the Siege Lines',
-        summary: 'Break through Corvane’s trenches to reach the town, under catapult fire.',
+        summary:
+          'Break through Corvane’s trenches to reach the town, under catapult fire, against sappers in iron.',
         band: 'Corvane Sappers',
         level: 8,
+        // Vellmark opens a step above Saltmere's finale: seasoned sappers in iron.
         enemies: [
-          { classId: 'lancer', name: 'Captain Garreth' },
-          { classId: 'fighter', name: 'Mott' },
-          { classId: 'archer', name: 'Wren' },
-          { classId: 'cleric', name: 'Sister Vael' },
+          { classId: 'lancer', name: 'Captain Garreth', levelBonus: 1 },
+          { classId: 'fighter', name: 'Mott', levelBonus: 1 },
+          { classId: 'archer', name: 'Wren', levelBonus: 1 },
+          { classId: 'cleric', name: 'Sister Vael', levelBonus: 1 },
         ],
+        armoury: 1,
         objects: [
           { kind: 'engine', engine: 'catapult', lane: 0, x: 0.92 },
           { kind: 'engine', engine: 'sparkcoil', lane: 2, x: 0.72 },
@@ -481,15 +484,18 @@ export const CAMPAIGN: readonly Chapter[] = [
         id: 'v2-walls',
         route: ['v-batteries', 'v-wall', 'v-batteries', 'v-trench'],
         title: 'Hold the Walls',
-        summary: 'Man Vellmark’s two ballistae against Corvane’s night assault.',
+        summary:
+          'Man Vellmark’s two ballistae against Corvane’s night assault, led by Brann Ironside in steel.',
         band: 'Iron Pike Assault',
         level: 9,
+        // Corvane's assault in steel, Ironside well above the rest: the step before the keep.
         enemies: [
-          { classId: 'fighter', name: 'Brann Ironside' },
+          { classId: 'fighter', name: 'Brann Ironside', levelBonus: 3 },
           { classId: 'lancer', name: 'Kesh' },
           { classId: 'witch', name: 'Morwen' },
           { classId: 'gunner', name: 'Dace' },
         ],
+        armoury: 2,
         objects: [
           { kind: 'engine', engine: 'ballista', lane: 0, x: 0.16, team: 'player' },
           { kind: 'engine', engine: 'ballista', lane: 2, x: 0.16, team: 'player' },
@@ -526,7 +532,7 @@ export const CAMPAIGN: readonly Chapter[] = [
           {
             speaker: 'Maren Tidewell',
             portrait: 'gunner',
-            text: 'Then we go up and end it. We captured one of their catapults in the rout. It is yours, if you can haul it up the hill.',
+            text: 'Then we go up and end it. We took one of their catapults in the rout, but it will never make the hill road. Whatever is waiting up there, we meet it on foot.',
           },
         ],
         reward: { gold: 820, items: ['charm'] },
