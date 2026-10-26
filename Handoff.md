@@ -494,6 +494,16 @@ The user saw Archers far ahead and leaned toward buffing everyone else rather th
 - **Result (seed 1, 60 per cell):** squads with each class win 48–52% (Archer 66→52%); the first mover wins 53% (was 71%); battles average about 5 rounds (were 3.7); 5–6% of contract and story battles go to time (were 3%). Contract tiers barely moved (Easy 85%, Normal 49%, Hard 29% on average). Story: Thorn Keep 49→67%, Siege Lines 57→72%; The Seal on the Crates (32%) and Storming Saltmere Fort (30%) are still the walls. Mirror matches read 42–46% on some seeds; split by how they ended, 1,200 mirrors give the player 47% fought out and 49% on time, with 15 exact ties going to the band by the round-limit rule.
 - **Tests:** the Vigor support expectations use 275 (250 + 10%).
 
+## Story difficulty smoothed with the simulator (2026-10-25)
+
+The user asked to ease The Seal on the Crates and Storming Saltmere Fort and make the finale harder, aiming for a steady climb. Variants were rated with 400–600 battles each for an average player with armoury gear at the mission's level (a throwaway probe, since deleted; `SIM_SCENARIOS=campaign npm run sim` measures the curve).
+
+- **New mission levers:** MissionEnemy.levelBonus (levels above or below the mission's, for bosses and green bands) and Mission.armoury (the band wears the armoury's weapon and armour of that tier, through `armed(merc, tier)` in equipment.model.ts, which the simulator's squads also use). Both pass through parseContract, so a battle saved mid-fight keeps them.
+- **The Seal on the Crates (s1-docks):** the barricade was the wall (29% → 46% without it); the wardens now also fight a level below the mission: 57%.
+- **Storming Saltmere Fort (s1-fort):** the enemy catapult was the wall (37% → 56% without it); it is now a ballista on the far wall, lane 2: 48%. Summary and Maren's warning updated.
+- **The Iron Lady (v2-keep):** at level 10 the squad wears mythril and story bands wore nothing, so levels alone barely moved it (86% → 66% even with Iselde +6). Now Iselde fights at +5, her retinue at +3, all in tier-3 armoury gear; the catapult lent to the player is gone and the keep fields its own (lane 2): 42%. A new briefing line from Maren warns that it is the hardest fight.
+- **Curve now (average, armoury, 600 battles):** 96, 96, 68, 52 | 57, 54, 48 | 72, 64, 42. The full run (seed 1, 150 per cell) puts Saltmere at 56, 51, 55 (within a few points of each other, so roughly even rather than climbing) and the finale at 40% for an average player, 29% for a novice and 55% for an expert: the hardest battle in the game. Vellmark's first two missions (Through the Siege Lines 72%, Hold the Walls 64%) are still easier than Saltmere's finale, the last bump in the curve. Without gear the late missions are much harder (finale about 15–30%), since bands now outpace an unequipped squad.
+
 ## Immediate next steps
 
 1. Story: write the real campaign (chapter 1 onward) in campaign-story.ts; consider per-mission backdrops, special victory conditions (protect a unit, survive N rounds) and story-only enemy names on the stage.

@@ -248,16 +248,14 @@ export const CAMPAIGN: readonly Chapter[] = [
           'Follow the sealed crates to the Saltmere docks, where Corvane wardens stand guard.',
         band: 'Corvane Wardens',
         level: 5,
+        // Hired dock wardens, a step greener than the squad: Saltmere's opener.
         enemies: [
-          { classId: 'fighter', name: 'Dren Hollow' },
-          { classId: 'gunner', name: 'Saska' },
-          { classId: 'archer', name: 'Pim' },
-          { classId: 'cleric', name: 'Brother Tamsin' },
+          { classId: 'fighter', name: 'Dren Hollow', levelBonus: -1 },
+          { classId: 'gunner', name: 'Saska', levelBonus: -1 },
+          { classId: 'archer', name: 'Pim', levelBonus: -1 },
+          { classId: 'cleric', name: 'Brother Tamsin', levelBonus: -1 },
         ],
-        objects: [
-          { kind: 'barricade', lane: 1, x: 0.62 },
-          { kind: 'engine', engine: 'ballista', lane: 0, x: 0.9 },
-        ],
+        objects: [{ kind: 'engine', engine: 'ballista', lane: 0, x: 0.9 }],
         briefing: [
           {
             speaker: 'Guildmaster Hollis',
@@ -362,7 +360,8 @@ export const CAMPAIGN: readonly Chapter[] = [
         id: 's1-fort',
         route: ['s-gate', 's-fort', 's-watch', 's-fort'],
         title: 'Storming Saltmere Fort',
-        summary: 'Assault the fort with a stolen ballista, past a catapult and a barricade.',
+        summary:
+          'Assault the fort with a stolen ballista, past their own ballista and a barricade.',
         band: 'Saltmere Garrison',
         level: 7,
         enemies: [
@@ -373,7 +372,7 @@ export const CAMPAIGN: readonly Chapter[] = [
         ],
         objects: [
           { kind: 'engine', engine: 'ballista', lane: 1, x: 0.18, team: 'player' },
-          { kind: 'engine', engine: 'catapult', lane: 2, x: 0.92 },
+          { kind: 'engine', engine: 'ballista', lane: 2, x: 0.92 },
           { kind: 'barricade', lane: 0, x: 0.6 },
         ],
         briefing: [
@@ -395,7 +394,7 @@ export const CAMPAIGN: readonly Chapter[] = [
           {
             speaker: 'Maren Tidewell',
             portrait: 'gunner',
-            text: 'Their catapult can reach any lane. Do not bunch up where it is looking.',
+            text: 'They have a ballista of their own on the far wall, trained down the seaward lane. Cross that lane fast, or not at all.',
           },
         ],
         debrief: [
@@ -539,16 +538,18 @@ export const CAMPAIGN: readonly Chapter[] = [
         summary: 'Storm Vellmark Keep and face Lady Iselde Corvane herself.',
         band: 'House Corvane',
         level: 10,
+        // The finale: Iselde fights well above the squad, her household in mythril.
         enemies: [
-          { classId: 'witch', name: 'Lady Iselde' },
-          { classId: 'fighter', name: 'Ser Aldous' },
-          { classId: 'cleric', name: 'Mother Ysolde' },
-          { classId: 'gunner', name: 'Tavish' },
+          { classId: 'witch', name: 'Lady Iselde', levelBonus: 5 },
+          { classId: 'fighter', name: 'Ser Aldous', levelBonus: 3 },
+          { classId: 'cleric', name: 'Mother Ysolde', levelBonus: 3 },
+          { classId: 'gunner', name: 'Tavish', levelBonus: 3 },
         ],
+        armoury: 3,
         objects: [
-          { kind: 'engine', engine: 'catapult', lane: 1, x: 0.12, team: 'player' },
           { kind: 'engine', engine: 'sparkcoil', lane: 1, x: 0.8 },
           { kind: 'engine', engine: 'ballista', lane: 0, x: 0.9 },
+          { kind: 'engine', engine: 'catapult', lane: 2, x: 0.92 },
           { kind: 'barricade', lane: 2, x: 0.62 },
         ],
         briefing: [
@@ -566,6 +567,11 @@ export const CAMPAIGN: readonly Chapter[] = [
             speaker: 'Lady Iselde',
             portrait: 'witch',
             text: 'Then pay the rest.',
+          },
+          {
+            speaker: 'Maren Tidewell',
+            portrait: 'gunner',
+            text: 'Her household wears Corvane mythril, and every engine on those walls is theirs. This is the hardest fight we will ever have. Go in rested and armed.',
           },
         ],
         debrief: [

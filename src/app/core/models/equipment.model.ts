@@ -1,5 +1,5 @@
 import type { UnitBaseStats } from './stats.model';
-import type { Random } from './mercenary.model';
+import type { Mercenary, Random } from './mercenary.model';
 
 /*
  * Equipment and the forge (Grand Kingdom's equipment system, spec table 4.1.1). Each
@@ -250,4 +250,25 @@ export function rollDrop(
       item.tier === tier && (!item.classes || item.classes.some((c) => classIds.includes(c))),
   );
   return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
+}
+
+/**
+ * A mercenary kitted out from the armoury: the weapon and armour of `tier` its class can
+ * use, unforged. For story bands that come armed, and for simulated squads.
+ */
+export function armed(merc: Mercenary, tier: 1 | 2 | 3): Mercenary {
+  const pick = (slot: 'weapon' | 'armor') =>
+    EQUIPMENT.find(
+      (item) => item.slot === slot && item.tier === tier && canWear(merc.classId, item),
+    );
+  const weapon = pick('weapon');
+  const armor = pick('armor');
+  return {
+    ...merc,
+    equipment: {
+      ...merc.equipment,
+      ...(weapon ? { weapon: { uid: `${merc.id}-weapon`, base: weapon.id, plus: 0 } } : {}),
+      ...(armor ? { armor: { uid: `${merc.id}-armor`, base: armor.id, plus: 0 } } : {}),
+    },
+  };
 }

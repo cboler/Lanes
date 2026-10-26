@@ -3,6 +3,7 @@ import { CAMPAIGN } from './campaign-story';
 import {
   Chapter,
   allMissions,
+  findMission,
   isUnlocked,
   missionContract,
   nextMission,
@@ -50,6 +51,22 @@ describe('campaign', () => {
     expect(first.enemies.map((e) => e.classId)).toEqual(story.enemies.map((e) => e.classId));
     expect(first.enemies.every((e) => e.level === story.level)).toBe(true);
     expect(first.objects).toEqual(story.objects);
+  });
+
+  it('fields bosses above the mission level and armed bands in armoury gear, through a reload', () => {
+    const finale = findMission('v2-keep')!;
+    const band = missionContract(finale);
+    const levels = Object.fromEntries(band.enemies.map((e) => [e.name, e.level]));
+    expect(levels['Lady Iselde']).toBe(finale.level + 5);
+    expect(levels['Ser Aldous']).toBe(finale.level + 3);
+    for (const enemy of band.enemies) {
+      expect(enemy.equipment?.armor?.base).toMatch(/-3$/);
+    }
+    // A battle saved mid-fight keeps the band's levels and gear.
+    expect(parseContract(band)!.enemies).toEqual(band.enemies);
+    // The Saltmere opener's wardens fight a level below the mission, unarmed.
+    const docks = missionContract(findMission('s1-docks')!);
+    expect(docks.enemies.every((e) => e.level === 4 && !e.equipment?.armor)).toBe(true);
   });
 
   it('fills in the squad leader', () => {

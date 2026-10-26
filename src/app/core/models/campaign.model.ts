@@ -4,6 +4,7 @@ import { FieldObjectSpec } from './field-object.model';
 import { hashSeed, seededRandom } from './mercenary.model';
 import { CAMPAIGN } from './campaign-story';
 import { ItemId } from './item.model';
+import { armed } from './equipment.model';
 
 /*
  * The single-player campaign: chapters of story missions, played in order. A mission is
@@ -23,6 +24,8 @@ export interface StoryLine {
 export interface MissionEnemy {
   readonly classId: string;
   readonly name: string;
+  /** Levels above the mission's this one fights at: a boss, or a veteran lieutenant. */
+  readonly levelBonus?: number;
 }
 
 export interface Mission {
@@ -38,6 +41,8 @@ export interface Mission {
   readonly route: readonly string[];
   /** One to four enemies; the first is the band's leader. */
   readonly enemies: readonly MissionEnemy[];
+  /** The band wears the armoury's weapon and armour of this tier. */
+  readonly armoury?: 1 | 2 | 3;
   readonly objects?: readonly FieldObjectSpec[];
   readonly briefing: readonly StoryLine[];
   readonly debrief: readonly StoryLine[];
@@ -103,11 +108,14 @@ export function missionContract(mission: Mission): Contract {
     tier: 'normal',
     level: mission.level,
     rewardMultiplier: MISSION_REWARD,
-    enemies: mission.enemies.map((enemy, index) => ({
-      ...veteran(enemy.classId, mission.level, random),
-      id: `${mission.id}_${index}`,
-      name: enemy.name,
-    })),
+    enemies: mission.enemies.map((enemy, index) => {
+      const merc = {
+        ...veteran(enemy.classId, mission.level + (enemy.levelBonus ?? 0), random),
+        id: `${mission.id}_${index}`,
+        name: enemy.name,
+      };
+      return mission.armoury ? armed(merc, mission.armoury) : merc;
+    }),
     objects: [...(mission.objects ?? [])],
   };
 }

@@ -1,7 +1,7 @@
 import { ALL_CLASSES, UnitClassDefinition } from '../src/app/core/models/unit-class.model';
 import { ContractTier, generateContract, veteran } from '../src/app/core/models/contract.model';
 import { Mercenary, Random } from '../src/app/core/models/mercenary.model';
-import { EQUIPMENT, canWear, openTier } from '../src/app/core/models/equipment.model';
+import { armed, openTier } from '../src/app/core/models/equipment.model';
 import { allMissions, missionContract } from '../src/app/core/models/campaign.model';
 import { BattleRecord, runBattle } from './battle';
 import { ProfileId } from './profiles';
@@ -32,28 +32,10 @@ function squadClasses(random: Random): UnitClassDefinition[] {
   return [pickClass(random, FRONTLINE), pickClass(random), pickClass(random), pickClass(random)];
 }
 
-/** The armoury's best open-tier weapon and armour for each mercenary, unforged. */
-function equip(merc: Mercenary, level: number): Mercenary {
-  const tier = openTier(level);
-  const pick = (slot: 'weapon' | 'armor') =>
-    EQUIPMENT.find(
-      (item) => item.slot === slot && item.tier === tier && canWear(merc.classId, item),
-    );
-  const weapon = pick('weapon');
-  const armor = pick('armor');
-  return {
-    ...merc,
-    equipment: {
-      ...(weapon ? { weapon: { uid: `${merc.id}-w`, base: weapon.id, plus: 0 } } : {}),
-      ...(armor ? { armor: { uid: `${merc.id}-a`, base: armor.id, plus: 0 } } : {}),
-    },
-  };
-}
-
 function squad(level: number, gear: GearLevel, random: Random): Mercenary[] {
   return squadClasses(random).map((cls, index) => {
     const merc = { ...veteran(cls.id, level, random), id: `sim_${index}_${cls.id}` };
-    return gear === 'armoury' ? equip(merc, level) : merc;
+    return gear === 'armoury' ? armed(merc, openTier(level)) : merc;
   });
 }
 
