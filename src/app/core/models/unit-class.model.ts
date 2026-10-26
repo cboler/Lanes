@@ -154,7 +154,7 @@ export const FIGHTER_CLASS: UnitClassDefinition = {
   archetype: 'melee',
   shield: true,
   baseStats: {
-    maxHp: 180,
+    maxHp: 250,
     attack: 65,
     defense: 50,
     speed: 40,
@@ -253,7 +253,7 @@ export const CLERIC_CLASS: UnitClassDefinition = {
   role: 'support',
   archetype: 'specialist',
   baseStats: {
-    maxHp: 120,
+    maxHp: 170,
     attack: 30,
     defense: 25,
     speed: 55,
@@ -434,7 +434,7 @@ export const WITCH_CLASS: UnitClassDefinition = {
   role: 'ranged',
   archetype: 'magic',
   baseStats: {
-    maxHp: 90,
+    maxHp: 125,
     attack: 15,
     defense: 15,
     speed: 50,
@@ -520,7 +520,7 @@ export const LANCER_CLASS: UnitClassDefinition = {
   role: 'melee',
   archetype: 'melee',
   baseStats: {
-    maxHp: 130,
+    maxHp: 180,
     attack: 80,
     defense: 30,
     speed: 65,
@@ -605,7 +605,7 @@ export const GUNNER_CLASS: UnitClassDefinition = {
   role: 'ranged',
   archetype: 'ranged',
   baseStats: {
-    maxHp: 100,
+    maxHp: 140,
     attack: 80,
     defense: 20,
     speed: 60,

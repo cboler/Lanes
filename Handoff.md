@@ -485,6 +485,15 @@ The user asked how far we were from Monte Carlo simulations for achievements, di
 - **First results (seed 1, 60 per cell, 8,820 battles in 19 s):** no stalls; 3% decided on time; mirrors 47%; the side that moves first wins 71%; battles average about 3 rounds; squads with an Archer win 66% (others 47–50%); Shield Bash is the most used skill at 14 damage per use; Meteor averages 439 per use. Contracts: Easy 65–97%, Normal 25–77%, Hard 8–58%, with equipment mattering more than timing skill. Story: The Seal on the Crates (Lv 5) and Storming Saltmere Fort (Lv 7) are walls; the finale (Lv 10) is easier than both. Achievement candidates: Blitz unlocks in 32–48% of battles, Flawless 21–29%, Sharpshooter 1/6/21% by skill, Sheltered (two covers) about 1–2%.
 - **Dashboard:** the first report is published as a Dashboard artifact (https://claude.ai/artifact/8QKD9HqFjvSyMBz3kyNtdR) from sim-results/data/*.json uploaded as files; to refresh it, run the sim, upload the new files and point each dataset at its new url.
 
+## First balance pass from the simulator (2026-10-25)
+
+The user saw Archers far ahead and leaned toward buffing everyone else rather than nerfing Archers.
+
+- **Why Archers won:** probes (random 4v4 class troops, 1,500–3,000 battles per variant) showed it was speed, not their any-lane shot: slowing Archers to 58 dropped their squads from 65% to 46%; removing Piercing Arrow's cross-lane reach only to 61%. Speed only sets turn order (moveRecovery from agility hardly matters), so whichever class is fastest gets the first volley, and the first volley decided most battles (the side that moved first won about 70%). Speeding the other classes up only moved the edge (Lancers at 77 rose to 55%); more attack made it worse.
+- **The buff:** about 40% more max HP for every class but the Archer: Fighter 180→250, Lancer 130→180, Cleric 120→170, Gunner 100→140, Witch 90→125; Archer stays 110 and is now the frailest. Mercenaries derive from these, so every squad and band changes with them.
+- **Result (seed 1, 60 per cell):** squads with each class win 48–52% (Archer 66→52%); the first mover wins 53% (was 71%); battles average about 5 rounds (were 3.7); 5–6% of contract and story battles go to time (were 3%). Contract tiers barely moved (Easy 85%, Normal 49%, Hard 29% on average). Story: Thorn Keep 49→67%, Siege Lines 57→72%; The Seal on the Crates (32%) and Storming Saltmere Fort (30%) are still the walls. Mirror matches read 42–46% on some seeds; split by how they ended, 1,200 mirrors give the player 47% fought out and 49% on time, with 15 exact ties going to the band by the round-limit rule.
+- **Tests:** the Vigor support expectations use 275 (250 + 10%).
+
 ## Immediate next steps
 
 1. Story: write the real campaign (chapter 1 onward) in campaign-story.ts; consider per-mission backdrops, special victory conditions (protect a unit, survive N rounds) and story-only enemy names on the stage.

@@ -376,7 +376,7 @@ describe('BattleStateService', () => {
     expect(unit.abilities).toHaveLength(5);
     expect(unit.abilities.map((a) => a.id)).toContain(defender.pattern[1].id);
     expect(unit.supports).toEqual(['vigor']);
-    expect(unit.maxHp).toBe(198);
+    expect(unit.maxHp).toBe(275);
     service.deployMercenaries([defender]);
     expect(service.playerUnits()[0].abilities).toHaveLength(3);
   });

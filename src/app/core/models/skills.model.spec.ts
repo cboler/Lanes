@@ -85,7 +85,7 @@ describe('support skills', () => {
 
   it('raises derived stats, and drops supports a saved sheet cannot afford', () => {
     const boosted = applySupports(FIGHTER_CLASS.baseStats, ['vigor', 'iron_skin']);
-    expect(boosted.maxHp).toBe(198);
+    expect(boosted.maxHp).toBe(275);
     expect(boosted.defense).toBe(55);
     // A stat the class does not use stays at zero.
     expect(applySupports(FIGHTER_CLASS.baseStats, ['might']).magicAttack).toBe(0);
