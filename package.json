@@ -11,7 +11,8 @@
     "lint": "ng lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "sim": "tsc -p sim/tsconfig.json && vitest run --config vitest.sim.config.ts"
   },
   "private": true,
   "packageManager": "npm@11.19.0",

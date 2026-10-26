@@ -6,9 +6,15 @@
   [attr.data-renderer]="renderer()"
   [style.--impact-delay]="impactDelay()"
 >
-  <div class="round-badge" aria-live="polite">
+  <div
+    class="round-badge"
+    aria-live="polite"
+    [class.closing]="battle.roundNumber() > roundLimit - 3"
+    [attr.title]="'After round ' + roundLimit + ' the side with more strength left wins'"
+  >
     <span class="round-label">Round</span>
     <span class="round-number">{{ battle.roundNumber() }}</span>
+    <span class="round-limit">/ {{ roundLimit }}</span>
   </div>
 
   <nav class="hud-system" role="toolbar" aria-label="Battle options">

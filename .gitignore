@@ -3,6 +3,7 @@
 # Compiled output
 /dist
 /tmp
+/sim-results
 /out-tsc
 /bazel-out
 

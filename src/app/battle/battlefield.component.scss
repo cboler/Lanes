@@ -53,6 +53,22 @@
     font-weight: 800;
     color: #ffe08a;
   }
+
+  .round-limit {
+    font-size: 0.62rem;
+    opacity: 0.7;
+  }
+
+  // The last rounds before time runs out.
+  &.closing {
+    border-color: #ff7a6b;
+
+    .round-number,
+    .round-limit {
+      color: #ff9d8f;
+      opacity: 1;
+    }
+  }
 }
 
 .practice-note {

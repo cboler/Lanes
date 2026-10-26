@@ -35,6 +35,7 @@ Lanes is a playable local prototype moving toward the [Project Valkyrie design](
 - **Save Backup**: The Options page downloads every saved roster, item, contract and mission as one backup file, restores it on this or another device, or starts a new game (pressed twice).
 - **Battlefield Objects**: Contract bands raise barricades and set traps (Easy: a trap; Normal: a barricade and a trap; Hard: a barricade and two traps). A barricade blocks its lane and takes direct attacks meant for the units behind it until it is broken or flanked through another lane; it never acts and does not count toward victory. Traps (spikes that poison, snares that stun) spring on the first enemy to walk over them or be knocked into them. Your side can set objects too: a Fighter who learns Raise Barricade plants one a short way ahead in its lane, and an Archer who learns Snare Trap hides a snare farther down it (blue on the stage, where the enemy's glow red). Each unit keeps one such object on the field at a time. Enemies who know these skills use them too: a Fighter walls off a lane to shield an archer or caster behind it before your melee arrives, and an Archer hides a snare in the path of a melee unit walking in.
 - **Assist Gauge**: Each side's three orbs (under its troop banner) fill as it deals damage and defeats enemies. On your turn, spend a full orb (Q or the Assist button) to have another squad member make a free pursuit attack with its basic skill, outside its turn. Enemies spend orbs only to finish a unit off.
+- **Fair turns and a round limit**: Turn order follows Speed, then Agility. Units still level alternate between the sides, and which side leads a tie alternates from tie to tie and round to round, starting from a coin drawn from the line-up (so the same battle always plays the same way). A battle ends after 20 rounds: the side with more of its total HP left wins, and the player must do strictly better, as the side that has to break the band. The round badge shows the limit and turns red for the last rounds. The AI also steps aside along its lane when someone stands level with it in the lane it wants, so a lane switch is never refused turn after turn.
 - **Shields**: A Fighter's shield blocks 40% of every arrow, bullet or engine shot and 20% of every blade that comes at it from the front (after armour; never magic, and nothing from behind or while stunned). On Guard, a Fighter also covers the lane-mates standing behind it: missiles shot past it lose a third of their damage. Hits show BLOCK or COVERED, the shield flares and clanks, and the target preview marks shielded targets with ⛨, so it pays to shoot into another lane, flank, or knock the Fighter aside first.
 - **Melee Reach and Knockback**: Position decides reach. Melee skills hit only enemies within reach along the lane (a Fighter's shield reaches about a fifth of the field, a Lancer's polearm twice that), so melee units must close in; the AI walks into reach too. Shield Bash, Shield Charge, Whirlwind and Explosive Shot knock enemies back, and one slammed into a lane-mate or the field's edge takes a quarter of the hit again.
 - **Cross-Lane & AoE Mechanics**: Select abilities can reach across lanes or strike full lanes, while careless high-impact spells risk friendly fire.
@@ -104,6 +105,25 @@ npm run e2e
 # The same, against a dev server on another port when 4200 is taken
 E2E_PORT=4300 npm run e2e
 ```
+
+### Battle simulations
+
+`npm run sim` plays thousands of battles headless with the game's own rules and AI (the AI plays your side too) and writes a report to `sim-results/report.html`, its data to `sim-results/report.json`, and one table per section to `sim-results/data/`. It covers:
+
+- **Fairness and pace:** random 4v4s and mirror matches of class troops.
+- **Classes and skills:** how often squads with each class win, damage per unit, and every skill's uses, damage and kills.
+- **Guild contracts:** win rates by squad level (1, 4, 8, 12), tier, equipment (none or the armoury's weapon and armour) and kind of player.
+- **Story missions:** each mission at its own level.
+- **Achievement candidates:** how often each would unlock, to set fair thresholds.
+
+Novice, Average and Expert stand in for how well a player times the execution bar; their odds are assumptions in `sim/profiles.ts`. The same seed always gives the same report. Settings come from the environment:
+
+```bash
+# Seed 7, 100 battles per cell, contracts only
+SIM_SEED=7 SIM_SIZE=100 SIM_SCENARIOS=contracts npm run sim
+```
+
+In PowerShell, set them first with `$env:SIM_SIZE=100` and so on.
 
 ## Project Structure
 

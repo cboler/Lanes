@@ -20,6 +20,7 @@ import {
   BattleStateService,
   FloatingText,
   IMPACT_DELAY_MS,
+  ROUND_LIMIT,
 } from '../core/services/battle-state.service';
 import { AIM_ZONES, CHAIN_WINDOW, executionKind, justWindow } from '../core/engine/execution';
 import { ASSIST_COST } from '../core/engine/assist';
@@ -768,6 +769,8 @@ export class BattlefieldComponent implements OnInit, OnDestroy {
   protected gearName(id: string): string {
     return equipment(id)?.name ?? id;
   }
+
+  protected readonly roundLimit = ROUND_LIMIT;
 
   protected itemName(item: ItemId): string {
     return itemName(item);

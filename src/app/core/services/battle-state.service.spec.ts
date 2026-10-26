@@ -2,7 +2,7 @@ import { DamageCalculator } from '../engine/damage-calculator';
 import { CAMPAIGN } from '../models/campaign-story';
 import { missionContract } from '../models/campaign.model';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { BattleStateService, COLLISION_BUFFER } from './battle-state.service';
+import { BattleStateService, COLLISION_BUFFER, ROUND_LIMIT } from './battle-state.service';
 import {
   FIGHTER_CLASS,
   ARCHER_CLASS,
@@ -25,6 +25,15 @@ import { createDefaultDefensePlan } from '../models/defense-plan.model';
 const defender = {
   ...generateMercenary('fighter', seededRandom(11)),
   stats: { str: 17, mag: 17, tec: 17, vit: 17, stm: 17, spi: 17, agi: 17, con: 17, sp: 10 },
+};
+
+/**
+ * A Fighter one point slower, so a one-on-one starts on the player's turn: equal speeds
+ * are a coin toss decided by the line-up.
+ */
+const SLOWER_FIGHTER = {
+  ...FIGHTER_CLASS,
+  baseStats: { ...FIGHTER_CLASS.baseStats, speed: FIGHTER_CLASS.baseStats.speed - 1 },
 };
 
 describe('BattleStateService', () => {
@@ -69,7 +78,7 @@ describe('BattleStateService', () => {
   });
 
   it('switches lane for active player unit when affordable and unblocked', () => {
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     const active = service.activeUnit();
     expect(active).not.toBeNull();
     expect(active?.team).toBe('player');
@@ -81,7 +90,7 @@ describe('BattleStateService', () => {
   });
 
   it('prevents lane switch if target lane space is occupied by another unit', () => {
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     const active = service.activeUnit()!;
     // Place enemy in lane 1 at the exact same positionX
     const enemy = service.enemyUnits()[0];
@@ -95,7 +104,7 @@ describe('BattleStateService', () => {
   });
 
   it('moves active player unit horizontally in lane and blocks collision', () => {
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     const active = service.activeUnit()!;
     const initialPos = active.positionX;
 
@@ -128,7 +137,7 @@ describe('BattleStateService', () => {
   });
 
   it('executes ability and updates logs and damage', () => {
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     const active = service.activeUnit()!;
     const enemy = service.enemyUnits()[0];
     // A Fighter's shield only reaches so far: start within reach.
@@ -207,7 +216,8 @@ describe('BattleStateService', () => {
   });
 
   it('prevents paused auto actions from advancing or damaging a later manual turn', () => {
-    service.initSkirmish();
+    // Archer, then Cleric, then the enemy: the second turn is the player's too.
+    service.initSkirmish([ARCHER_CLASS, CLERIC_CLASS], [FIGHTER_CLASS]);
     const first = service.activeUnit()!;
     service.toggleAutoBattle();
     service.toggleAutoBattle();
@@ -240,7 +250,7 @@ describe('BattleStateService', () => {
   });
 
   it('blocks manual inputs during enemy, stunned, auto, and completed turns', () => {
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     const player = service.activeUnit()!;
     player.applyStatusEffect(new StatusEffectInstance('stun', 1));
     service.units.update((units) => [...units]);
@@ -540,7 +550,7 @@ describe('BattleStateService', () => {
     expect(unit.currentHp).toBe(unit.maxHp);
     expect(service.enemyUnits()[0].stats).toBe(FIGHTER_CLASS.baseStats);
 
-    service.initSkirmish([FIGHTER_CLASS], [FIGHTER_CLASS]);
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
     expect(service.playerUnits()[0].name).toBe('Player Fighter');
     expect(service.playerUnits()[0].stats).toBe(FIGHTER_CLASS.baseStats);
   });
@@ -907,5 +917,48 @@ describe('BattleStateService siege engines', () => {
     service.resume();
     vi.advanceTimersByTime(4000);
     expect(service.combatLogs().join(' ')).toContain('works the Catapult');
+  });
+
+  it('ends after the round limit, won by the side with more strength left', () => {
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
+    const enemy = service.enemyUnits()[0];
+    enemy.currentHp = 20;
+    service.roundNumber.set(ROUND_LIMIT);
+    service.endCurrentTurn();
+    vi.advanceTimersByTime(10000);
+    expect(service.battleStatus()).toBe('victory');
+    expect(service.battleReport()).toMatchObject({
+      outcome: 'victory',
+      timedOut: true,
+      rounds: ROUND_LIMIT,
+    });
+    expect(service.combatLogs().join(' ')).toContain('Time is up');
+    expect(service.strengthLeft('player')).toBeGreaterThan(service.strengthLeft('enemy'));
+  });
+
+  it('loses on time when the band has as much strength left', () => {
+    service.initSkirmish([FIGHTER_CLASS], [SLOWER_FIGHTER]);
+    service.roundNumber.set(ROUND_LIMIT);
+    // Both sides untouched: the player, who must break the band, does not win a draw.
+    service.playerUnits()[0].guardPoints = 999;
+    service.endCurrentTurn();
+    vi.advanceTimersByTime(10000);
+    expect(service.battleReport()).toMatchObject({ outcome: 'defeat', timedOut: true });
+  });
+
+  it('steps aside along its lane when someone stands level with it in the lane it wants', () => {
+    service.initSkirmish([CLERIC_CLASS], [FIGHTER_CLASS]);
+    const cleric = service.playerUnits()[0];
+    const fighter = service.enemyUnits()[0];
+    // The fighter's lane is empty of foes; the cleric stands level with it next door.
+    cleric.lane = 1;
+    cleric.positionX = 0.5;
+    fighter.lane = 0;
+    fighter.positionX = 0.5;
+    service.endCurrentTurn();
+    // It may raise Bulwark first; the next pass moves.
+    vi.advanceTimersByTime(3000);
+    expect(fighter.lane).toBe(1);
+    expect(service.combatLogs().join(' ')).not.toContain('space occupied');
   });
 });

@@ -72,6 +72,9 @@ const TIMING_KEY = 'lanes.timing.v1';
 const SPEED_KEY = 'lanes.speed.v1';
 
 export { COLLISION_BUFFER };
+
+/** Battles end after this many rounds, won by whoever has more of its strength left. */
+export const ROUND_LIMIT = 20;
 /** Presentation only: when a skill visibly lands, at 1x speed. Rules resolve immediately. */
 export const IMPACT_DELAY_MS = 420;
 
@@ -206,6 +209,21 @@ export class BattleStateService {
   public readonly lastAction = signal<BattleAction | null>(null);
   /** Set once when a battle ends, for the rewards; null while it is being fought. */
   public readonly battleReport = signal<BattleReport | null>(null);
+
+  /**
+   * Hooks for the battle simulator (npm run sim); the game itself leaves them empty.
+   * `autoGrade` stands in for a player's timing when the AI plays the player's side, and
+   * `onResolve` hears every skill as it resolves, assists included.
+   */
+  public simulation: {
+    autoGrade?: (unit: UnitInstance, ability: AbilityDefinition) => ExecutionGrade | undefined;
+    onResolve?: (
+      attacker: UnitInstance,
+      ability: AbilityDefinition,
+      effects: readonly TargetEffect[],
+      grade?: ExecutionGrade,
+    ) => void;
+  } = {};
   /** Each side's assist gauge, 0 to ASSIST_MAX; every ASSIST_COST is one orb. */
   public readonly assistGauge = signal<AssistGauges>({ player: 0, enemy: 0 });
   /** Traps on the field; each springs once on an enemy of the side that set it. */
@@ -886,6 +904,9 @@ export class BattleStateService {
     const attacker = this.activeUnit();
     const ability = this.selectedAbility();
     if (!attacker || !ability || !this.canAct(automated)) return false;
+    if (automated && grade === undefined && attacker.team === 'player') {
+      grade = this.simulation.autoGrade?.(attacker, ability);
+    }
 
     const targets = this.resolveTargets(ability, targetOverride);
     if (!targets) return false;
@@ -1061,6 +1082,7 @@ export class BattleStateService {
     grade?: ExecutionGrade,
     fillsAssist = true,
   ): void {
+    this.simulation.onResolve?.(attacker, ability, effects, grade);
     if (fillsAssist) {
       const gain = assistGain(effects);
       if (gain > 0) {
@@ -1281,6 +1303,10 @@ export class BattleStateService {
   private advanceTurn(): void {
     const next = this.turnManager.advance();
     if (this.turnManager.isRoundComplete || !next) {
+      if (this.roundNumber() >= ROUND_LIMIT) {
+        this.endOnTime();
+        return;
+      }
       // Start new round
       this.roundNumber.update((r) => r + 1);
       this.addLog(`🔄 === ROUND ${this.roundNumber()} ===`);
@@ -1348,7 +1374,7 @@ export class BattleStateService {
             CombatExecutor.getValidTargets(source, ability, this.units()).length > 0,
         );
         if (!crewing && !enemies.some((u) => u.lane === unit.lane)) {
-          this.switchActiveUnitLane(unit.lane + Math.sign(closest.lane - unit.lane), true);
+          this.shiftLane(unit, unit.lane + Math.sign(closest.lane - unit.lane));
         }
         if (!crewing && unit.classDef.archetype === 'melee') this.closeIn(unit);
         // Its own skills, and those of any friendly engine it stands beside.
@@ -1455,6 +1481,31 @@ export class BattleStateService {
     }
   }
 
+  /**
+   * Moves an AI unit one lane over. When someone stands level with it in that lane, it
+   * first steps along its own lane to a clear spot, forward if it can, else back, so a
+   * lane switch is never refused turn after turn.
+   */
+  private shiftLane(unit: UnitInstance, lane: number): void {
+    const blocker = () =>
+      this.units().find(
+        (u) =>
+          u.id !== unit.id &&
+          u.isAlive &&
+          u.lane === lane &&
+          Math.abs(u.positionX - unit.positionX) < COLLISION_BUFFER,
+      );
+    const forward = unit.team === 'player' ? 1 : -1;
+    for (const dir of [forward, -forward]) {
+      const block = blocker();
+      if (!block) break;
+      const x = block.positionX + dir * (COLLISION_BUFFER + 0.01);
+      if (x < FIELD_MIN_X || x > FIELD_MAX_X) continue;
+      this.moveActiveUnit(x - unit.positionX, true);
+    }
+    this.switchActiveUnitLane(lane, true);
+  }
+
   /** The AI spends an orb only when an ally's pursuit would defeat its target outright. */
   private tryLethalAssist(unit: UnitInstance): boolean {
     if (this.assistGauge()[unit.team] < ASSIST_COST) return false;
@@ -1536,28 +1587,57 @@ export class BattleStateService {
     this.queueActiveTurn();
   }
 
+  /** The share of its full strength (HP) a side still has standing. */
+  public strengthLeft(team: 'player' | 'enemy'): number {
+    const side = this.units().filter((u) => u.team === team && !u.isObject);
+    const max = side.reduce((sum, u) => sum + u.maxHp, 0);
+    return max ? side.reduce((sum, u) => sum + u.currentHp, 0) / max : 0;
+  }
+
+  /**
+   * The round limit has run out: the side with more of its strength left holds the field.
+   * The player must do strictly better, as the attacker who has to break the band.
+   */
+  private endOnTime(): void {
+    const ours = this.strengthLeft('player');
+    const theirs = this.strengthLeft('enemy');
+    const percent = (share: number) => `${Math.round(share * 100)}%`;
+    this.addLog(
+      `⌛ Time is up after ${ROUND_LIMIT} rounds. Your troop holds ${percent(ours)} of its strength to the enemy's ${percent(theirs)}.`,
+    );
+    this.finish(ours > theirs ? 'victory' : 'defeat', true);
+  }
+
   private checkBattleStatus(): void {
     if (this.battleStatus() !== 'active') return;
     const fighting = this.units().filter((u) => u.isAlive && !u.isObject);
     const playerLiving = fighting.some((u) => u.team === 'player');
     const enemyLiving = fighting.some((u) => u.team === 'enemy');
+    if (!playerLiving) this.finish('defeat');
+    else if (!enemyLiving) this.finish('victory');
+  }
 
-    if (!playerLiving) {
-      this.battleStatus.set('defeat');
-      this.addLog('💀 DEFEAT! Your vanguard has fallen.');
-      this.clearScheduledActions();
-      this.isAiThinking.set(false);
-    } else if (!enemyLiving) {
-      this.battleStatus.set('victory');
-      this.addLog('🏆 VICTORY! All enemy battalions have been broken!');
-      this.clearScheduledActions();
-      this.isAiThinking.set(false);
+  /** Ends the battle and publishes its report. */
+  private finish(outcome: 'victory' | 'defeat', timedOut = false): void {
+    this.battleStatus.set(outcome);
+    if (outcome === 'defeat') {
+      this.addLog(
+        timedOut ? '💀 DEFEAT! The band holds the field.' : '💀 DEFEAT! Your vanguard has fallen.',
+      );
     } else {
-      return;
+      this.addLog(
+        timedOut
+          ? '🏆 VICTORY! The band breaks and quits the field.'
+          : '🏆 VICTORY! All enemy battalions have been broken!',
+      );
     }
+    this.clearScheduledActions();
+    this.isAiThinking.set(false);
     this.battleReport.set({
       id: `${Date.now().toString(36)}-${this.battleVersion}`,
-      outcome: playerLiving ? 'victory' : 'defeat',
+      outcome,
+      rounds: this.roundNumber(),
+      ...(timedOut ? { timedOut } : {}),
       rewardMultiplier: this.activeContract()?.rewardMultiplier ?? 1,
       ...(this.activeContract()?.missionId
         ? { missionId: this.activeContract()!.missionId }

@@ -52,4 +52,47 @@ describe('TurnManager', () => {
     // Skips witch and goes directly to fighter
     expect(next).toBe(fighter);
   });
+
+  it('alternates sides on a tie, and flips which side leads each tie and each round', () => {
+    const mk = (cls: typeof ARCHER_CLASS, team: 'player' | 'enemy', n: number) =>
+      new UnitInstance(cls, `${team} ${cls.name} ${n}`, team, n % 3, team === 'player' ? 0.2 : 0.8);
+    const units = [
+      mk(ARCHER_CLASS, 'player', 0),
+      mk(ARCHER_CLASS, 'enemy', 0),
+      mk(FIGHTER_CLASS, 'player', 1),
+      mk(FIGHTER_CLASS, 'enemy', 1),
+    ];
+    const manager = new TurnManager();
+    manager.setOrder(units);
+    const teams = () => manager.order.map((u) => u.team);
+    const first = teams();
+    // The archers tie, then the fighters: the sides alternate, and the second tie is led
+    // by the side that followed in the first.
+    expect(first[0]).not.toBe(first[1]);
+    expect(first[2]).toBe(first[1]);
+    expect(first[3]).toBe(first[0]);
+    expect(manager.order.slice(0, 2).every((u) => u.classDef === ARCHER_CLASS)).toBe(true);
+    // The next round, the other side leads.
+    manager.startNewRound(units);
+    expect(teams()).toEqual(first.map((team) => (team === 'player' ? 'enemy' : 'player')));
+    // The same line-up always gives the same order.
+    const again = new TurnManager();
+    again.setOrder(units);
+    expect(again.order.map((u) => u.team)).toEqual(first);
+  });
+
+  it('gives each side the first tie about half the time across line-ups', () => {
+    let player = 0;
+    const lineUps = 400;
+    for (let i = 0; i < lineUps; i++) {
+      const manager = new TurnManager();
+      manager.setOrder([
+        new UnitInstance(FIGHTER_CLASS, `Ally ${i}`, 'player', i % 3, 0.32),
+        new UnitInstance(FIGHTER_CLASS, `Foe ${i}`, 'enemy', (i + 1) % 3, 0.68),
+      ]);
+      if (manager.current!.team === 'player') player++;
+    }
+    expect(player / lineUps).toBeGreaterThan(0.4);
+    expect(player / lineUps).toBeLessThan(0.6);
+  });
 });

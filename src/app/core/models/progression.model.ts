@@ -56,6 +56,10 @@ export interface BattleReport {
   readonly assists?: readonly (readonly [string, string])[];
   /** Heals given, as [healer, patient] mercenary ids, for squad bonds. */
   readonly heals?: readonly (readonly [string, string])[];
+  /** The round limit ran out and the battle was decided by the strength each side had left. */
+  readonly timedOut?: boolean;
+  /** Rounds fought. */
+  readonly rounds?: number;
 }
 
 export interface MercenaryReward {
